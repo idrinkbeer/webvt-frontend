@@ -105,7 +105,7 @@
         formData.append("file", blob, "voicetrack.wav");
 
         try {
-          const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+          const res = await fetch("https://web-vt-api.miup3p.easypanel.host/uploads", {
             method: "POST",
             body: formData,
           });
