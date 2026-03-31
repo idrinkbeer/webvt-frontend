@@ -109,11 +109,10 @@ let audioContext, analyser, dataArray;
 
 const tableBody = document.querySelector("#logTable tbody");
 
-// FORMAT INTRO (:06)
+// FORMAT INTRO
 function formatIntro(seconds) {
   if (!seconds || isNaN(seconds)) return "";
-  const sec = parseInt(seconds, 10);
-  return ":" + sec.toString().padStart(2, "0");
+  return ":" + parseInt(seconds).toString().padStart(2, "0");
 }
 
 // LOAD ASC
@@ -139,6 +138,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
         return {
           type: "VTX",
           time: parts[0],
+          cart: parts[3], // ✅ CART ID
           title: "VOICE TRACK"
         };
       }
@@ -162,7 +162,7 @@ function renderTable() {
     tr.innerHTML = `
       <td>${row.time}</td>
       <td>${row.type}</td>
-      <td>${row.title}</td>
+      <td>${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}</td>
       <td>${row.artist || ""}</td>
       <td>${formatIntro(row.intro)}</td>
       <td>${row.end || ""}</td>
@@ -180,7 +180,7 @@ function renderTable() {
       recorderRow.innerHTML = `
         <td colspan="6">
           <div class="recorder">
-            🎙️ Voice Track<br><br>
+            🎙️ Recording for Cart: ${row.cart}<br><br>
 
             <button onclick="startRecording(${introTime})">Start</button>
             <button onclick="stopRecording()">Stop</button>
@@ -229,8 +229,6 @@ async function startRecording(introTime) {
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
   updateVU();
-
-  // COUNTDOWN
   startCountdown(introTime);
 
   status.innerText = "🎙️ Recording...";
@@ -250,8 +248,8 @@ function stopRecording() {
 
     document.getElementById("player").src = url;
 
-    const vtTime = log[selectedIndex].time;
-    const fileName = `VT_${vtTime.replace(/:/g, "-")}.wav`;
+    const cartId = log[selectedIndex].cart || "VT";
+    const fileName = cartId + ".wav";
 
     const formData = new FormData();
     formData.append("file", blob, fileName);
@@ -299,18 +297,11 @@ function startCountdown(seconds) {
 
     el.innerText = "⏱️ " + formatIntro(remaining);
 
-    if (remaining <= 5) {
-      el.style.color = "#ef4444";
-    }
+    if (remaining <= 5) el.style.color = "#ef4444";
 
-    if (remaining === 0) {
-      el.innerText = "🔥 HIT POST";
-    }
+    if (remaining === 0) el.innerText = "🔥 HIT POST";
 
-    if (remaining < 0) {
-      clearInterval(interval);
-    }
-
+    if (remaining < 0) clearInterval(interval);
   }, 1000);
 }
 </script>
