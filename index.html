@@ -89,6 +89,33 @@
 
     button:hover { background: #1d4ed8; }
 
+    #hourSelect {
+  background: #020617;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 15px;
+  margin-bottom: 20px;
+  min-width: 180px;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+
+  /* subtle glow */
+  box-shadow: 0 0 0 1px rgba(37,99,235,0.2);
+}
+
+#hourSelect:hover {
+  border-color: #2563eb;
+}
+
+#hourSelect:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37,99,235,0.4);
+}
+    
+
     audio { width: 100%; margin-top: 10px; }
   </style>
 </head>
@@ -99,7 +126,7 @@
 
 <input type="file" id="fileInput" accept=".asc"><br><br>
 
-<select id="hourSelect"></select>
+<select id="hourSelect" style="display:none;"></select>
 
 <table id="logTable">
   <thead>
@@ -167,6 +194,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     .filter(row => row && row.title && !row.title.includes("TIME SYNC"));
 
   buildHourDropdown();
+  document.getElementById("hourSelect").style.display = "inline-block";
   currentHour = [...new Set(log.map(r => r.time.split(":")[0]))][0];
   filterByHour(currentHour);
 });
