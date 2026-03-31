@@ -59,7 +59,7 @@
 
     #countdown {
       margin-top: 10px;
-      font-size: 16px;
+      font-size: 18px;
       font-weight: bold;
     }
 
@@ -109,6 +109,13 @@ let audioContext, analyser, dataArray;
 
 const tableBody = document.querySelector("#logTable tbody");
 
+// FORMAT INTRO (:06)
+function formatIntro(seconds) {
+  if (!seconds || isNaN(seconds)) return "";
+  const sec = parseInt(seconds, 10);
+  return ":" + sec.toString().padStart(2, "0");
+}
+
 // LOAD ASC
 document.getElementById("fileInput").addEventListener("change", async (e) => {
   const text = await e.target.files[0].text();
@@ -121,10 +128,10 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
         return {
           type: "SONG",
           time: parts[0],
-          title: parts[5],
-          artist: parts[6],
-          intro: parts[10],
-          end: parts[11]
+          title: parts[4],
+          artist: parts[5],
+          intro: parseInt(parts[8]) || 0,
+          end: parts[9]
         };
       }
 
@@ -138,7 +145,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
 
       return null;
     })
-    .filter(Boolean);
+    .filter(row => row && row.title && !row.title.includes("TIME SYNC"));
 
   renderTable();
 });
@@ -157,7 +164,7 @@ function renderTable() {
       <td>${row.type}</td>
       <td>${row.title}</td>
       <td>${row.artist || ""}</td>
-      <td>${row.intro ? row.intro + "s" : ""}</td>
+      <td>${formatIntro(row.intro)}</td>
       <td>${row.end || ""}</td>
     `;
 
@@ -178,7 +185,7 @@ function renderTable() {
             <button onclick="startRecording(${introTime})">Start</button>
             <button onclick="stopRecording()">Stop</button>
 
-            <div id="countdown">⏱️ ${introTime}s</div>
+            <div id="countdown">⏱️ ${formatIntro(introTime)}</div>
 
             <div class="vu-container">
               <div id="vuBar"></div>
@@ -212,7 +219,7 @@ async function startRecording(introTime) {
   mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
   mediaRecorder.start();
 
-  // VU SETUP
+  // VU
   audioContext = new AudioContext();
   analyser = audioContext.createAnalyser();
   const source = audioContext.createMediaStreamSource(stream);
@@ -265,8 +272,7 @@ function updateVU() {
 
   analyser.getByteFrequencyData(dataArray);
 
-  let sum = dataArray.reduce((a,b)=>a+b,0);
-  let avg = sum / dataArray.length;
+  let avg = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
   let percent = Math.min(100, (avg / 255) * 100);
 
   const bar = document.getElementById("vuBar");
@@ -281,7 +287,7 @@ function updateVU() {
   requestAnimationFrame(updateVU);
 }
 
-// COUNTDOWN TIMER
+// COUNTDOWN
 function startCountdown(seconds) {
   let remaining = seconds;
   const el = document.getElementById("countdown");
@@ -291,14 +297,20 @@ function startCountdown(seconds) {
 
     if (!el) return clearInterval(interval);
 
-    el.innerText = "⏱️ " + remaining + "s";
+    el.innerText = "⏱️ " + formatIntro(remaining);
 
-    if (remaining <= 5) el.style.color = "#ef4444";
+    if (remaining <= 5) {
+      el.style.color = "#ef4444";
+    }
 
-    if (remaining <= 0) {
-      el.innerText = "⚠️ TALK ENDED";
+    if (remaining === 0) {
+      el.innerText = "🔥 HIT POST";
+    }
+
+    if (remaining < 0) {
       clearInterval(interval);
     }
+
   }, 1000);
 }
 </script>
