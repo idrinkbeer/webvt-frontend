@@ -58,18 +58,29 @@ log = text.split("\n")
   .map(line => {
     if (!line.includes("\\MUS\\")) return null;
 
-    const time = line.split("\\")[0];
     const parts = line.split("\\");
 
+    // must have enough fields
+    if (parts.length < 10) return null;
+
+    const time = parts[0];
+    const song = parts[4];
+    const artist = parts[5];
+    const intro = parts[8];   // ✅ correct now
+    const end = parts[9];     // ✅ correct now
+
+    // filter junk rows
+    if (!song || song.includes("TIME SYNC")) return null;
+
     return {
-      time: time,
-      song: parts[5] || "",     // ✅ shifted
-      artist: parts[6] || "",   // ✅ shifted
-      intro: parts[9] || "",
-      end: parts[10] || ""
+      time,
+      song,
+      artist,
+      intro,
+      end
     };
   })
-  .filter(row => row && row.song);
+  .filter(Boolean);
 
       renderTable();
     });
