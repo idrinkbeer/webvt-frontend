@@ -11,14 +11,6 @@
       padding: 20px;
     }
 
-    h1 {
-      margin-bottom: 10px;
-    }
-
-    input {
-      margin-bottom: 15px;
-    }
-
     table {
       border-collapse: collapse;
       width: 100%;
@@ -29,38 +21,46 @@
 
     th {
       background: #020617;
-      text-align: left;
       padding: 10px;
       font-size: 13px;
       color: #94a3b8;
+      text-align: left;
     }
 
     td {
       padding: 10px;
       border-bottom: 1px solid #334155;
-      font-size: 14px;
     }
 
-    tr:hover {
-      background: #334155;
-      cursor: pointer;
-    }
+    tr:hover { background: #334155; cursor: pointer; }
 
-    .vtx {
-      background: #1e293b;
-      color: #facc15;
-      font-weight: bold;
-    }
-
-    .active {
-      background: #2563eb !important;
-    }
+    .vtx { color: #facc15; font-weight: bold; }
+    .active { background: #2563eb !important; }
 
     .recorder {
       background: #020617;
       padding: 15px;
       border-radius: 6px;
-      margin-top: 5px;
+    }
+
+    .vu-container {
+      height: 10px;
+      background: #334155;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+
+    #vuBar {
+      height: 10px;
+      width: 0%;
+      background: #22c55e;
+      border-radius: 5px;
+    }
+
+    #countdown {
+      margin-top: 10px;
+      font-size: 16px;
+      font-weight: bold;
     }
 
     button {
@@ -73,20 +73,9 @@
       cursor: pointer;
     }
 
-    button:hover {
-      background: #1d4ed8;
-    }
+    button:hover { background: #1d4ed8; }
 
-    #status {
-      margin-top: 8px;
-      font-size: 13px;
-      color: #94a3b8;
-    }
-
-    audio {
-      margin-top: 10px;
-      width: 100%;
-    }
+    audio { width: 100%; margin-top: 10px; }
   </style>
 </head>
 
@@ -94,7 +83,7 @@
 
 <h1>🎙️ Web VT for AIR</h1>
 
-<input type="file" id="fileInput" accept=".asc">
+<input type="file" id="fileInput" accept=".asc"><br><br>
 
 <table id="logTable">
   <thead>
@@ -116,20 +105,19 @@ let selectedIndex = null;
 let mediaRecorder;
 let audioChunks = [];
 
+let audioContext, analyser, dataArray;
+
 const tableBody = document.querySelector("#logTable tbody");
 
-// 📂 Load ASC
+// LOAD ASC
 document.getElementById("fileInput").addEventListener("change", async (e) => {
-  const file = e.target.files[0];
-  const text = await file.text();
+  const text = await e.target.files[0].text();
 
   log = text.split("\n")
     .map(line => {
       const parts = line.split("\\");
 
       if (line.includes("\\MUS\\")) {
-        if (parts.length < 10) return null;
-
         return {
           type: "SONG",
           time: parts[0],
@@ -144,16 +132,13 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
         return {
           type: "VTX",
           time: parts[0],
-          title: "VOICE TRACK",
-          artist: "",
-          intro: "",
-          end: ""
+          title: "VOICE TRACK"
         };
       }
 
       return null;
     })
-    .filter(row => row && row.title && !row.title.includes("TIME SYNC"));
+    .filter(Boolean);
 
   renderTable();
 });
@@ -179,73 +164,81 @@ function renderTable() {
     tr.onclick = () => selectRow(i);
     tableBody.appendChild(tr);
 
-    // 🎙️ Inline recorder
+    // INLINE RECORDER
     if (i === selectedIndex && row.type === "VTX") {
-      const recorderRow = document.createElement("tr");
+      const nextSong = log[i + 1];
+      const introTime = nextSong?.intro || 0;
 
+      const recorderRow = document.createElement("tr");
       recorderRow.innerHTML = `
         <td colspan="6">
           <div class="recorder">
-            <strong>🎙️ Voice Track Recorder</strong><br><br>
+            🎙️ Voice Track<br><br>
 
-            <button onclick="startRecording()">Start</button>
+            <button onclick="startRecording(${introTime})">Start</button>
             <button onclick="stopRecording()">Stop</button>
 
-            <div id="status">Ready</div>
+            <div id="countdown">⏱️ ${introTime}s</div>
+
+            <div class="vu-container">
+              <div id="vuBar"></div>
+            </div>
+
+            <div id="status"></div>
             <audio id="player" controls></audio>
           </div>
         </td>
       `;
-
       tableBody.appendChild(recorderRow);
     }
   });
 }
 
 function selectRow(i) {
-  if (log[i].type !== "VTX") {
-    selectedIndex = null;
-    renderTable();
-    return;
-  }
-
+  if (log[i].type !== "VTX") return;
   selectedIndex = i;
   renderTable();
 }
 
-async function startRecording() {
-  const row = log[selectedIndex];
-  if (!row) return;
-
+// START RECORDING
+async function startRecording(introTime) {
   const status = document.getElementById("status");
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-    mediaRecorder = new MediaRecorder(stream);
-    audioChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+  audioChunks = [];
 
-    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+  mediaRecorder.start();
 
-    mediaRecorder.start();
-    status.innerText = "🎙️ Recording...";
+  // VU SETUP
+  audioContext = new AudioContext();
+  analyser = audioContext.createAnalyser();
+  const source = audioContext.createMediaStreamSource(stream);
+  source.connect(analyser);
 
-  } catch (err) {
-    status.innerText = "❌ Mic error";
-  }
+  analyser.fftSize = 256;
+  dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  updateVU();
+
+  // COUNTDOWN
+  startCountdown(introTime);
+
+  status.innerText = "🎙️ Recording...";
 }
 
+// STOP
 function stopRecording() {
   if (!mediaRecorder) return;
 
-  const status = document.getElementById("status");
+  analyser = null;
 
   mediaRecorder.stop();
 
   mediaRecorder.onstop = async () => {
-    status.innerText = "Processing...";
-
-    const blob = new Blob(audioChunks, { type: "audio/wav" });
+    const blob = new Blob(audioChunks);
     const url = URL.createObjectURL(blob);
 
     document.getElementById("player").src = url;
@@ -262,8 +255,51 @@ function stopRecording() {
     });
 
     const data = await res.json();
-    status.innerText = "✅ Uploaded: " + data.file;
+    document.getElementById("status").innerText = "✅ Uploaded: " + data.file;
   };
+}
+
+// VU METER
+function updateVU() {
+  if (!analyser) return;
+
+  analyser.getByteFrequencyData(dataArray);
+
+  let sum = dataArray.reduce((a,b)=>a+b,0);
+  let avg = sum / dataArray.length;
+  let percent = Math.min(100, (avg / 255) * 100);
+
+  const bar = document.getElementById("vuBar");
+  if (bar) {
+    bar.style.width = percent + "%";
+
+    if (percent > 75) bar.style.background = "#ef4444";
+    else if (percent > 40) bar.style.background = "#f59e0b";
+    else bar.style.background = "#22c55e";
+  }
+
+  requestAnimationFrame(updateVU);
+}
+
+// COUNTDOWN TIMER
+function startCountdown(seconds) {
+  let remaining = seconds;
+  const el = document.getElementById("countdown");
+
+  const interval = setInterval(() => {
+    remaining--;
+
+    if (!el) return clearInterval(interval);
+
+    el.innerText = "⏱️ " + remaining + "s";
+
+    if (remaining <= 5) el.style.color = "#ef4444";
+
+    if (remaining <= 0) {
+      el.innerText = "⚠️ TALK ENDED";
+      clearInterval(interval);
+    }
+  }, 1000);
 }
 </script>
 
