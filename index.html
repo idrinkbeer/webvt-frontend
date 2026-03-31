@@ -63,8 +63,8 @@ log = text.split("\n")
 
     return {
       time: time,
-      song: parts[4] || "",
-      artist: parts[5] || "",
+      song: parts[5] || "",     // ✅ shifted
+      artist: parts[6] || "",   // ✅ shifted
       intro: parts[9] || "",
       end: parts[10] || ""
     };
