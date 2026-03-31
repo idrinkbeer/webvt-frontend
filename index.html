@@ -171,6 +171,16 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
   filterByHour(currentHour);
 });
 
+// FORMAT HOURS FOR TABS
+function formatHour(hourStr) {
+  let hour = parseInt(hourStr, 10);
+
+  const suffix = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+
+  return `${hour} ${suffix}`;
+}
+  
 // BUILD TABS
 function buildHourTabs() {
   const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
@@ -179,7 +189,7 @@ function buildHourTabs() {
 
   hours.forEach(hour => {
     const btn = document.createElement("button");
-    btn.innerText = hour;
+    btn.innerText = formatHour(hour);
 
     btn.onclick = () => {
       currentHour = hour;
