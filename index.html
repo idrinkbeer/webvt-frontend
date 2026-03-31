@@ -166,7 +166,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
     })
     .filter(row => row && row.title && !row.title.includes("TIME SYNC"));
 
-  buildHourTabs();
+  buildHourDropdown();
   currentHour = [...new Set(log.map(r => r.time.split(":")[0]))][0];
   filterByHour(currentHour);
 });
@@ -182,28 +182,27 @@ function formatHour(hourStr) {
 }
   
 // BUILD TABS
-function buildHourTabs() {
+function buildHourDropdown() {
   const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
-  const container = document.getElementById("hourTabs");
-  container.innerHTML = "";
+
+  const select = document.getElementById("hourSelect");
+  select.innerHTML = "";
 
   hours.forEach(hour => {
-    const btn = document.createElement("button");
-    btn.innerText = formatHour(hour);
-
-    btn.onclick = () => {
-      currentHour = hour;
-      filterByHour(hour);
-
-      document.querySelectorAll("#hourTabs button").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-    };
-
-    container.appendChild(btn);
+    const option = document.createElement("option");
+    option.value = hour;
+    option.textContent = formatHour(hour);
+    select.appendChild(option);
   });
 
-  // highlight first
-  container.firstChild?.classList.add("active");
+  // default select first hour
+  currentHour = hours[0];
+  select.value = currentHour;
+
+  select.onchange = () => {
+    currentHour = select.value;
+    filterByHour(currentHour);
+  };
 }
 
 // FILTER
