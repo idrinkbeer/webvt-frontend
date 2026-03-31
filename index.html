@@ -66,8 +66,8 @@ log = text.split("\n")
     const time = parts[0];
     const song = parts[6];
     const artist = parts[7];
-    const intro = parts[11];   // ✅ correct now
-    const end = parts[12];     // ✅ correct now
+    const intro = parts[10];   // ✅ correct now
+    const end = parts[11];     // ✅ correct now
 
     // filter junk rows
     if (!song || song.includes("TIME SYNC")) return null;
