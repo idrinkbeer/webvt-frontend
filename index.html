@@ -6,32 +6,95 @@
 <body>
   <h1>Web VT Recorder</h1>
 
+  <label>Microphone:</label>
+  <select id="micSelect"></select>
+  <br><br>
+
   <button onclick="startRecording()">Start VT Recording</button>
   <button onclick="stopRecording()">Stop VT Recording</button>
+
+  <p id="status"></p>
 
   <audio id="player" controls></audio>
 
   <script>
     let mediaRecorder;
     let audioChunks = [];
+    let selectedDeviceId = null;
 
-    async function startRecording() {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
+    const status = document.getElementById("status");
+    const micSelect = document.getElementById("micSelect");
 
-      audioChunks = [];
+    // 🔍 Load available microphones
+    async function loadMics() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d => d.kind === "audioinput");
 
-      mediaRecorder.ondataavailable = (e) => {
-        audioChunks.push(e.data);
-      };
+        micSelect.innerHTML = "";
 
-      mediaRecorder.start();
+        if (mics.length === 0) {
+          status.innerText = "❌ No microphone detected";
+          return;
+        }
+
+        mics.forEach((mic) => {
+          const option = document.createElement("option");
+          option.value = mic.deviceId;
+          option.text = mic.label || "Microphone";
+          micSelect.appendChild(option);
+        });
+
+        selectedDeviceId = mics[0].deviceId;
+        status.innerText = "✅ Microphone ready";
+
+      } catch (err) {
+        console.error(err);
+        status.innerText = "❌ Error loading microphones";
+      }
     }
 
-    async function stopRecording() {
+    micSelect.onchange = () => {
+      selectedDeviceId = micSelect.value;
+    };
+
+    async function startRecording() {
+      status.innerText = "Requesting microphone...";
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: selectedDeviceId
+            ? { deviceId: { exact: selectedDeviceId } }
+            : true
+        });
+
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = (e) => {
+          audioChunks.push(e.data);
+        };
+
+        mediaRecorder.start();
+        status.innerText = "🎙️ Recording...";
+
+      } catch (err) {
+        console.error(err);
+        status.innerText = "❌ Mic error: " + err.message;
+      }
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder) {
+        status.innerText = "❌ No recording in progress";
+        return;
+      }
+
       mediaRecorder.stop();
 
       mediaRecorder.onstop = async () => {
+        status.innerText = "Processing...";
+
         const blob = new Blob(audioChunks, { type: "audio/wav" });
         const url = URL.createObjectURL(blob);
 
@@ -41,15 +104,26 @@
         const formData = new FormData();
         formData.append("file", blob, "voicetrack.wav");
 
-        const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
-          method: "POST",
-          body: formData,
-        });
+        try {
+          const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+            method: "POST",
+            body: formData,
+          });
 
-        const data = await res.json();
-        console.log("Uploaded:", data);
+          const data = await res.json();
+          console.log("Uploaded:", data);
+
+          status.innerText = "✅ Uploaded: " + data.file;
+
+        } catch (err) {
+          console.error(err);
+          status.innerText = "❌ Upload failed";
+        }
       };
     }
+
+    // Initialize
+    loadMics();
   </script>
 </body>
 </html>
