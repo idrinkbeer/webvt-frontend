@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web VT</title>
+</head>
+<body>
+  <h1>Web VT Recorder</h1>
+
+  <button onclick="startRecording()">Start</button>
+  <button onclick="stopRecording()">Stop</button>
+
+  <audio id="player" controls></audio>
+
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
+
+    async function startRecording() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        audioChunks.push(e.data);
+      };
+
+      mediaRecorder.start();
+    }
+
+    async function stopRecording() {
+      mediaRecorder.stop();
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(audioChunks, { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+
+        document.getElementById("player").src = url;
+
+        // 🚀 upload
+        const formData = new FormData();
+        formData.append("file", blob, "voicetrack.wav");
+
+        const res = await fetch("https://YOUR-APP-URL/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data = await res.json();
+        console.log("Uploaded:", data);
+      };
+    }
+  </script>
+</body>
+</html>
