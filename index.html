@@ -8,177 +8,176 @@
     td, th { border: 1px solid #ccc; padding: 6px; }
     tr:hover { background: #eee; cursor: pointer; }
     .active { background: #cce5ff; }
+    .vtx { background: #fff3cd; } /* highlight VT slots */
   </style>
 </head>
 <body>
 
-  <h1>Web VT for AIR Automation</h1>
+<h1>Web VT for AIR</h1>
 
-  <input type="file" id="fileInput" accept=".asc"><br><br>
+<input type="file" id="fileInput" accept=".asc"><br><br>
 
-  <table id="logTable">
-    <thead>
-      <tr>
-        <th>Time</th>
-        <th>Song</th>
-        <th>Artist</th>
-        <th>Intro</th>
-        <th>End</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+<table id="logTable">
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>Type</th>
+      <th>Title</th>
+      <th>Artist</th>
+      <th>Intro</th>
+      <th>End</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-  <br>
+<br>
 
-  <h3 id="currentTrack">No track selected</h3>
+<h3 id="currentTrack">No VT selected</h3>
 
-  <button onclick="startRecording()">Start VT</button>
-  <button onclick="stopRecording()">Stop VT</button>
+<button onclick="startRecording()">Start VT</button>
+<button onclick="stopRecording()">Stop VT</button>
 
-  <p id="status"></p>
-  <audio id="player" controls></audio>
+<p id="status"></p>
+<audio id="player" controls></audio>
 
-  <script>
-    let log = [];
-    let selectedIndex = null;
-    let mediaRecorder;
-    let audioChunks = [];
+<script>
+let log = [];
+let selectedIndex = null;
+let mediaRecorder;
+let audioChunks = [];
 
-    const tableBody = document.querySelector("#logTable tbody");
-    const status = document.getElementById("status");
-    const currentTrack = document.getElementById("currentTrack");
+const tableBody = document.querySelector("#logTable tbody");
+const status = document.getElementById("status");
+const currentTrack = document.getElementById("currentTrack");
 
-    // 📂 Load ASC file
-    document.getElementById("fileInput").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      const text = await file.text();
+// 📂 Load ASC
+document.getElementById("fileInput").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  const text = await file.text();
 
-log = text.split("\n")
-  .map(line => {
-    if (!line.includes("\\MUS\\")) return null;
+  log = text.split("\n")
+    .map(line => {
+      const parts = line.split("\\");
 
-    const parts = line.split("\\");
+      // SONG
+      if (line.includes("\\MUS\\")) {
+        return {
+          type: "SONG",
+          time: parts[0],
+          title: parts[5],
+          artist: parts[6],
+          intro: parts[10],
+          end: parts[11]
+        };
+      }
 
-    // must have enough fields
-    if (parts.length < 10) return null;
+      // VOICETRACK SLOT
+      if (line.includes("\\VTX\\")) {
+        return {
+          type: "VTX",
+          time: parts[0],
+          title: "VOICE TRACK",
+          artist: "",
+          intro: "",
+          end: ""
+        };
+      }
 
-    const time = parts[0];
-    const song = parts[5];
-    const artist = parts[6];
-    const intro = parts[10];   // ✅ correct now
-    const end = parts[11];     // ✅ correct now
+      return null;
+    })
+    .filter(Boolean);
 
-    // filter junk rows
-    if (!song || song.includes("TIME SYNC")) return null;
+  renderTable();
+});
 
-    return {
-      time,
-      song,
-      artist,
-      intro,
-      end
-    };
-  })
-  .filter(Boolean);
+function renderTable() {
+  tableBody.innerHTML = "";
 
-      renderTable();
+  log.forEach((row, i) => {
+    const tr = document.createElement("tr");
+
+    if (row.type === "VTX") {
+      tr.classList.add("vtx");
+    }
+
+    tr.innerHTML = `
+      <td>${row.time}</td>
+      <td>${row.type}</td>
+      <td>${row.title}</td>
+      <td>${row.artist || ""}</td>
+      <td>${row.intro ? row.intro + "s" : ""}</td>
+      <td>${row.end || ""}</td>
+    `;
+
+    tr.onclick = () => selectRow(i);
+    tableBody.appendChild(tr);
+  });
+}
+
+function selectRow(i) {
+  selectedIndex = i;
+
+  document.querySelectorAll("#logTable tr").forEach(r => r.classList.remove("active"));
+  tableBody.children[i].classList.add("active");
+
+  const row = log[i];
+
+  if (row.type !== "VTX") {
+    currentTrack.innerText = "❌ Select a VOICE TRACK slot";
+    return;
+  }
+
+  currentTrack.innerText = `VT Slot @ ${row.time}`;
+}
+
+async function startRecording() {
+  const row = log[selectedIndex];
+
+  if (!row || row.type !== "VTX") {
+    status.innerText = "❌ Select a VOICE TRACK row";
+    return;
+  }
+
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  mediaRecorder = new MediaRecorder(stream);
+  audioChunks = [];
+
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+  mediaRecorder.start();
+  status.innerText = "🎙️ Recording VT...";
+}
+
+function stopRecording() {
+  if (!mediaRecorder) return;
+
+  mediaRecorder.stop();
+
+  mediaRecorder.onstop = async () => {
+    const blob = new Blob(audioChunks, { type: "audio/wav" });
+    const url = URL.createObjectURL(blob);
+
+    document.getElementById("player").src = url;
+
+    const vtTime = log[selectedIndex].time;
+
+    const fileName = `VT_${vtTime.replace(/:/g, "-")}.wav`;
+
+    const formData = new FormData();
+    formData.append("file", blob, fileName);
+
+    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+      method: "POST",
+      body: formData
     });
 
-    function renderTable() {
-      tableBody.innerHTML = "";
-
-      log.forEach((row, i) => {
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-          <td>${row.time}</td>
-          <td>${row.song}</td>
-          <td>${row.artist}</td>
-          <td>${row.intro}s</td>
-          <td>${row.end}</td>
-        `;
-
-        tr.onclick = () => selectTrack(i);
-        tableBody.appendChild(tr);
-      });
-    }
-
-    function selectTrack(i) {
-      selectedIndex = i;
-
-      document.querySelectorAll("#logTable tr").forEach(r => r.classList.remove("active"));
-      tableBody.children[i].classList.add("active");
-
-      const track = log[i];
-      currentTrack.innerText = `${track.artist} - ${track.song}`;
-    }
-
-    async function startRecording() {
-      if (selectedIndex === null) {
-        status.innerText = "❌ Select a track first";
-        return;
-      }
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-
-        mediaRecorder.start();
-        status.innerText = "🎙️ Recording...";
-
-      } catch (err) {
-        console.error(err);
-        status.innerText = "❌ Mic error: " + err.message;
-      }
-    }
-
-    function stopRecording() {
-      if (!mediaRecorder) {
-        status.innerText = "❌ No recording in progress";
-        return;
-      }
-
-      mediaRecorder.stop();
-
-      mediaRecorder.onstop = async () => {
-        status.innerText = "Processing...";
-
-        const blob = new Blob(audioChunks, { type: "audio/wav" });
-        const url = URL.createObjectURL(blob);
-
-        document.getElementById("player").src = url;
-
-        const track = log[selectedIndex];
-
-        const fileName = `${track.artist}_${track.song}.wav`
-          .replace(/[^a-z0-9]/gi, "_");
-
-        const formData = new FormData();
-        formData.append("file", blob, fileName);
-
-        try {
-          const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
-            method: "POST",
-            body: formData
-          });
-
-          const data = await res.json();
-          console.log("Uploaded:", data);
-
-          status.innerText = "✅ Uploaded: " + data.file;
-
-        } catch (err) {
-          console.error(err);
-          status.innerText = "❌ Upload failed";
-        }
-      };
-    }
-  </script>
+    const data = await res.json();
+    status.innerText = "✅ Uploaded: " + data.file;
+  };
+}
+</script>
 
 </body>
 </html>
