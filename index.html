@@ -2,128 +2,139 @@
 <html>
 <head>
   <title>Web VT</title>
+  <style>
+    table { border-collapse: collapse; width: 100%; }
+    td, th { border: 1px solid #ccc; padding: 6px; }
+    tr:hover { background: #eee; cursor: pointer; }
+    .active { background: #cce5ff; }
+  </style>
 </head>
 <body>
-  <h1>Web VT Recorder</h1>
+  <h1>Web VT for AIR</h1>
 
-  <label>Microphone:</label>
-  <select id="micSelect"></select>
-  <br><br>
+  <input type="file" id="fileInput" accept=".asc"><br><br>
 
-  <button onclick="startRecording()">Start VT Recording</button>
-  <button onclick="stopRecording()">Stop VT Recording</button>
+  <table id="logTable">
+    <thead>
+      <tr>
+        <th>Song</th>
+        <th>Artist</th>
+        <th>Intro</th>
+        <th>End</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <br>
+
+  <h3 id="currentTrack">No track selected</h3>
+
+  <button onclick="startRecording()">Start VT</button>
+  <button onclick="stopRecording()">Stop VT</button>
 
   <p id="status"></p>
-
   <audio id="player" controls></audio>
 
   <script>
+    let log = [];
+    let selectedIndex = null;
     let mediaRecorder;
     let audioChunks = [];
-    let selectedDeviceId = null;
 
+    const tableBody = document.querySelector("#logTable tbody");
     const status = document.getElementById("status");
-    const micSelect = document.getElementById("micSelect");
+    const currentTrack = document.getElementById("currentTrack");
 
-    // 🔍 Load available microphones
-    async function loadMics() {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const mics = devices.filter(d => d.kind === "audioinput");
+    // 🔹 Load ASC file
+    document.getElementById("fileInput").addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      const text = await file.text();
 
-        micSelect.innerHTML = "";
+      log = text.split("\n").map(line => {
+        const parts = line.split(",");
+        return {
+          song: parts[0] || "",
+          artist: parts[1] || "",
+          intro: parts[2] || "",
+          end: parts[3] || ""
+        };
+      }).filter(row => row.song);
 
-        if (mics.length === 0) {
-          status.innerText = "❌ No microphone detected";
-          return;
-        }
+      renderTable();
+    });
 
-        mics.forEach((mic) => {
-          const option = document.createElement("option");
-          option.value = mic.deviceId;
-          option.text = mic.label || "Microphone";
-          micSelect.appendChild(option);
-        });
+    function renderTable() {
+      tableBody.innerHTML = "";
 
-        selectedDeviceId = mics[0].deviceId;
-        status.innerText = "✅ Microphone ready";
+      log.forEach((row, i) => {
+        const tr = document.createElement("tr");
 
-      } catch (err) {
-        console.error(err);
-        status.innerText = "❌ Error loading microphones";
-      }
+        tr.innerHTML = `
+          <td>${row.song}</td>
+          <td>${row.artist}</td>
+          <td>${row.intro}</td>
+          <td>${row.end}</td>
+        `;
+
+        tr.onclick = () => selectTrack(i);
+        tableBody.appendChild(tr);
+      });
     }
 
-    micSelect.onchange = () => {
-      selectedDeviceId = micSelect.value;
-    };
+    function selectTrack(i) {
+      selectedIndex = i;
+
+      document.querySelectorAll("tr").forEach(r => r.classList.remove("active"));
+      tableBody.children[i].classList.add("active");
+
+      const track = log[i];
+      currentTrack.innerText = `${track.artist} - ${track.song}`;
+    }
 
     async function startRecording() {
-      status.innerText = "Requesting microphone...";
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: selectedDeviceId
-            ? { deviceId: { exact: selectedDeviceId } }
-            : true
-        });
-
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = (e) => {
-          audioChunks.push(e.data);
-        };
-
-        mediaRecorder.start();
-        status.innerText = "🎙️ Recording...";
-
-      } catch (err) {
-        console.error(err);
-        status.innerText = "❌ Mic error: " + err.message;
-      }
-    }
-
-    function stopRecording() {
-      if (!mediaRecorder) {
-        status.innerText = "❌ No recording in progress";
+      if (selectedIndex === null) {
+        status.innerText = "❌ Select a track first";
         return;
       }
 
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+      mediaRecorder.start();
+      status.innerText = "🎙️ Recording...";
+    }
+
+    function stopRecording() {
       mediaRecorder.stop();
 
       mediaRecorder.onstop = async () => {
-        status.innerText = "Processing...";
-
         const blob = new Blob(audioChunks, { type: "audio/wav" });
         const url = URL.createObjectURL(blob);
 
         document.getElementById("player").src = url;
 
-        // 🚀 upload
+        const track = log[selectedIndex];
+
+        const fileName = `${track.artist}_${track.song}.wav`
+          .replace(/[^a-z0-9]/gi, "_");
+
         const formData = new FormData();
-        formData.append("file", blob, "voicetrack.wav");
+        formData.append("file", blob, fileName);
 
-        try {
-          const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
-            method: "POST",
-            body: formData,
-          });
+        const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+          method: "POST",
+          body: formData
+        });
 
-          const data = await res.json();
-          console.log("Uploaded:", data);
-
-          status.innerText = "✅ Uploaded: " + data.file;
-
-        } catch (err) {
-          console.error(err);
-          status.innerText = "❌ Upload failed";
-        }
+        const data = await res.json();
+        status.innerText = "✅ Uploaded: " + data.file;
       };
     }
-
-    // Initialize
-    loadMics();
   </script>
 </body>
 </html>
