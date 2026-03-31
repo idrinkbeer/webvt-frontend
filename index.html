@@ -54,22 +54,22 @@
       const file = e.target.files[0];
       const text = await file.text();
 
-      log = text.split("\n")
-        .map(line => {
-          if (!line.includes("\\MUS\\")) return null;
+log = text.split("\n")
+  .map(line => {
+    if (!line.includes("\\MUS\\")) return null;
 
-          const time = line.split("\\")[0];
-          const parts = line.split("\\");
+    const time = line.split("\\")[0];
+    const parts = line.split("\\");
 
-          return {
-            time: time,
-            song: parts[4] || "",
-            artist: parts[5] || "",
-            intro: parts[8] || "",
-            end: parts[9] || ""
-          };
-        })
-        .filter(row => row && row.song);
+    return {
+      time: time,
+      song: parts[4] || "",
+      artist: parts[5] || "",
+      intro: parts[9] || "",
+      end: parts[10] || ""
+    };
+  })
+  .filter(row => row && row.song);
 
       renderTable();
     });
