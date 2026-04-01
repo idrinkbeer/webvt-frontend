@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -80,19 +81,17 @@
 
     audio { width: 100%; margin-top: 10px; }
   </style>
+
 </head>
 
 <body>
 
 <h1>🎙️ Web VT for AIR</h1>
 
-<!-- LOG DROPDOWN -->
 <div style="margin-bottom:5px; color:#94a3b8; font-size:13px;">
   Select Log
 </div>
 <select id="logSelect"></select>
-
-<!-- HOUR DROPDOWN -->
 <select id="hourSelect" style="display:none;"></select>
 
 <table id="logTable">
@@ -117,12 +116,10 @@ let currentHour = null;
 
 let mediaRecorder;
 let audioChunks = [];
-
-let audioContext, analyser, dataArray;
+let recordedBlob = null;
 
 const tableBody = document.querySelector("#logTable tbody");
 
-// FORMAT
 function formatIntro(seconds) {
   if (!seconds || isNaN(seconds)) return "";
   return ":" + parseInt(seconds).toString().padStart(2, "0");
@@ -135,9 +132,6 @@ function formatHour(hourStr) {
   return `${hour} ${suffix}`;
 }
 
-// =====================
-// FTP LOG LOADER
-// =====================
 async function loadLogs() {
   const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs");
   const files = await res.json();
@@ -168,9 +162,6 @@ async function loadSelectedLog(filename) {
   document.getElementById("hourSelect").style.display = "inline-block";
 }
 
-// =====================
-// ASC PROCESSING
-// =====================
 function processASC(text) {
   log = text.split("\n")
     .map(line => {
@@ -204,9 +195,6 @@ function processASC(text) {
   filterByHour(log[0].time.split(":")[0]);
 }
 
-// =====================
-// HOUR DROPDOWN
-// =====================
 function buildHourDropdown() {
   const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
 
@@ -229,9 +217,6 @@ function buildHourDropdown() {
   };
 }
 
-// =====================
-// FILTER + RENDER
-// =====================
 function filterByHour(hour) {
   filteredLog = log.filter(row => row.time.startsWith(hour));
   selectedIndex = null;
@@ -272,6 +257,10 @@ function renderTable() {
             <button onclick="startRecording(${introTime})">Start</button>
             <button onclick="stopRecording()">Stop</button>
 
+            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
+              Upload to AIR
+            </button>
+
             <div id="countdown">⏱️ ${formatIntro(introTime)}</div>
 
             <div class="vu-container">
@@ -294,98 +283,74 @@ function selectRow(i) {
   renderTable();
 }
 
-// =====================
-// RECORDING
-// =====================
-async function startRecording(introTime) {
+async function startRecording() {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
   mediaRecorder = new MediaRecorder(stream);
+
   audioChunks = [];
 
-  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+  mediaRecorder.ondataavailable = e => {
+    audioChunks.push(e.data);
+  };
+
   mediaRecorder.start();
 
-  audioContext = new AudioContext();
-  analyser = audioContext.createAnalyser();
-  const source = audioContext.createMediaStreamSource(stream);
-  source.connect(analyser);
-
-  analyser.fftSize = 256;
-  dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-  updateVU();
-  startCountdown(introTime);
+  document.getElementById("status").textContent = "Recording...";
 }
 
 function stopRecording() {
   if (!mediaRecorder) return;
 
-  analyser = null;
-
   mediaRecorder.stop();
 
-  mediaRecorder.onstop = async () => {
-    const blob = new Blob(audioChunks);
-    const url = URL.createObjectURL(blob);
+  mediaRecorder.onstop = () => {
+    recordedBlob = new Blob(audioChunks, { type: "audio/webm" });
+    audioChunks = [];
 
-    document.getElementById("player").src = url;
+    const audioURL = URL.createObjectURL(recordedBlob);
+    document.getElementById("player").src = audioURL;
 
-    const cartId = filteredLog[selectedIndex].cart;
-    const fileName = cartId + ".wav";
+    document.getElementById("status").textContent = "Ready to upload";
 
-    const formData = new FormData();
-    formData.append("file", blob, fileName);
+    const uploadBtn = document.getElementById("uploadBtn");
+    if (uploadBtn) uploadBtn.disabled = false;
+  };
+}
 
-    await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+async function uploadToAIR() {
+  if (!recordedBlob) return;
+
+  const row = filteredLog[selectedIndex];
+  const status = document.getElementById("status");
+  const btn = document.getElementById("uploadBtn");
+
+  const fileName = `${row.cart}.webm`;
+
+  const formData = new FormData();
+  formData.append("file", recordedBlob, fileName);
+  formData.append("cart", row.cart);
+
+  status.textContent = `Uploading ${fileName} to AIR...`;
+  btn.disabled = true;
+
+  try {
+    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
       method: "POST",
       body: formData
     });
 
-    document.getElementById("status").innerText = "✅ Uploaded: " + fileName;
-  };
-}
+    if (!res.ok) throw new Error("Upload failed");
 
-// =====================
-// VU
-// =====================
-function updateVU() {
-  if (!analyser) return;
+    status.textContent = "✅ Uploaded to AIR";
+    btn.textContent = "Uploaded ✓";
 
-  analyser.getByteFrequencyData(dataArray);
-  let avg = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
-  let percent = Math.min(100, (avg / 255) * 100);
-
-  const bar = document.getElementById("vuBar");
-  if (bar) {
-    bar.style.width = percent + "%";
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Upload failed";
+    btn.disabled = false;
   }
-
-  requestAnimationFrame(updateVU);
 }
 
-// =====================
-// COUNTDOWN
-// =====================
-function startCountdown(seconds) {
-  let remaining = seconds;
-  const el = document.getElementById("countdown");
-
-  const interval = setInterval(() => {
-    remaining--;
-
-    if (!el) return clearInterval(interval);
-
-    el.innerText = "⏱️ " + formatIntro(remaining);
-
-    if (remaining <= 5) el.style.color = "#ef4444";
-    if (remaining === 0) el.innerText = "🔥 HIT POST";
-
-    if (remaining < 0) clearInterval(interval);
-  }, 1000);
-}
-
-// INIT
 loadLogs();
 </script>
 
