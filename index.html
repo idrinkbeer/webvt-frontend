@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -58,17 +57,6 @@
       border-radius: 5px;
     }
 
-    select {
-      background: #020617;
-      color: #e2e8f0;
-      border: 1px solid #334155;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 15px;
-      margin-bottom: 15px;
-      min-width: 220px;
-    }
-
     button {
       background: #2563eb;
       border: none;
@@ -81,16 +69,12 @@
 
     audio { width: 100%; margin-top: 10px; }
   </style>
-
 </head>
 
 <body>
 
 <h1>🎙️ Web VT for AIR</h1>
 
-<div style="margin-bottom:5px; color:#94a3b8; font-size:13px;">
-  Select Log
-</div>
 <select id="logSelect"></select>
 <select id="hourSelect" style="display:none;"></select>
 
@@ -112,32 +96,24 @@
 let log = [];
 let filteredLog = [];
 let selectedIndex = null;
-let currentHour = null;
 
 let mediaRecorder;
 let audioChunks = [];
 let recordedBlob = null;
 
+let isRecording = false;
+let audioContext, analyser, dataArray, mediaStream;
+
 const tableBody = document.querySelector("#logTable tbody");
 
-function formatIntro(seconds) {
-  if (!seconds || isNaN(seconds)) return "";
-  return ":" + parseInt(seconds).toString().padStart(2, "0");
-}
-
-function formatHour(hourStr) {
-  let hour = parseInt(hourStr, 10);
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12 || 12;
-  return `${hour} ${suffix}`;
-}
-
+// =====================
+// LOAD LOGS
+// =====================
 async function loadLogs() {
   const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs");
   const files = await res.json();
 
   const select = document.getElementById("logSelect");
-  select.innerHTML = "<option>Select a log...</option>";
 
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -146,11 +122,7 @@ async function loadLogs() {
     select.appendChild(opt);
   });
 
-  select.onchange = () => {
-    if (select.value !== "Select a log...") {
-      loadSelectedLog(select.value);
-    }
-  };
+  select.onchange = () => loadSelectedLog(select.value);
 }
 
 async function loadSelectedLog(filename) {
@@ -158,10 +130,11 @@ async function loadSelectedLog(filename) {
   const text = await res.text();
 
   processASC(text);
-
-  document.getElementById("hourSelect").style.display = "inline-block";
 }
 
+// =====================
+// ASC PROCESSING
+// =====================
 function processASC(text) {
   log = text.split("\n")
     .map(line => {
@@ -191,40 +164,16 @@ function processASC(text) {
     })
     .filter(Boolean);
 
-  buildHourDropdown();
-  filterByHour(log[0].time.split(":")[0]);
-}
-
-function buildHourDropdown() {
-  const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
-
-  const select = document.getElementById("hourSelect");
-  select.innerHTML = "";
-
-  hours.forEach(hour => {
-    const opt = document.createElement("option");
-    opt.value = hour;
-    opt.textContent = formatHour(hour);
-    select.appendChild(opt);
-  });
-
-  currentHour = hours[0];
-  select.value = currentHour;
-
-  select.onchange = () => {
-    currentHour = select.value;
-    filterByHour(currentHour);
-  };
-}
-
-function filterByHour(hour) {
-  filteredLog = log.filter(row => row.time.startsWith(hour));
-  selectedIndex = null;
   renderTable();
 }
 
+// =====================
+// TABLE RENDER
+// =====================
 function renderTable() {
   tableBody.innerHTML = "";
+
+  filteredLog = log;
 
   filteredLog.forEach((row, i) => {
     const tr = document.createElement("tr");
@@ -237,7 +186,7 @@ function renderTable() {
       <td>${row.type}</td>
       <td>${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}</td>
       <td>${row.artist || ""}</td>
-      <td>${formatIntro(row.intro)}</td>
+      <td>${row.intro || ""}</td>
       <td>${row.end || ""}</td>
     `;
 
@@ -245,23 +194,15 @@ function renderTable() {
     tableBody.appendChild(tr);
 
     if (i === selectedIndex && row.type === "VTX") {
-      const nextSong = filteredLog[i + 1];
-      const introTime = nextSong?.intro || 0;
-
       const recorderRow = document.createElement("tr");
+
       recorderRow.innerHTML = `
         <td colspan="6">
           <div class="recorder">
             🎙️ Recording for Cart: ${row.cart}<br><br>
 
-            <button onclick="startRecording(${introTime})">Start</button>
-            <button onclick="stopRecording()">Stop</button>
-
-            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-              Upload to AIR
-            </button>
-
-            <div id="countdown">⏱️ ${formatIntro(introTime)}</div>
+            <button id="recordBtn" onclick="toggleRecording()">Start Recording</button>
+            <button id="uploadBtn" onclick="uploadToAIR()" disabled>Upload to AIR</button>
 
             <div class="vu-container">
               <div id="vuBar"></div>
@@ -272,6 +213,7 @@ function renderTable() {
           </div>
         </td>
       `;
+
       tableBody.appendChild(recorderRow);
     }
   });
@@ -283,10 +225,21 @@ function selectRow(i) {
   renderTable();
 }
 
-async function startRecording() {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  mediaRecorder = new MediaRecorder(stream);
+// =====================
+// RECORDING
+// =====================
+async function toggleRecording() {
+  if (!isRecording) {
+    await startRecording();
+  } else {
+    stopRecording();
+  }
+}
 
+async function startRecording() {
+  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+  mediaRecorder = new MediaRecorder(mediaStream);
   audioChunks = [];
 
   mediaRecorder.ondataavailable = e => {
@@ -295,62 +248,90 @@ async function startRecording() {
 
   mediaRecorder.start();
 
+  // VU setup
+  audioContext = new AudioContext();
+  const source = audioContext.createMediaStreamSource(mediaStream);
+
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+
+  dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  source.connect(analyser);
+
+  updateVU();
+
+  isRecording = true;
+
+  document.getElementById("recordBtn").textContent = "Stop Recording";
   document.getElementById("status").textContent = "Recording...";
 }
 
 function stopRecording() {
-  if (!mediaRecorder) return;
-
   mediaRecorder.stop();
 
   mediaRecorder.onstop = () => {
     recordedBlob = new Blob(audioChunks, { type: "audio/webm" });
     audioChunks = [];
 
-    const audioURL = URL.createObjectURL(recordedBlob);
-    document.getElementById("player").src = audioURL;
-
+    document.getElementById("player").src = URL.createObjectURL(recordedBlob);
+    document.getElementById("uploadBtn").disabled = false;
     document.getElementById("status").textContent = "Ready to upload";
-
-    const uploadBtn = document.getElementById("uploadBtn");
-    if (uploadBtn) uploadBtn.disabled = false;
   };
+
+  mediaStream.getTracks().forEach(track => track.stop());
+
+  if (audioContext) {
+    audioContext.close();
+    analyser = null;
+  }
+
+  isRecording = false;
+  document.getElementById("recordBtn").textContent = "Start Recording";
 }
 
+// =====================
+// VU METER
+// =====================
+function updateVU() {
+  if (!analyser) return;
+
+  analyser.getByteFrequencyData(dataArray);
+
+  let sum = dataArray.reduce((a, b) => a + b, 0);
+  let avg = sum / dataArray.length;
+
+  document.getElementById("vuBar").style.width = (avg / 255 * 100) + "%";
+
+  requestAnimationFrame(updateVU);
+}
+
+// =====================
+// UPLOAD
+// =====================
 async function uploadToAIR() {
-  if (!recordedBlob) return;
-
   const row = filteredLog[selectedIndex];
-  const status = document.getElementById("status");
-  const btn = document.getElementById("uploadBtn");
-
-  const fileName = `${row.cart}.webm`;
 
   const formData = new FormData();
-  formData.append("file", recordedBlob, fileName);
+  formData.append("file", recordedBlob, `${row.cart}.wav`);
   formData.append("cart", row.cart);
 
-  status.textContent = `Uploading ${fileName} to AIR...`;
-  btn.disabled = true;
+  const status = document.getElementById("status");
+  status.textContent = "Uploading...";
 
-  try {
-    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
-      method: "POST",
-      body: formData
-    });
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+    method: "POST",
+    body: formData
+  });
 
-    if (!res.ok) throw new Error("Upload failed");
-
-    status.textContent = "✅ Uploaded to AIR";
-    btn.textContent = "Uploaded ✓";
-
-  } catch (err) {
-    console.error(err);
+  if (res.ok) {
+    status.textContent = "✅ Uploaded!";
+  } else {
     status.textContent = "❌ Upload failed";
-    btn.disabled = false;
   }
 }
 
+// =====================
 loadLogs();
 </script>
 
