@@ -430,17 +430,28 @@ async function toggleRecording() {
 
   
 async function startRecording() {
-  mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  mediaStream = await navigator.mediaDevices.getUserMedia({
+  audio: {
+    echoCancellation: false,
+    noiseSuppression: false,
+    autoGainControl: false
+  }
+});
 
   audioContext = new AudioContext();
+
   const source = audioContext.createMediaStreamSource(mediaStream);
+
+  // 👉 ADD THIS
+  const gainNode = audioContext.createGain();
+  gainNode.gain.value = 1.2; // adjust as needed
 
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 256;
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-  const processor = audioContext.createScriptProcessor(4096, 1, 1);
+  const processor = audioContext.createScriptProcessor(8192, 1, 1);
 
   let samples = [];
 
@@ -449,7 +460,8 @@ async function startRecording() {
     samples.push(new Float32Array(input));
   };
 
-  source.connect(analyser);
+  source.connect(gainNode);
+  gainNode.connect(analyser);
   analyser.connect(processor);
   processor.connect(audioContext.destination);
 
