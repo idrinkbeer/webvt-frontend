@@ -301,6 +301,35 @@ function selectRow(i) {
   renderTable();
 }
 
+  // TRIM SILENCE ON WAV VT
+  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
+  let start = 0;
+  let end = samples.length - 1;
+
+  // find start
+  for (let i = 0; i < samples.length; i++) {
+    if (Math.abs(samples[i]) > threshold) {
+      start = i;
+      break;
+    }
+  }
+
+  // find end
+  for (let i = samples.length - 1; i > 0; i--) {
+    if (Math.abs(samples[i]) > threshold) {
+      end = i;
+      break;
+    }
+  }
+
+  // small padding so it doesn’t cut too tight
+  start = Math.max(0, start - minSilenceSamples);
+  end = Math.min(samples.length - 1, end + minSilenceSamples);
+
+  return samples.slice(start, end);
+}
+
+  
 // =====================
 // RECORDING
 // =====================
@@ -363,6 +392,7 @@ function stopRecording() {
   }
 
   // encode WAV
+  const trimmed = trimSilence(flat);
   const wavBuffer = encodeWAV(flat, audioContext.sampleRate);
   recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
 
