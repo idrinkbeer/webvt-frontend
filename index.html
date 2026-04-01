@@ -108,6 +108,42 @@ let audioContext, analyser, dataArray, mediaStream;
 const tableBody = document.querySelector("#logTable tbody");
 
 // =====================
+// UPLOAD VOICETRACK 
+// =====================
+  async function uploadToAIR() {
+  if (!recordedBlob) return;
+
+  const row = filteredLog[selectedIndex];
+
+  const formData = new FormData();
+  formData.append("file", recordedBlob, `${row.cart}.wav`);
+  formData.append("cart", row.cart);
+
+  const status = document.getElementById("status");
+  const btn = document.getElementById("uploadBtn");
+
+  status.textContent = "Uploading...";
+  btn.disabled = true;
+
+  try {
+    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    if (!res.ok) throw new Error("Upload failed");
+
+    status.textContent = "✅ Uploaded to AIR";
+    btn.textContent = "Uploaded ✓";
+
+  } catch (err) {
+    console.error(err);
+    status.textContent = "❌ Upload failed";
+    btn.disabled = false;
+  }
+}
+  
+// =====================
 // LOAD LOGS
 // =====================
 async function loadLogs() {
