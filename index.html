@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Web VT for AIR</title>
+
   <style>
     body {
       font-family: Arial;
@@ -110,17 +111,6 @@
 
 <body>
 
-<div id="loginScreen">
-  <h2>Login</h2>
-  <input id="username" placeholder="Username"><br><br>
-  <input id="password" type="password" placeholder="Password"><br><br>
-  <button onclick="login()">Login</button>
-  <div id="loginError"></div>
-</div>
-
-<div id="app" style="display:none;">
-  <!-- EVERYTHING ELSE (your current UI) goes here -->
-
 <h1>🎙️ Web VT for AIR</h1>
 
 <select id="logSelect"></select>
@@ -153,11 +143,6 @@ let recordedBlob = null;
 let isRecording = false;
 let audioContext, analyser, dataArray, mediaStream;
 
-let recordSeconds = 0;
-let recordInterval = null;
-let recordings = {};
-let uploaded = {};
-
 const tableBody = document.querySelector("#logTable tbody");
 
 // =====================
@@ -179,19 +164,15 @@ const tableBody = document.querySelector("#logTable tbody");
   btn.disabled = true;
 
   try {
-    const res = await fetch("/upload", {
+    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + token
-      },
       body: formData
     });
 
     if (!res.ok) throw new Error("Upload failed");
 
-    status.textContent = "✅ VT Uploaded to AIR";
-    btn.textContent = "VT Uploaded ✓";
-    uploaded[row.cart] = true;
+    status.textContent = "✅ Uploaded to AIR";
+    btn.textContent = "Uploaded ✓";
 
   } catch (err) {
     console.error(err);
@@ -204,15 +185,11 @@ const tableBody = document.querySelector("#logTable tbody");
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  const res = await fetch("/logs", {
-    headers: {
-      Authorization: "Bearer " + token
-    }
-  });
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs");
   const files = await res.json();
 
   const select = document.getElementById("logSelect");
-  select.innerHTML = "<option>Select music log...</option>";
+  select.innerHTML = "<option>Select a log...</option>";
 
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -222,19 +199,14 @@ async function loadLogs() {
   });
 
   select.onchange = () => {
-    if (select.value !== "Select music log...") {
+    if (select.value !== "Select a log...") {
       loadSelectedLog(select.value);
     }
   };
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`/logs/${filename}`, {
-    headers: {
-      Authorization: "Bearer " + token
-    }
-  });
-
+  const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`);
   const text = await res.text();
 
   processASC(text);
@@ -351,7 +323,6 @@ function renderTable() {
             </div>
 
             <div id="status"></div>
-            <div id="recordTime">⏱ 0:00</div>
             <div class="audio-player">
   <button id="playBtn">▶</button>
   <div class="progress">
@@ -366,29 +337,6 @@ function renderTable() {
       `;
 
       tableBody.appendChild(recorderRow);
-      // 🔁 Restore previous recording if exists
-      const rowData = filteredLog[selectedIndex];
-      const saved = recordings[rowData.cart];
-
-      if (saved) {
-        const player = document.getElementById("player");
-
-        setupPlayer(player, saved);
-
-        recordedBlob = saved;
-        document.getElementById("uploadBtn").disabled = false;
-        document.getElementById("status").textContent = "VT Previously recorded";
-      }
-
-      // 🔁 Restore upload state
-      if (uploaded[rowData.cart]) {
-        const btn = document.getElementById("uploadBtn");
-        const status = document.getElementById("status");
-
-        btn.textContent = "VT Uploaded ✓";
-        btn.disabled = true;
-        status.textContent = "✅ Already uploaded";
-      }
     }
   });
 }
@@ -400,40 +348,29 @@ function selectRow(i) {
 }
 
   // TRIM SILENCE ON WAV VT
-function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
+  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
   let start = 0;
   let end = samples.length - 1;
 
-  function rms(startIdx) {
-    let sum = 0;
-    for (let i = 0; i < windowSize; i++) {
-      const s = samples[startIdx + i] || 0;
-      sum += s * s;
-    }
-    return Math.sqrt(sum / windowSize);
-  }
-
   // find start
-  for (let i = 0; i < samples.length - windowSize; i += windowSize) {
-    if (rms(i) > threshold) {
+  for (let i = 0; i < samples.length; i++) {
+    if (Math.abs(samples[i]) > threshold) {
       start = i;
       break;
     }
   }
 
   // find end
-  for (let i = samples.length - windowSize; i > 0; i -= windowSize) {
-    if (rms(i) > threshold) {
+  for (let i = samples.length - 1; i > 0; i--) {
+    if (Math.abs(samples[i]) > threshold) {
       end = i;
       break;
     }
   }
 
-  // padding (keeps natural feel)
-  const padding = sampleRate * 0.1; // 100ms
-
-  start = Math.max(0, start - padding);
-  end = Math.min(samples.length - 1, end + padding);
+  // small padding so it doesn’t cut too tight
+  start = Math.max(0, start - minSilenceSamples);
+  end = Math.min(samples.length - 1, end + minSilenceSamples);
 
   return samples.slice(start, end);
 }
@@ -482,79 +419,15 @@ async function startRecording() {
   isRecording = true;
 
   document.getElementById("recordBtn").textContent = "Stop";
-  document.getElementById("status").textContent = "Recording Voicetrack...";
-
-  // ⏱ START TIMER
-  recordSeconds = 0;
-
-  recordInterval = setInterval(() => {
-  recordSeconds++;
-
-    const mins = Math.floor(recordSeconds / 60);
-    const secs = (recordSeconds % 60).toString().padStart(2, "0");
-
-    const el = document.getElementById("recordTime");
-    if (el) el.textContent = `⏱ ${mins}:${secs}`;
-  }, 1000);
+  document.getElementById("status").textContent = "Recording...";
 }
 
-function setupPlayer(player, blob) {
-  player.src = URL.createObjectURL(blob);
-
-  setTimeout(() => {
-    const playBtn = document.getElementById("playBtn");
-    const progressBar = document.getElementById("progressBar");
-    const timeLabel = document.getElementById("time");
-    const progressContainer = document.querySelector(".progress");
-
-    if (!playBtn || !progressBar || !timeLabel) return;
-
-    playBtn.onclick = () => {
-      if (player.paused) {
-        player.play();
-        playBtn.textContent = "⏸";
-      } else {
-        player.pause();
-        playBtn.textContent = "▶";
-      }
-    };
-
-    player.ontimeupdate = () => {
-      if (!player.duration) return;
-
-      const percent = (player.currentTime / player.duration) * 100;
-      progressBar.style.width = percent + "%";
-
-      const minutes = Math.floor(player.currentTime / 60);
-      const seconds = Math.floor(player.currentTime % 60)
-        .toString()
-        .padStart(2, "0");
-
-      timeLabel.textContent = `${minutes}:${seconds}`;
-    };
-
-    if (progressContainer) {
-      progressContainer.onclick = (e) => {
-        const rect = progressContainer.getBoundingClientRect();
-        const percent = (e.clientX - rect.left) / rect.width;
-        player.currentTime = percent * player.duration;
-      };
-    }
-
-  }, 50);
-}
-  
 function stopRecording() {
-  // ⏱ STOP TIMER
-  if (recordInterval) {
-    clearInterval(recordInterval);
-    recordInterval = null;
-  }
-
   const { samples, processor } = window._recorder;
 
   processor.disconnect();
 
+  // flatten samples
   let length = samples.reduce((sum, s) => sum + s.length, 0);
   let flat = new Float32Array(length);
 
@@ -564,20 +437,54 @@ function stopRecording() {
     offset += s.length;
   }
 
-  const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
+  // encode WAV
+  const trimmed = trimSilence(flat, 0.01); // lower threshold too
   const wavBuffer = encodeWAV(trimmed, audioContext.sampleRate);
-
   recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
 
-  const row = filteredLog[selectedIndex];
-  recordings[row.cart] = recordedBlob;
-
   const player = document.getElementById("player");
-  setupPlayer(player, recordedBlob);
+player.src = URL.createObjectURL(recordedBlob);
 
+// setup custom player AFTER UI exists
+setTimeout(() => {
+  const playBtn = document.getElementById("playBtn");
+  const progressBar = document.getElementById("progressBar");
+  const timeLabel = document.getElementById("time");
+
+  playBtn.onclick = () => {
+    if (player.paused) {
+      player.play();
+      playBtn.textContent = "⏸";
+    } else {
+      player.pause();
+      playBtn.textContent = "▶";
+    }
+  };
+
+  player.ontimeupdate = () => {
+    const percent = (player.currentTime / player.duration) * 100;
+    progressBar.style.width = percent + "%";
+
+    const minutes = Math.floor(player.currentTime / 60);
+    const seconds = Math.floor(player.currentTime % 60)
+      .toString()
+      .padStart(2, "0");
+
+    timeLabel.textContent = `${minutes}:${seconds}`;
+  };
+
+  document.querySelector(".progress").onclick = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    player.currentTime = percent * player.duration;
+  };
+
+}, 50);
+  
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
 
+  // cleanup
   mediaStream.getTracks().forEach(track => track.stop());
 
   if (audioContext) {
@@ -606,6 +513,7 @@ function updateVU() {
 }
 
 // =====================
+loadLogs();
 
 
   // Convert Float32 audio buffer → WAV
@@ -646,52 +554,7 @@ function encodeWAV(samples, sampleRate) {
 
   return buffer;
 }
-
-// =====================
-// AUTH SYSTEM (FIXED)
-// =====================
-
-let token = localStorage.getItem("token");
-
-// auto login
-if (token) {
-  showApp();
-}
-
-// make login global (fixes your error)
-window.login = async function () {
-  const username = document.getElementById("username").value;
-  const password = document.getElementById("password").value;
-
-  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/login", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ username, password })
-  });
-
-  if (!res.ok) {
-    document.getElementById("loginError").textContent = "Login failed";
-    return;
-  }
-
-  const data = await res.json();
-
-  token = data.token;
-  localStorage.setItem("token", token);
-
-  showApp();
-};
-
-// show app after login
-function showApp() {
-  document.getElementById("loginScreen").style.display = "none";
-  document.getElementById("app").style.display = "block";
-
-  loadLogs();
-}
-
+  
 </script>
 
 </body>
