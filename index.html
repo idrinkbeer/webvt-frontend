@@ -146,6 +146,7 @@ let audioContext, analyser, dataArray, mediaStream;
 let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
+let uploaded = {};
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -177,6 +178,7 @@ const tableBody = document.querySelector("#logTable tbody");
 
     status.textContent = "✅ VT Uploaded to AIR";
     btn.textContent = "VT Uploaded ✓";
+    uploaded[row.cart] = true;
 
   } catch (err) {
     console.error(err);
@@ -354,6 +356,16 @@ function renderTable() {
         recordedBlob = saved;
         document.getElementById("uploadBtn").disabled = false;
         document.getElementById("status").textContent = "VT Previously recorded";
+      }
+
+      // 🔁 Restore upload state
+      if (uploaded[rowData.cart]) {
+        const btn = document.getElementById("uploadBtn");
+        const status = document.getElementById("status");
+
+        btn.textContent = "VT Uploaded ✓";
+        btn.disabled = true;
+        status.textContent = "✅ Already uploaded";
       }
     }
   });
