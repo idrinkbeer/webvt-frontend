@@ -145,6 +145,7 @@ let audioContext, analyser, dataArray, mediaStream;
 
 let recordSeconds = 0;
 let recordInterval = null;
+let recordings = {};
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -341,6 +342,18 @@ function renderTable() {
       `;
 
       tableBody.appendChild(recorderRow);
+      // 🔁 Restore previous recording if exists
+      const rowData = filteredLog[selectedIndex];
+      const saved = recordings[rowData.cart];
+
+      if (saved) {
+        const player = document.getElementById("player");
+        player.src = URL.createObjectURL(saved);
+
+        recordedBlob = saved;
+        document.getElementById("uploadBtn").disabled = false;
+        document.getElementById("status").textContent = "Previously recorded";
+      }
     }
   });
 }
@@ -463,6 +476,8 @@ function stopRecording() {
   const trimmed = trimSilence(flat, 0.01); // lower threshold too
   const wavBuffer = encodeWAV(trimmed, audioContext.sampleRate);
   recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
+  const row = filteredLog[selectedIndex];
+  recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
 player.src = URL.createObjectURL(recordedBlob);
