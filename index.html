@@ -143,6 +143,9 @@ let recordedBlob = null;
 let isRecording = false;
 let audioContext, analyser, dataArray, mediaStream;
 
+let recordSeconds = 0;
+let recordInterval = null;
+
 const tableBody = document.querySelector("#logTable tbody");
 
 // =====================
@@ -171,8 +174,8 @@ const tableBody = document.querySelector("#logTable tbody");
 
     if (!res.ok) throw new Error("Upload failed");
 
-    status.textContent = "✅ Uploaded to AIR";
-    btn.textContent = "Uploaded ✓";
+    status.textContent = "✅ VT Uploaded to AIR";
+    btn.textContent = "VT Uploaded ✓";
 
   } catch (err) {
     console.error(err);
@@ -199,7 +202,7 @@ async function loadLogs() {
   });
 
   select.onchange = () => {
-    if (select.value !== "Select a log...") {
+    if (select.value !== "Select music log...") {
       loadSelectedLog(select.value);
     }
   };
@@ -323,6 +326,7 @@ function renderTable() {
             </div>
 
             <div id="status"></div>
+            <div id="recordTime">⏱ 0:00</div>
             <div class="audio-player">
   <button id="playBtn">▶</button>
   <div class="progress">
@@ -420,9 +424,27 @@ async function startRecording() {
 
   document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
+
+  // ⏱ START TIMER
+  recordSeconds = 0;
+
+  recordInterval = setInterval(() => {
+  recordSeconds++;
+
+    const mins = Math.floor(recordSeconds / 60);
+    const secs = (recordSeconds % 60).toString().padStart(2, "0");
+
+    const el = document.getElementById("recordTime");
+    if (el) el.textContent = `⏱ ${mins}:${secs}`;
+  }, 1000);
 }
 
 function stopRecording() {
+  // ⏱ STOP TIMER
+  if (recordInterval) {
+    clearInterval(recordInterval);
+    recordInterval = null;
+  }
   const { samples, processor } = window._recorder;
 
   processor.disconnect();
