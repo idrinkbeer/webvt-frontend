@@ -453,7 +453,7 @@ async function startRecording() {
   }, 1000);
 }
 
-  function setupPlayer(player, blob) {
+function setupPlayer(player, blob) {
   player.src = URL.createObjectURL(blob);
 
   setTimeout(() => {
@@ -471,23 +471,7 @@ async function startRecording() {
       }
     };
 
-    player.ontimeupdate = () => {
-      const percent = (player.currentTime / player.duration) * 100;
-      progressBar.style.width = percent + "%";
 
-      const minutes = Math.floor(player.currentTime / 60);
-      const seconds = Math.floor(player.currentTime % 60)
-        .toString()
-        .padStart(2, "0");
-
-      timeLabel.textContent = `${minutes}:${seconds}`;
-    };
-
-    document.querySelector(".progress").onclick = (e) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const percent = (e.clientX - rect.left) / rect.width;
-      player.currentTime = percent * player.duration;
-    };
 
   }, 50);
 }
@@ -498,11 +482,11 @@ function stopRecording() {
     clearInterval(recordInterval);
     recordInterval = null;
   }
+
   const { samples, processor } = window._recorder;
 
   processor.disconnect();
 
-  // flatten samples
   let length = samples.reduce((sum, s) => sum + s.length, 0);
   let flat = new Float32Array(length);
 
@@ -512,39 +496,20 @@ function stopRecording() {
     offset += s.length;
   }
 
-  // encode WAV
-  const trimmed = trimSilence(flat, 0.01); // lower threshold too
+  const trimmed = trimSilence(flat, 0.01);
   const wavBuffer = encodeWAV(trimmed, audioContext.sampleRate);
+
   recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
+
   const row = filteredLog[selectedIndex];
   recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
 
-  player.ontimeupdate = () => {
-    const percent = (player.currentTime / player.duration) * 100;
-    progressBar.style.width = percent + "%";
-
-    const minutes = Math.floor(player.currentTime / 60);
-    const seconds = Math.floor(player.currentTime % 60)
-      .toString()
-      .padStart(2, "0");
-
-    timeLabel.textContent = `${minutes}:${seconds}`;
-  };
-
-  document.querySelector(".progress").onclick = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    player.currentTime = percent * player.duration;
-  };
-
-  
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
 
-  // cleanup
   mediaStream.getTracks().forEach(track => track.stop());
 
   if (audioContext) {
