@@ -460,6 +460,9 @@ function setupPlayer(player, blob) {
     const playBtn = document.getElementById("playBtn");
     const progressBar = document.getElementById("progressBar");
     const timeLabel = document.getElementById("time");
+    const progressContainer = document.querySelector(".progress");
+
+    if (!playBtn || !progressBar || !timeLabel) return;
 
     playBtn.onclick = () => {
       if (player.paused) {
@@ -471,7 +474,27 @@ function setupPlayer(player, blob) {
       }
     };
 
+    player.ontimeupdate = () => {
+      if (!player.duration) return;
 
+      const percent = (player.currentTime / player.duration) * 100;
+      progressBar.style.width = percent + "%";
+
+      const minutes = Math.floor(player.currentTime / 60);
+      const seconds = Math.floor(player.currentTime % 60)
+        .toString()
+        .padStart(2, "0");
+
+      timeLabel.textContent = `${minutes}:${seconds}`;
+    };
+
+    if (progressContainer) {
+      progressContainer.onclick = (e) => {
+        const rect = progressContainer.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        player.currentTime = percent * player.duration;
+      };
+    }
 
   }, 50);
 }
