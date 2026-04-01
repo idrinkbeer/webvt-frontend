@@ -302,7 +302,7 @@ function selectRow(i) {
 }
 
   // TRIM SILENCE ON WAV VT
-  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
+  function trimSilence(samples, threshold = 0.02, minSilenceSamples = 4410) {
   let start = 0;
   let end = samples.length - 1;
 
