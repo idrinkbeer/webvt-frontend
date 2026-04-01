@@ -96,6 +96,7 @@
 let log = [];
 let filteredLog = [];
 let selectedIndex = null;
+let currentHour = null;
 
 let mediaRecorder;
 let audioChunks = [];
@@ -130,6 +131,7 @@ async function loadSelectedLog(filename) {
   const text = await res.text();
 
   processASC(text);
+  document.getElementById("hourSelect").style.display = "inline-block";
 }
 
 // =====================
@@ -164,16 +166,46 @@ function processASC(text) {
     })
     .filter(Boolean);
 
-  renderTable();
+  buildHourDropdown();
+  filterByHour(log[0].time.split(":")[0]);
 }
 
 // =====================
-// TABLE RENDER
+// HOURS
 // =====================
+function buildHourDropdown() {
+  const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
+
+  const select = document.getElementById("hourSelect");
+  select.innerHTML = "";
+
+  hours.forEach(hour => {
+    const opt = document.createElement("option");
+    opt.value = hour;
+    opt.textContent = hour;
+    select.appendChild(opt);
+  });
+
+  currentHour = hours[0];
+  select.value = currentHour;
+
+  select.onchange = () => {
+    currentHour = select.value;
+    filterByHour(currentHour);
+  };
+}
+
+// =====================
+// TABLE
+// =====================
+function filterByHour(hour) {
+  filteredLog = log.filter(row => row.time.startsWith(hour));
+  selectedIndex = null;
+  renderTable();
+}
+
 function renderTable() {
   tableBody.innerHTML = "";
-
-  filteredLog = log;
 
   filteredLog.forEach((row, i) => {
     const tr = document.createElement("tr");
@@ -242,13 +274,10 @@ async function startRecording() {
   mediaRecorder = new MediaRecorder(mediaStream);
   audioChunks = [];
 
-  mediaRecorder.ondataavailable = e => {
-    audioChunks.push(e.data);
-  };
+  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
   mediaRecorder.start();
 
-  // VU setup
   audioContext = new AudioContext();
   const source = audioContext.createMediaStreamSource(mediaStream);
 
@@ -256,7 +285,6 @@ async function startRecording() {
   analyser.fftSize = 256;
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
-
   source.connect(analyser);
 
   updateVU();
@@ -291,17 +319,16 @@ function stopRecording() {
 }
 
 // =====================
-// VU METER
+// VU
 // =====================
 function updateVU() {
   if (!analyser) return;
 
   analyser.getByteFrequencyData(dataArray);
 
-  let sum = dataArray.reduce((a, b) => a + b, 0);
-  let avg = sum / dataArray.length;
+  let avg = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
 
-  document.getElementById("vuBar").style.width = (avg / 255 * 100) + "%";
+  document.getElementById("vuBar").style.width = (avg/255*100) + "%";
 
   requestAnimationFrame(updateVU);
 }
@@ -324,11 +351,7 @@ async function uploadToAIR() {
     body: formData
   });
 
-  if (res.ok) {
-    status.textContent = "✅ Uploaded!";
-  } else {
-    status.textContent = "❌ Upload failed";
-  }
+  status.textContent = res.ok ? "✅ Uploaded!" : "❌ Upload failed";
 }
 
 // =====================
