@@ -67,45 +67,58 @@
       cursor: pointer;
     }
 
-    audio { width: 100%; margin-top: 10px; }
-
+    /* 🎧 MODERN PLAYER */
     .audio-player {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-}
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
 
-.audio-player button {
-  background: #22c55e;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  color: white;
-  cursor: pointer;
-  font-size: 14px;
-}
+    .audio-player button {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border: none;
+      border-radius: 50%;
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
 
-.progress {
-  flex: 1;
-  height: 6px;
-  background: #334155;
-  border-radius: 3px;
-  overflow: hidden;
-  cursor: pointer;
-}
+    .audio-player button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 10px rgba(34,197,94,0.5);
+    }
 
-#progressBar {
-  height: 100%;
-  width: 0%;
-  background: #22c55e;
-}
+    .progress {
+      flex: 1;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+    }
 
-#time {
-  font-size: 12px;
-  color: #94a3b8;
-}
+    #progressBar {
+      height: 100%;
+      width: 0%;
+      background: #22c55e;
+    }
+
+    #time {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    #recordTime {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #22c55e;
+    }
   </style>
 </head>
 
@@ -136,19 +149,20 @@ let filteredLog = [];
 let selectedIndex = null;
 let currentHour = null;
 
-let mediaRecorder;
-let audioChunks = [];
 let recordedBlob = null;
 
 let isRecording = false;
 let audioContext, analyser, dataArray, mediaStream;
 
+let recordSeconds = 0;
+let recordInterval = null;
+
 const tableBody = document.querySelector("#logTable tbody");
 
 // =====================
-// UPLOAD VOICETRACK 
+// UPLOAD
 // =====================
-  async function uploadToAIR() {
+async function uploadToAIR() {
   if (!recordedBlob) return;
 
   const row = filteredLog[selectedIndex];
@@ -169,18 +183,15 @@ const tableBody = document.querySelector("#logTable tbody");
       body: formData
     });
 
-    if (!res.ok) throw new Error("Upload failed");
+    if (!res.ok) throw new Error();
 
-    status.textContent = "✅ Uploaded to AIR";
-    btn.textContent = "Uploaded ✓";
-
-  } catch (err) {
-    console.error(err);
+    status.textContent = "✅ Uploaded";
+  } catch {
     status.textContent = "❌ Upload failed";
     btn.disabled = false;
   }
 }
-  
+
 // =====================
 // LOAD LOGS
 // =====================
@@ -189,7 +200,6 @@ async function loadLogs() {
   const files = await res.json();
 
   const select = document.getElementById("logSelect");
-  select.innerHTML = "<option>Select a log...</option>";
 
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -198,110 +208,69 @@ async function loadLogs() {
     select.appendChild(opt);
   });
 
-  select.onchange = () => {
-    if (select.value !== "Select a log...") {
-      loadSelectedLog(select.value);
-    }
-  };
+  select.onchange = () => loadSelectedLog(select.value);
 }
 
 async function loadSelectedLog(filename) {
   const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`);
   const text = await res.text();
-
   processASC(text);
-  document.getElementById("hourSelect").style.display = "inline-block";
 }
 
 // =====================
-// ASC PROCESSING
+// ASC
 // =====================
 function processASC(text) {
-  log = text.split("\n")
-    .map(line => {
-      const parts = line.split("\\");
+  log = text.split("\n").map(line => {
+    const parts = line.split("\\");
 
-      if (line.includes("\\MUS\\")) {
-        return {
-          type: "SONG",
-          time: parts[0],
-          title: parts[5],
-          artist: parts[6],
-          intro: parseInt(parts[10]) || 0,
-          end: parts[11]
-        };
-      }
+    if (line.includes("\\MUS\\")) {
+      return {
+        type: "SONG",
+        time: parts[0],
+        title: parts[5],
+        artist: parts[6]
+      };
+    }
 
-      if (line.includes("\\VTX\\")) {
-        return {
-          type: "VTX",
-          time: parts[0],
-          cart: parts[4],
-          title: "VOICE TRACK"
-        };
-      }
+    if (line.includes("\\VTX\\")) {
+      return {
+        type: "VTX",
+        time: parts[0],
+        cart: parts[4],
+        title: "VOICE TRACK"
+      };
+    }
+  }).filter(Boolean);
 
-      return null;
-    })
-    .filter(Boolean);
-
-  buildHourDropdown();
-  filterByHour(log[0].time.split(":")[0]);
-}
-
-// =====================
-// HOURS
-// =====================
-function buildHourDropdown() {
-  const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
-
-  const select = document.getElementById("hourSelect");
-  select.innerHTML = "";
-
-  hours.forEach(hour => {
-    const opt = document.createElement("option");
-    opt.value = hour;
-    opt.textContent = hour;
-    select.appendChild(opt);
-  });
-
-  currentHour = hours[0];
-  select.value = currentHour;
-
-  select.onchange = () => {
-    currentHour = select.value;
-    filterByHour(currentHour);
-  };
+  filteredLog = log;
+  renderTable();
 }
 
 // =====================
 // TABLE
 // =====================
-function filterByHour(hour) {
-  filteredLog = log.filter(row => row.time.startsWith(hour));
-  selectedIndex = null;
-  renderTable();
-}
-
 function renderTable() {
   tableBody.innerHTML = "";
 
   filteredLog.forEach((row, i) => {
     const tr = document.createElement("tr");
 
-    if (row.type === "VTX") tr.classList.add("vtx");
-    if (i === selectedIndex) tr.classList.add("active");
-
     tr.innerHTML = `
       <td>${row.time}</td>
       <td>${row.type}</td>
-      <td>${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}</td>
+      <td>${row.title}</td>
       <td>${row.artist || ""}</td>
-      <td>${row.intro || ""}</td>
-      <td>${row.end || ""}</td>
+      <td></td>
+      <td></td>
     `;
 
-    tr.onclick = () => selectRow(i);
+    tr.onclick = () => {
+      if (row.type !== "VTX") return;
+      selectedIndex = i;
+      renderTable();
+    };
+
     tableBody.appendChild(tr);
 
     if (i === selectedIndex && row.type === "VTX") {
@@ -310,28 +279,26 @@ function renderTable() {
       recorderRow.innerHTML = `
         <td colspan="6">
           <div class="recorder">
-            🎙️ Recording for Cart: ${row.cart}<br><br>
+            🎙️ Cart: ${row.cart}<br><br>
 
             <button id="recordBtn" onclick="toggleRecording()">Start</button>
+            <button id="uploadBtn" onclick="uploadToAIR()" disabled>Upload</button>
 
-            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-              Upload to AIR
-            </button>
+            <div class="vu-container"><div id="vuBar"></div></div>
+            <div id="recordTime">⏱ 0:00</div>
+            <div id="status"></div>
 
-            <div class="vu-container">
-              <div id="vuBar"></div>
+            <div class="audio-player">
+              <button id="playBtn">
+                <span id="playIcon">
+                  ▶
+                </span>
+              </button>
+              <div class="progress"><div id="progressBar"></div></div>
+              <span id="time">0:00</span>
             </div>
 
-            <div id="status"></div>
-            <div class="audio-player">
-  <button id="playBtn">▶</button>
-  <div class="progress">
-    <div id="progressBar"></div>
-  </div>
-  <span id="time">0:00</span>
-</div>
-
-<audio id="player"></audio>
+            <audio id="player"></audio>
           </div>
         </td>
       `;
@@ -341,53 +308,14 @@ function renderTable() {
   });
 }
 
-function selectRow(i) {
-  if (filteredLog[i].type !== "VTX") return;
-  selectedIndex = i;
-  renderTable();
-}
-
-  // TRIM SILENCE ON WAV VT
-  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
-  let start = 0;
-  let end = samples.length - 1;
-
-  // find start
-  for (let i = 0; i < samples.length; i++) {
-    if (Math.abs(samples[i]) > threshold) {
-      start = i;
-      break;
-    }
-  }
-
-  // find end
-  for (let i = samples.length - 1; i > 0; i--) {
-    if (Math.abs(samples[i]) > threshold) {
-      end = i;
-      break;
-    }
-  }
-
-  // small padding so it doesn’t cut too tight
-  start = Math.max(0, start - minSilenceSamples);
-  end = Math.min(samples.length - 1, end + minSilenceSamples);
-
-  return samples.slice(start, end);
-}
-
-  
 // =====================
 // RECORDING
 // =====================
 async function toggleRecording() {
-  if (!isRecording) {
-    await startRecording();
-  } else {
-    stopRecording();
-  }
+  if (!isRecording) startRecording();
+  else stopRecording();
 }
 
-  
 async function startRecording() {
   mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
@@ -400,12 +328,10 @@ async function startRecording() {
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
   const processor = audioContext.createScriptProcessor(4096, 1, 1);
-
   let samples = [];
 
-  processor.onaudioprocess = (e) => {
-    const input = e.inputBuffer.getChannelData(0);
-    samples.push(new Float32Array(input));
+  processor.onaudioprocess = e => {
+    samples.push(new Float32Array(e.inputBuffer.getChannelData(0)));
   };
 
   source.connect(analyser);
@@ -416,81 +342,64 @@ async function startRecording() {
 
   updateVU();
 
-  isRecording = true;
+  recordSeconds = 0;
+  recordInterval = setInterval(() => {
+    recordSeconds++;
+    const m = Math.floor(recordSeconds / 60);
+    const s = (recordSeconds % 60).toString().padStart(2,"0");
+    document.getElementById("recordTime").textContent = `⏱ ${m}:${s}`;
+  },1000);
 
+  isRecording = true;
   document.getElementById("recordBtn").textContent = "Stop";
-  document.getElementById("status").textContent = "Recording...";
 }
 
 function stopRecording() {
-  const { samples, processor } = window._recorder;
+  clearInterval(recordInterval);
 
+  const { samples, processor } = window._recorder;
   processor.disconnect();
 
-  // flatten samples
-  let length = samples.reduce((sum, s) => sum + s.length, 0);
-  let flat = new Float32Array(length);
+  let flat = new Float32Array(samples.flat());
 
-  let offset = 0;
-  for (let s of samples) {
-    flat.set(s, offset);
-    offset += s.length;
-  }
-
-  // encode WAV
-  const trimmed = trimSilence(flat, 0.01); // lower threshold too
-  const wavBuffer = encodeWAV(trimmed, audioContext.sampleRate);
-  recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
+  const wavBuffer = encodeWAV(flat, audioContext.sampleRate);
+  recordedBlob = new Blob([wavBuffer]);
 
   const player = document.getElementById("player");
-player.src = URL.createObjectURL(recordedBlob);
+  player.src = URL.createObjectURL(recordedBlob);
 
-// setup custom player AFTER UI exists
-setTimeout(() => {
-  const playBtn = document.getElementById("playBtn");
-  const progressBar = document.getElementById("progressBar");
-  const timeLabel = document.getElementById("time");
+  setTimeout(() => {
+    const playBtn = document.getElementById("playBtn");
+    const icon = document.getElementById("playIcon");
+    const progressBar = document.getElementById("progressBar");
+    const timeLabel = document.getElementById("time");
 
-  playBtn.onclick = () => {
-    if (player.paused) {
-      player.play();
-      playBtn.textContent = "⏸";
-    } else {
-      player.pause();
-      playBtn.textContent = "▶";
-    }
-  };
+    playBtn.onclick = () => {
+      if (player.paused) {
+        player.play();
+        icon.textContent = "⏸";
+      } else {
+        player.pause();
+        icon.textContent = "▶";
+      }
+    };
 
-  player.ontimeupdate = () => {
-    const percent = (player.currentTime / player.duration) * 100;
-    progressBar.style.width = percent + "%";
+    player.ontimeupdate = () => {
+      progressBar.style.width = (player.currentTime / player.duration) * 100 + "%";
+      timeLabel.textContent = Math.floor(player.currentTime/60)+":"+Math.floor(player.currentTime%60).toString().padStart(2,"0");
+    };
 
-    const minutes = Math.floor(player.currentTime / 60);
-    const seconds = Math.floor(player.currentTime % 60)
-      .toString()
-      .padStart(2, "0");
+    document.querySelector(".progress").onclick = e => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      player.currentTime = ((e.clientX-rect.left)/rect.width)*player.duration;
+    };
 
-    timeLabel.textContent = `${minutes}:${seconds}`;
-  };
+  },50);
 
-  document.querySelector(".progress").onclick = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    player.currentTime = percent * player.duration;
-  };
-
-}, 50);
-  
   document.getElementById("uploadBtn").disabled = false;
-  document.getElementById("status").textContent = "Ready to upload";
 
-  // cleanup
-  mediaStream.getTracks().forEach(track => track.stop());
-
-  if (audioContext) {
-    audioContext.close();
-    analyser = null;
-  }
+  mediaStream.getTracks().forEach(t => t.stop());
+  audioContext.close();
 
   isRecording = false;
   document.getElementById("recordBtn").textContent = "Start";
@@ -503,58 +412,42 @@ function updateVU() {
   if (!analyser) return;
 
   analyser.getByteFrequencyData(dataArray);
+  const avg = dataArray.reduce((a,b)=>a+b)/dataArray.length;
 
-  let sum = dataArray.reduce((a,b)=>a+b,0);
-  let avg = sum / dataArray.length;
-
-  document.getElementById("vuBar").style.width = (avg/255*100) + "%";
-
+  document.getElementById("vuBar").style.width = (avg/255*100)+"%";
   requestAnimationFrame(updateVU);
 }
 
 // =====================
-loadLogs();
-
-
-  // Convert Float32 audio buffer → WAV
-function encodeWAV(samples, sampleRate) {
+function encodeWAV(samples, rate) {
   const buffer = new ArrayBuffer(44 + samples.length * 2);
   const view = new DataView(buffer);
 
-  function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  }
+  const write = (o,s)=>[...s].forEach((c,i)=>view.setUint8(o+i,c.charCodeAt(0)));
 
-  // RIFF header
-  writeString(view, 0, "RIFF");
-  view.setUint32(4, 36 + samples.length * 2, true);
-  writeString(view, 8, "WAVE");
+  write(0,"RIFF");
+  view.setUint32(4,36+samples.length*2,true);
+  write(8,"WAVEfmt ");
+  view.setUint32(16,16,true);
+  view.setUint16(20,1,true);
+  view.setUint16(22,1,true);
+  view.setUint32(24,rate,true);
+  view.setUint32(28,rate*2,true);
+  view.setUint16(32,2,true);
+  view.setUint16(34,16,true);
+  write(36,"data");
+  view.setUint32(40,samples.length*2,true);
 
-  // format chunk
-  writeString(view, 12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-
-  // data chunk
-  writeString(view, 36, "data");
-  view.setUint32(40, samples.length * 2, true);
-
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++, offset += 2) {
-    let s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  let offset=44;
+  for(let i=0;i<samples.length;i++,offset+=2){
+    let s=Math.max(-1,Math.min(1,samples[i]));
+    view.setInt16(offset,s<0?s*0x8000:s*0x7fff,true);
   }
 
   return buffer;
 }
-  
+
+loadLogs();
 </script>
 
 </body>
