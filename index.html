@@ -2,7 +2,6 @@
 <html>
 <head>
   <title>Web VT for AIR</title>
-
   <style>
     body {
       font-family: Arial;
@@ -111,6 +110,15 @@
 
 <body>
 
+  <div id="loginBox">
+    <h2>Login</h2>
+    <input id="username" placeholder="Username"><br><br>
+    <input id="password" type="password" placeholder="Password"><br><br>
+    <button onclick="login()">Login</button>
+    <div id="loginError"></div>
+  </div>
+  
+
 <h1>🎙️ Web VT for AIR</h1>
 
 <select id="logSelect"></select>
@@ -169,8 +177,11 @@ const tableBody = document.querySelector("#logTable tbody");
   btn.disabled = true;
 
   try {
-    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+    const res = await fetch("/upload", {
       method: "POST",
+      headers: {
+        Authorization: "Bearer " + token
+      },
       body: formData
     });
 
@@ -191,11 +202,15 @@ const tableBody = document.querySelector("#logTable tbody");
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs");
+  const res = await fetch("/logs", {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
   const files = await res.json();
 
   const select = document.getElementById("logSelect");
-  select.innerHTML = "<option>Select a log...</option>";
+  select.innerHTML = "<option>Select music log...</option>";
 
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -460,7 +475,7 @@ async function startRecording() {
   isRecording = true;
 
   document.getElementById("recordBtn").textContent = "Stop";
-  document.getElementById("status").textContent = "Recording...";
+  document.getElementById("status").textContent = "Recording Voicetrack...";
 
   // ⏱ START TIMER
   recordSeconds = 0;
@@ -624,6 +639,41 @@ function encodeWAV(samples, sampleRate) {
   }
 
   return buffer;
+}
+
+  let token = localStorage.getItem("token");
+
+if (token) {
+  document.getElementById("loginBox").style.display = "none";
+  loadLogs();
+}
+
+//LOGIN SCRIPT
+async function login() {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/login", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ username, password })
+  });
+
+  if (!res.ok) {
+    document.getElementById("loginError").textContent = "Login failed";
+    return;
+  }
+
+  const data = await res.json();
+
+  token = data.token;
+  localStorage.setItem("token", token);
+
+  document.getElementById("loginBox").style.display = "none";
+
+  loadLogs();
 }
   
 </script>
