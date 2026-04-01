@@ -606,7 +606,6 @@ function updateVU() {
 }
 
 // =====================
-loadLogs();
 
 
   // Convert Float32 audio buffer → WAV
@@ -648,24 +647,19 @@ function encodeWAV(samples, sampleRate) {
   return buffer;
 }
 
-  let token = localStorage.getItem("token");
+// =====================
+// AUTH SYSTEM (FIXED)
+// =====================
 
-if (token) {
-  document.getElementById("loginBox").style.display = "none";
-  loadLogs();
-}
-
-function showApp() {
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("app").style.display = "block";
-
-  loadLogs();
-}
-  
-//LOGIN SCRIPT
 let token = localStorage.getItem("token");
 
-async function login() {
+// auto login
+if (token) {
+  showApp();
+}
+
+// make login global (fixes your error)
+window.login = async function () {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
 
@@ -688,16 +682,16 @@ async function login() {
   localStorage.setItem("token", token);
 
   showApp();
-}
+};
 
-</div>
-
+// show app after login
 function showApp() {
-  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("loginScreen").style.display = "none";
   document.getElementById("app").style.display = "block";
 
   loadLogs();
 }
+
 </script>
 
 </body>
