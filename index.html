@@ -57,24 +57,15 @@
       border-radius: 5px;
     }
 
-    #countdown {
-      margin-top: 10px;
-      font-size: 18px;
-      font-weight: bold;
-    }
-
-    #hourTabs button {
-      background: #1e293b;
+    select {
+      background: #020617;
       color: #e2e8f0;
-      border: none;
-      padding: 6px 10px;
-      margin-right: 5px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    #hourTabs button.active {
-      background: #2563eb;
+      border: 1px solid #334155;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 15px;
+      margin-bottom: 15px;
+      min-width: 220px;
     }
 
     button {
@@ -87,35 +78,6 @@
       cursor: pointer;
     }
 
-    button:hover { background: #1d4ed8; }
-
-    #hourSelect {
-  background: #020617;
-  color: #e2e8f0;
-  border: 1px solid #334155;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 15px;
-  margin-bottom: 20px;
-  min-width: 180px;
-  outline: none;
-  appearance: none;
-  cursor: pointer;
-
-  /* subtle glow */
-  box-shadow: 0 0 0 1px rgba(37,99,235,0.2);
-}
-
-#hourSelect:hover {
-  border-color: #2563eb;
-}
-
-#hourSelect:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37,99,235,0.4);
-}
-    
-
     audio { width: 100%; margin-top: 10px; }
   </style>
 </head>
@@ -124,8 +86,13 @@
 
 <h1>🎙️ Web VT for AIR</h1>
 
-<input type="file" id="fileInput" accept=".asc"><br><br>
+<!-- LOG DROPDOWN -->
+<div style="margin-bottom:5px; color:#94a3b8; font-size:13px;">
+  Select Log
+</div>
+<select id="logSelect"></select>
 
+<!-- HOUR DROPDOWN -->
 <select id="hourSelect" style="display:none;"></select>
 
 <table id="logTable">
@@ -145,8 +112,8 @@
 <script>
 let log = [];
 let filteredLog = [];
-let currentHour = null;
 let selectedIndex = null;
+let currentHour = null;
 
 let mediaRecorder;
 let audioChunks = [];
@@ -155,16 +122,56 @@ let audioContext, analyser, dataArray;
 
 const tableBody = document.querySelector("#logTable tbody");
 
-// FORMAT INTRO
+// FORMAT
 function formatIntro(seconds) {
   if (!seconds || isNaN(seconds)) return "";
   return ":" + parseInt(seconds).toString().padStart(2, "0");
 }
 
-// LOAD ASC
-document.getElementById("fileInput").addEventListener("change", async (e) => {
-  const text = await e.target.files[0].text();
+function formatHour(hourStr) {
+  let hour = parseInt(hourStr, 10);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${hour} ${suffix}`;
+}
 
+// =====================
+// FTP LOG LOADER
+// =====================
+async function loadLogs() {
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs");
+  const files = await res.json();
+
+  const select = document.getElementById("logSelect");
+  select.innerHTML = "<option>Select a log...</option>";
+
+  files.forEach(file => {
+    const opt = document.createElement("option");
+    opt.value = file;
+    opt.textContent = file;
+    select.appendChild(opt);
+  });
+
+  select.onchange = () => {
+    if (select.value !== "Select a log...") {
+      loadSelectedLog(select.value);
+    }
+  };
+}
+
+async function loadSelectedLog(filename) {
+  const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`);
+  const text = await res.text();
+
+  processASC(text);
+
+  document.getElementById("hourSelect").style.display = "inline-block";
+}
+
+// =====================
+// ASC PROCESSING
+// =====================
+function processASC(text) {
   log = text.split("\n")
     .map(line => {
       const parts = line.split("\\");
@@ -173,10 +180,10 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
         return {
           type: "SONG",
           time: parts[0],
-          title: parts[5],
-          artist: parts[6],
-          intro: parseInt(parts[10]) || 0,
-          end: parts[11]
+          title: parts[4],
+          artist: parts[5],
+          intro: parseInt(parts[8]) || 0,
+          end: parts[9]
         };
       }
 
@@ -184,32 +191,22 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
         return {
           type: "VTX",
           time: parts[0],
-          cart: parts[4],
+          cart: parts[3],
           title: "VOICE TRACK"
         };
       }
 
       return null;
     })
-    .filter(row => row && row.title && !row.title.includes("TIME SYNC"));
+    .filter(Boolean);
 
   buildHourDropdown();
-  document.getElementById("hourSelect").style.display = "inline-block";
-  currentHour = [...new Set(log.map(r => r.time.split(":")[0]))][0];
-  filterByHour(currentHour);
-});
-
-// FORMAT HOURS FOR TABS
-function formatHour(hourStr) {
-  let hour = parseInt(hourStr, 10);
-
-  const suffix = hour >= 12 ? "PM" : "AM";
-  hour = hour % 12 || 12;
-
-  return `${hour} ${suffix}`;
+  filterByHour(log[0].time.split(":")[0]);
 }
-  
-// BUILD TABS
+
+// =====================
+// HOUR DROPDOWN
+// =====================
 function buildHourDropdown() {
   const hours = [...new Set(log.map(r => r.time.split(":")[0]))].sort();
 
@@ -217,13 +214,12 @@ function buildHourDropdown() {
   select.innerHTML = "";
 
   hours.forEach(hour => {
-    const option = document.createElement("option");
-    option.value = hour;
-    option.textContent = formatHour(hour);
-    select.appendChild(option);
+    const opt = document.createElement("option");
+    opt.value = hour;
+    opt.textContent = formatHour(hour);
+    select.appendChild(opt);
   });
 
-  // default select first hour
   currentHour = hours[0];
   select.value = currentHour;
 
@@ -233,14 +229,15 @@ function buildHourDropdown() {
   };
 }
 
-// FILTER
+// =====================
+// FILTER + RENDER
+// =====================
 function filterByHour(hour) {
   filteredLog = log.filter(row => row.time.startsWith(hour));
   selectedIndex = null;
   renderTable();
 }
 
-// RENDER
 function renderTable() {
   tableBody.innerHTML = "";
 
@@ -297,10 +294,10 @@ function selectRow(i) {
   renderTable();
 }
 
-// RECORD
+// =====================
+// RECORDING
+// =====================
 async function startRecording(introTime) {
-  const status = document.getElementById("status");
-
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
   mediaRecorder = new MediaRecorder(stream);
@@ -319,11 +316,8 @@ async function startRecording(introTime) {
 
   updateVU();
   startCountdown(introTime);
-
-  status.innerText = "🎙️ Recording...";
 }
 
-// STOP
 function stopRecording() {
   if (!mediaRecorder) return;
 
@@ -343,17 +337,18 @@ function stopRecording() {
     const formData = new FormData();
     formData.append("file", blob, fileName);
 
-    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+    await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
       method: "POST",
       body: formData
     });
 
-    const data = await res.json();
-    document.getElementById("status").innerText = "✅ Uploaded: " + data.file;
+    document.getElementById("status").innerText = "✅ Uploaded: " + fileName;
   };
 }
 
+// =====================
 // VU
+// =====================
 function updateVU() {
   if (!analyser) return;
 
@@ -364,16 +359,14 @@ function updateVU() {
   const bar = document.getElementById("vuBar");
   if (bar) {
     bar.style.width = percent + "%";
-
-    if (percent > 75) bar.style.background = "#ef4444";
-    else if (percent > 40) bar.style.background = "#f59e0b";
-    else bar.style.background = "#22c55e";
   }
 
   requestAnimationFrame(updateVU);
 }
 
+// =====================
 // COUNTDOWN
+// =====================
 function startCountdown(seconds) {
   let remaining = seconds;
   const el = document.getElementById("countdown");
@@ -391,6 +384,9 @@ function startCountdown(seconds) {
     if (remaining < 0) clearInterval(interval);
   }, 1000);
 }
+
+// INIT
+loadLogs();
 </script>
 
 </body>
