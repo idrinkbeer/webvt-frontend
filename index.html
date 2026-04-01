@@ -378,29 +378,40 @@ function selectRow(i) {
 }
 
   // TRIM SILENCE ON WAV VT
-  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
+function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
   let start = 0;
   let end = samples.length - 1;
 
+  function rms(startIdx) {
+    let sum = 0;
+    for (let i = 0; i < windowSize; i++) {
+      const s = samples[startIdx + i] || 0;
+      sum += s * s;
+    }
+    return Math.sqrt(sum / windowSize);
+  }
+
   // find start
-  for (let i = 0; i < samples.length; i++) {
-    if (Math.abs(samples[i]) > threshold) {
+  for (let i = 0; i < samples.length - windowSize; i += windowSize) {
+    if (rms(i) > threshold) {
       start = i;
       break;
     }
   }
 
   // find end
-  for (let i = samples.length - 1; i > 0; i--) {
-    if (Math.abs(samples[i]) > threshold) {
+  for (let i = samples.length - windowSize; i > 0; i -= windowSize) {
+    if (rms(i) > threshold) {
       end = i;
       break;
     }
   }
 
-  // small padding so it doesn’t cut too tight
-  start = Math.max(0, start - minSilenceSamples);
-  end = Math.min(samples.length - 1, end + minSilenceSamples);
+  // padding (keeps natural feel)
+  const padding = sampleRate * 0.1; // 100ms
+
+  start = Math.max(0, start - padding);
+  end = Math.min(samples.length - 1, end + padding);
 
   return samples.slice(start, end);
 }
@@ -531,7 +542,7 @@ function stopRecording() {
     offset += s.length;
   }
 
-  const trimmed = trimSilence(flat, 0.01);
+  const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
   const wavBuffer = encodeWAV(trimmed, audioContext.sampleRate);
 
   recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
