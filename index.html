@@ -522,22 +522,6 @@ function stopRecording() {
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
 
-// setup custom player AFTER UI exists
-setTimeout(() => {
-  const playBtn = document.getElementById("playBtn");
-  const progressBar = document.getElementById("progressBar");
-  const timeLabel = document.getElementById("time");
-
-  playBtn.onclick = () => {
-    if (player.paused) {
-      player.play();
-      playBtn.textContent = "⏸";
-    } else {
-      player.pause();
-      playBtn.textContent = "▶";
-    }
-  };
-
   player.ontimeupdate = () => {
     const percent = (player.currentTime / player.duration) * 100;
     progressBar.style.width = percent + "%";
