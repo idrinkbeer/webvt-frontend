@@ -115,6 +115,7 @@ async function loadLogs() {
   const files = await res.json();
 
   const select = document.getElementById("logSelect");
+  select.innerHTML = "<option>Select a log...</option>";
 
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -123,7 +124,11 @@ async function loadLogs() {
     select.appendChild(opt);
   });
 
-  select.onchange = () => loadSelectedLog(select.value);
+  select.onchange = () => {
+    if (select.value !== "Select a log...") {
+      loadSelectedLog(select.value);
+    }
+  };
 }
 
 async function loadSelectedLog(filename) {
@@ -233,8 +238,11 @@ function renderTable() {
           <div class="recorder">
             🎙️ Recording for Cart: ${row.cart}<br><br>
 
-            <button id="recordBtn" onclick="toggleRecording()">Start Recording</button>
-            <button id="uploadBtn" onclick="uploadToAIR()" disabled>Upload to AIR</button>
+            <button id="recordBtn" onclick="toggleRecording()">Start</button>
+
+            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
+              Upload to AIR
+            </button>
 
             <div class="vu-container">
               <div id="vuBar"></div>
@@ -290,8 +298,7 @@ async function startRecording() {
   updateVU();
 
   isRecording = true;
-
-  document.getElementById("recordBtn").textContent = "Stop Recording";
+  document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
 }
 
@@ -315,7 +322,7 @@ function stopRecording() {
   }
 
   isRecording = false;
-  document.getElementById("recordBtn").textContent = "Start Recording";
+  document.getElementById("recordBtn").textContent = "Start";
 }
 
 // =====================
@@ -326,32 +333,12 @@ function updateVU() {
 
   analyser.getByteFrequencyData(dataArray);
 
-  let avg = dataArray.reduce((a,b)=>a+b,0) / dataArray.length;
+  let sum = dataArray.reduce((a,b)=>a+b,0);
+  let avg = sum / dataArray.length;
 
   document.getElementById("vuBar").style.width = (avg/255*100) + "%";
 
   requestAnimationFrame(updateVU);
-}
-
-// =====================
-// UPLOAD
-// =====================
-async function uploadToAIR() {
-  const row = filteredLog[selectedIndex];
-
-  const formData = new FormData();
-  formData.append("file", recordedBlob, `${row.cart}.wav`);
-  formData.append("cart", row.cart);
-
-  const status = document.getElementById("status");
-  status.textContent = "Uploading...";
-
-  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
-    method: "POST",
-    body: formData
-  });
-
-  status.textContent = res.ok ? "✅ Uploaded!" : "❌ Upload failed";
 }
 
 // =====================
