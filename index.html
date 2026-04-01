@@ -312,15 +312,9 @@ async function toggleRecording() {
   }
 }
 
+  
 async function startRecording() {
   mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-  mediaRecorder = new MediaRecorder(mediaStream);
-  audioChunks = [];
-
-  mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-
-  mediaRecorder.start();
 
   audioContext = new AudioContext();
   const source = audioContext.createMediaStreamSource(mediaStream);
@@ -329,27 +323,54 @@ async function startRecording() {
   analyser.fftSize = 256;
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+  let samples = [];
+
+  processor.onaudioprocess = (e) => {
+    const input = e.inputBuffer.getChannelData(0);
+    samples.push(new Float32Array(input));
+  };
+
   source.connect(analyser);
+  analyser.connect(processor);
+  processor.connect(audioContext.destination);
+
+  window._recorder = { samples, processor };
 
   updateVU();
 
   isRecording = true;
+
   document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
 }
 
 function stopRecording() {
-  mediaRecorder.stop();
+  const { samples, processor } = window._recorder;
 
-  mediaRecorder.onstop = () => {
-    recordedBlob = new Blob(audioChunks, { type: "audio/webm" });
-    audioChunks = [];
+  processor.disconnect();
 
-    document.getElementById("player").src = URL.createObjectURL(recordedBlob);
-    document.getElementById("uploadBtn").disabled = false;
-    document.getElementById("status").textContent = "Ready to upload";
-  };
+  // flatten samples
+  let length = samples.reduce((sum, s) => sum + s.length, 0);
+  let flat = new Float32Array(length);
 
+  let offset = 0;
+  for (let s of samples) {
+    flat.set(s, offset);
+    offset += s.length;
+  }
+
+  // encode WAV
+  const wavBuffer = encodeWAV(flat, audioContext.sampleRate);
+  recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
+
+  document.getElementById("player").src = URL.createObjectURL(recordedBlob);
+  document.getElementById("uploadBtn").disabled = false;
+  document.getElementById("status").textContent = "Ready to upload";
+
+  // cleanup
   mediaStream.getTracks().forEach(track => track.stop());
 
   if (audioContext) {
@@ -379,6 +400,47 @@ function updateVU() {
 
 // =====================
 loadLogs();
+
+
+  // Convert Float32 audio buffer → WAV
+function encodeWAV(samples, sampleRate) {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  // RIFF header
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  writeString(view, 8, "WAVE");
+
+  // format chunk
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+
+  // data chunk
+  writeString(view, 36, "data");
+  view.setUint32(40, samples.length * 2, true);
+
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++, offset += 2) {
+    let s = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+
+  return buffer;
+}
+  
 </script>
 
 </body>
