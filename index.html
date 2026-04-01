@@ -378,27 +378,41 @@ function selectRow(i) {
 }
 
   // TRIM SILENCE ON WAV VT
-  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
+function trimSilence(samples, threshold = 0.003, minSilenceSamples = 4410) {
   let start = 0;
   let end = samples.length - 1;
 
-  // find start
+  let silenceCount = 0;
+
+  // find start (require sustained signal)
   for (let i = 0; i < samples.length; i++) {
     if (Math.abs(samples[i]) > threshold) {
-      start = i;
-      break;
+      silenceCount++;
+      if (silenceCount > 200) { // require ~200 samples of real audio
+        start = i - silenceCount;
+        break;
+      }
+    } else {
+      silenceCount = 0;
     }
   }
+
+  silenceCount = 0;
 
   // find end
   for (let i = samples.length - 1; i > 0; i--) {
     if (Math.abs(samples[i]) > threshold) {
-      end = i;
-      break;
+      silenceCount++;
+      if (silenceCount > 200) {
+        end = i + silenceCount;
+        break;
+      }
+    } else {
+      silenceCount = 0;
     }
   }
 
-  // small padding so it doesn’t cut too tight
+  // padding so it doesn't clip speech
   start = Math.max(0, start - minSilenceSamples);
   end = Math.min(samples.length - 1, end + minSilenceSamples);
 
