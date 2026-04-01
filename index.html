@@ -344,6 +344,8 @@ function renderTable() {
       tableBody.appendChild(recorderRow);
       // 🔁 Restore previous recording if exists
       const rowData = filteredLog[selectedIndex];
+      const saved = recordings[rowData.cart];
+
       if (saved) {
         const player = document.getElementById("player");
 
@@ -351,16 +353,7 @@ function renderTable() {
 
         recordedBlob = saved;
         document.getElementById("uploadBtn").disabled = false;
-        document.getElementById("status").textContent = "Previously recorded";
-      }
-
-      if (saved) {
-        const player = document.getElementById("player");
-        player.src = URL.createObjectURL(saved);
-
-        recordedBlob = saved;
-        document.getElementById("uploadBtn").disabled = false;
-        document.getElementById("status").textContent = "Previously recorded";
+        document.getElementById("status").textContent = "VT Previously recorded";
       }
     }
   });
