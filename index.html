@@ -110,14 +110,16 @@
 
 <body>
 
-  <div id="loginBox">
-    <h2>Login</h2>
-    <input id="username" placeholder="Username"><br><br>
-    <input id="password" type="password" placeholder="Password"><br><br>
-    <button onclick="login()">Login</button>
-    <div id="loginError"></div>
-  </div>
-  
+<div id="loginScreen">
+  <h2>Login</h2>
+  <input id="username" placeholder="Username"><br><br>
+  <input id="password" type="password" placeholder="Password"><br><br>
+  <button onclick="login()">Login</button>
+  <div id="loginError"></div>
+</div>
+
+<div id="app" style="display:none;">
+  <!-- EVERYTHING ELSE (your current UI) goes here -->
 
 <h1>🎙️ Web VT for AIR</h1>
 
@@ -227,7 +229,12 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`);
+  const res = await fetch(`/logs/${filename}`, {
+    headers: {
+      Authorization: "Bearer " + token
+    }
+  });
+
   const text = await res.text();
 
   processASC(text);
@@ -648,7 +655,16 @@ if (token) {
   loadLogs();
 }
 
+function showApp() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
+
+  loadLogs();
+}
+  
 //LOGIN SCRIPT
+let token = localStorage.getItem("token");
+
 async function login() {
   const username = document.getElementById("username").value;
   const password = document.getElementById("password").value;
@@ -671,11 +687,17 @@ async function login() {
   token = data.token;
   localStorage.setItem("token", token);
 
+  showApp();
+}
+
+</div>
+
+function showApp() {
   document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
 
   loadLogs();
 }
-  
 </script>
 
 </body>
