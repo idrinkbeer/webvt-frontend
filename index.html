@@ -302,7 +302,7 @@ function selectRow(i) {
 }
 
   // TRIM SILENCE ON WAV VT
-  function trimSilence(samples, threshold = 0.005, minSilenceSamples = 4410) {
+  function trimSilence(samples, threshold = 0.01, minSilenceSamples = 4410) {
   let start = 0;
   let end = samples.length - 1;
 
@@ -392,7 +392,7 @@ function stopRecording() {
   }
 
   // encode WAV
-  const trimmed = trimSilence(flat, 0.005); // lower threshold too
+  const trimmed = trimSilence(flat, 0.01); // lower threshold too
   const wavBuffer = encodeWAV(trimmed, audioContext.sampleRate);
   recordedBlob = new Blob([wavBuffer], { type: "audio/wav" });
 
