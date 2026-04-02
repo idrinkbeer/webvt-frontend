@@ -106,6 +106,10 @@
   font-size: 12px;
   color: #94a3b8;
 }
+
+#app {
+  display: none;
+}
   </style>
 </head>
 
@@ -118,7 +122,8 @@
   <button onclick="login()">Login</button>
   <div id="loginStatus"></div>
 </div>
-  
+
+<div id="app" style="display:none;">
 <h1>🎙️ Web VT for AIR</h1>
 
 <select id="logSelect"></select>
@@ -137,6 +142,7 @@
   </thead>
   <tbody></tbody>
 </table>
+</div>
 
 <script>
 let token = localStorage.getItem("token");
@@ -164,6 +170,7 @@ const tableBody = document.querySelector("#logTable tbody");
 // =====================
 if (token) {
   document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
   loadLogs();
 }
   
@@ -190,6 +197,7 @@ async function login() {
   localStorage.setItem("token", token);
 
   document.getElementById("loginBox").style.display = "none";
+  document.getElementById("app").style.display = "block";
 
   loadLogs();
 }
