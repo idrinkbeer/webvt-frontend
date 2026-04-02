@@ -125,7 +125,7 @@
 
 <div id="app" style="display:none;">
 <h1>🎙️ Web VT for AIR</h1>
-
+<button onclick="logout()" style="float:right;">Logout</button>
 <select id="logSelect"></select>
 <select id="hourSelect" style="display:none;"></select>
 
@@ -202,6 +202,11 @@ async function login() {
   loadLogs();
 }
 
+function logout() {
+  localStorage.removeItem("token");
+  location.reload();
+}
+  
 // =====================
 // UPLOAD VOICETRACK 
 // =====================
