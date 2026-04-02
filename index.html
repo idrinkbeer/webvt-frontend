@@ -9,6 +9,7 @@
       background: #0f172a;
       color: #e2e8f0;
       padding: 20px;
+      margin: 0;
     }
 
     table {
@@ -110,16 +111,44 @@
 #app {
   display: none;
 }
+
+#loginContainer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#loginBox {
+  background: #020617;
+  padding: 25px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+#loginBox input {
+  width: 200px;
+  padding: 8px;
+  border-radius: 6px;
+  border: none;
+  margin-bottom: 10px;
+}
+    
   </style>
 </head>
 
 <body>
 
-<div id="loginBox" style="margin-bottom:20px;">
-  <h2>🔐 Login</h2>
-  <input id="username" placeholder="Username"><br><br>
-  <input id="password" type="password" placeholder="Password"><br><br>
-  <button onclick="login()">Login</button>
+<div id="loginContainer">
+  <div id="loginBox" style="margin-bottom:20px;">
+    <h1 style="position:absolute; top:20px; width:100%; text-align:center;">
+      🎙️ Web VT for AIR
+    </h1>
+      <h2>🔐 Login</h2>
+      <input id="username" placeholder="Username"><br><br>
+      <input id="password" type="password" placeholder="Password"><br><br>
+      <button onclick="login()">Login</button>
   <div id="loginStatus"></div>
 </div>
 
