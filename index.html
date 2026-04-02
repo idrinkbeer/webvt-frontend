@@ -204,7 +204,7 @@ const tableBody = document.querySelector("#logTable tbody");
 // LOGIN SYSTEM 
 // =====================
 if (token) {
-  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
   loadLogs();
 }
@@ -231,7 +231,7 @@ async function login() {
 
   localStorage.setItem("token", token);
 
-  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
 
   loadLogs();
