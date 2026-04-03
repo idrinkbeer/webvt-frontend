@@ -342,7 +342,7 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`/logs/${filename}`, {
+  const res = await fetch(`https://webvt-revolt-api.miup3p.easypanel.host/logs/${filename}`, {
     headers: {
       Authorization: "Bearer " + token
     }
