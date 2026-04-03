@@ -201,7 +201,8 @@
 </div>
 
 <script>
-let token = localStorage.getItem("token");
+const STORAGE_KEY = "webvt_token_" + window.location.hostname;
+let token = localStorage.getItem(STORAGE_KEY);
 let log = [];
 let filteredLog = [];
 let selectedIndex = null;
@@ -259,7 +260,7 @@ async function login() {
   const data = await res.json();
   token = data.token;
 
-  localStorage.setItem("token", token);
+  localStorage.setItem(STORAGE_KEY, token);
 
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
@@ -268,7 +269,7 @@ async function login() {
 }
 
 function logout() {
-  localStorage.removeItem("token");
+  localStorage.removeItem(STORAGE_KEY);
   location.reload();
 }
   
