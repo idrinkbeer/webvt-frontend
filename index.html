@@ -429,11 +429,11 @@ function processASC(text) {
         return {
           type: "SONG",
           time: parts[0],
-          title: parts[4],
-          artist: parts[5],
-          filename: parts[11], // ✅ THIS is the important part
-          intro: parseInt(parts[9]) || 0,
-          end: parts[10]
+          title: parts[5],
+          artist: parts[6],
+          filename: parts[12], // ✅ THIS is the important part
+          intro: parseInt(parts[10]) || 0,
+          end: parts[11]
         };
       }
 
