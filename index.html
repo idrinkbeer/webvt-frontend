@@ -398,9 +398,9 @@ async function previewBreak() {
     return;
   }
 
-  await playTrack(`/audio/${prevSong.title}.mp3`);
+  await playTrack(`/audio/${encodeURIComponent(prevSong.filename)}`);
   await playTrack(URL.createObjectURL(vt));
-  await playTrack(`/audio/${nextSong.title}.mp3`);
+  await playTrack(`/audio/${encodeURIComponent(nextSong.filename)}`);
 }
 
 function playTrack(src) {
@@ -429,10 +429,11 @@ function processASC(text) {
         return {
           type: "SONG",
           time: parts[0],
-          title: parts[5],
-          artist: parts[6],
-          intro: parseInt(parts[10]) || 0,
-          end: parts[11]
+          title: parts[4],
+          artist: parts[5],
+          filename: parts[11], // ✅ THIS is the important part
+          intro: parseInt(parts[9]) || 0,
+          end: parts[10]
         };
       }
 
