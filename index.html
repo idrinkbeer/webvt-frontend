@@ -199,7 +199,7 @@
   <tbody></tbody>
 </table>
 </div>
-<script src="https://unpkg.com/wavesurfer.js"></script>
+
 <script>
 const STORAGE_KEY = "webvt_token_" + window.location.hostname;
 let token = localStorage.getItem(STORAGE_KEY);
@@ -219,12 +219,6 @@ let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
 let uploaded = {};
-let wavesurfer;
-
-const current = filteredLog[selectedIndex];
-const prev = filteredLog[selectedIndex - 1];
-const next = filteredLog[selectedIndex + 1];
-
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -248,7 +242,7 @@ async function login() {
   spinner.style.display = "block";
   btn.disabled = true;
 
-  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/login", {
+  const res = await fetch("https://webvt-revolt-api.miup3p.easypanel.host/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -279,30 +273,6 @@ function logout() {
   location.reload();
 }
   
-
-function getPrevNextSongs(index) {
-  let prevSong = null;
-  let nextSong = null;
-
-  // look backwards
-  for (let i = index - 1; i >= 0; i--) {
-    if (filteredLog[i].type === "SONG") {
-      prevSong = filteredLog[i];
-      break;
-    }
-  }
-
-  // look forwards
-  for (let i = index + 1; i < filteredLog.length; i++) {
-    if (filteredLog[i].type === "SONG") {
-      nextSong = filteredLog[i];
-      break;
-    }
-  }
-
-  return { prevSong, nextSong };
-}
-
 // =====================
 // UPLOAD VOICETRACK 
 // =====================
@@ -322,7 +292,7 @@ function getPrevNextSongs(index) {
   btn.disabled = true;
 
   try {
-    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
+    const res = await fetch("https://webvt-revolt-api.miup3p.easypanel.host/upload", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token
@@ -347,7 +317,7 @@ function getPrevNextSongs(index) {
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs", {
+  const res = await fetch("https://webvt-revolt-api.miup3p.easypanel.host/logs", {
     headers: {
       Authorization: "Bearer " + token
     }
@@ -372,7 +342,7 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`, {
+  const res = await fetch(`https://webvt-revolt-api.miup3p.easypanel.host/logs/${filename}`, {
     headers: {
       Authorization: "Bearer " + token
     }
@@ -381,40 +351,6 @@ async function loadSelectedLog(filename) {
 
   processASC(text);
   document.getElementById("hourSelect").style.display = "inline-block";
-}
-
-
-async function previewBreak() {
-  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
-  const vt = recordings[filteredLog[selectedIndex].cart];
-
-  if (!vt) {
-    alert("No voicetrack recorded");
-    return;
-  }
-
-  if (!prevSong || !nextSong) {
-    alert("Missing surrounding songs");
-    return;
-  }
-
-  await playTrack(`/audio/${encodeURIComponent(prevSong.filename)}`);
-  await playTrack(URL.createObjectURL(vt));
-  await playTrack(`/audio/${encodeURIComponent(nextSong.filename)}`);
-}
-
-function playTrack(src) {
-  return new Promise(resolve => {
-    wavesurfer.load(src);
-
-    wavesurfer.once("ready", () => {
-      wavesurfer.play();
-    });
-
-    wavesurfer.once("finish", () => {
-      resolve();
-    });
-  });
 }
 
 // =====================
@@ -431,7 +367,6 @@ function processASC(text) {
           time: parts[0],
           title: parts[5],
           artist: parts[6],
-          filename: parts[12], // ✅ THIS is the important part
           intro: parseInt(parts[10]) || 0,
           end: parts[11]
         };
@@ -529,9 +464,7 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <div id="waveform" style="margin-top:10px;"></div>
             <div class="audio-player">
-        <button onclick="previewBreak()">Preview Break</button>
   <button id="playBtn">▶</button>
   <div class="progress">
     <div id="progressBar"></div>
@@ -545,29 +478,6 @@ function renderTable() {
       `;
 
       tableBody.appendChild(recorderRow);
-      // 🎧 Init waveform
-setTimeout(() => {
-  const container = document.getElementById("waveform");
-
-  if (!container) return;
-
-  wavesurfer = WaveSurfer.create({
-    container: "#waveform",
-    waveColor: "#334155",
-    progressColor: "#22c55e",
-    height: 80
-  });
-
-  // If recording already exists, load it
-  const rowData = filteredLog[selectedIndex];
-  const saved = recordings[rowData.cart];
-
-  if (saved) {
-    wavesurfer.load(URL.createObjectURL(saved));
-  }
-
-}, 50);
-
       // 🔁 Restore previous recording if exists
       const rowData = filteredLog[selectedIndex];
       const saved = recordings[rowData.cart];
@@ -723,20 +633,15 @@ function setupPlayer(player, blob) {
 
     if (!playBtn || !progressBar || !timeLabel) return;
 
-playBtn.onclick = () => {
-  if (wavesurfer) {
-    wavesurfer.playPause();
-    playBtn.textContent = wavesurfer.isPlaying() ? "⏸" : "▶";
-  } else {
-    if (player.paused) {
-      player.play();
-      playBtn.textContent = "⏸";
-    } else {
-      player.pause();
-      playBtn.textContent = "▶";
-    }
-  }
-};
+    playBtn.onclick = () => {
+      if (player.paused) {
+        player.play();
+        playBtn.textContent = "⏸";
+      } else {
+        player.pause();
+        playBtn.textContent = "▶";
+      }
+    };
 
     player.ontimeupdate = () => {
       if (!player.duration) return;
@@ -793,9 +698,6 @@ function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-  if (wavesurfer) {
-  wavesurfer.load(URL.createObjectURL(recordedBlob));
-}
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
