@@ -243,7 +243,7 @@ async function login() {
   spinner.style.display = "block";
   btn.disabled = true;
 
-  const res = await fetch("https://webvt-api.miup3p.easypanel.host/login", {
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -293,7 +293,7 @@ function logout() {
   btn.disabled = true;
 
   try {
-    const res = await fetch("https://webvt-api.miup3p.easypanel.host/upload", {
+    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token
@@ -318,7 +318,7 @@ function logout() {
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  const res = await fetch("https://webvt-api.miup3p.easypanel.host/logs", {
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs", {
     headers: {
       Authorization: "Bearer " + token
     }
@@ -343,7 +343,7 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`https://webvt-api.miup3p.easypanel.host/logs/${filename}`, {
+  const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`, {
     headers: {
       Authorization: "Bearer " + token
     }
