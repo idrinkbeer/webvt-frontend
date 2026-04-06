@@ -221,6 +221,11 @@ let recordings = {};
 let uploaded = {};
 let wavesurfer;
 
+const current = filteredLog[selectedIndex];
+const prev = filteredLog[selectedIndex - 1];
+const next = filteredLog[selectedIndex + 1];
+
+
 const tableBody = document.querySelector("#logTable tbody");
 
 // =====================
@@ -274,6 +279,30 @@ function logout() {
   location.reload();
 }
   
+
+function getPrevNextSongs(index) {
+  let prevSong = null;
+  let nextSong = null;
+
+  // look backwards
+  for (let i = index - 1; i >= 0; i--) {
+    if (filteredLog[i].type === "SONG") {
+      prevSong = filteredLog[i];
+      break;
+    }
+  }
+
+  // look forwards
+  for (let i = index + 1; i < filteredLog.length; i++) {
+    if (filteredLog[i].type === "SONG") {
+      nextSong = filteredLog[i];
+      break;
+    }
+  }
+
+  return { prevSong, nextSong };
+}
+
 // =====================
 // UPLOAD VOICETRACK 
 // =====================
@@ -352,6 +381,40 @@ async function loadSelectedLog(filename) {
 
   processASC(text);
   document.getElementById("hourSelect").style.display = "inline-block";
+}
+
+
+async function previewBreak() {
+  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+  const vt = recordings[filteredLog[selectedIndex].cart];
+
+  if (!vt) {
+    alert("No voicetrack recorded");
+    return;
+  }
+
+  if (!prevSong || !nextSong) {
+    alert("Missing surrounding songs");
+    return;
+  }
+
+  await playTrack(`/audio/${prevSong.title}.mp3`);
+  await playTrack(URL.createObjectURL(vt));
+  await playTrack(`/audio/${nextSong.title}.mp3`);
+}
+
+function playTrack(src) {
+  return new Promise(resolve => {
+    wavesurfer.load(src);
+
+    wavesurfer.once("ready", () => {
+      wavesurfer.play();
+    });
+
+    wavesurfer.once("finish", () => {
+      resolve();
+    });
+  });
 }
 
 // =====================
@@ -467,6 +530,7 @@ function renderTable() {
             <div id="recordTime">⏱ 0:00</div>
             <div id="waveform" style="margin-top:10px;"></div>
             <div class="audio-player">
+        <button onclick="previewBreak()">Preview Break</button>
   <button id="playBtn">▶</button>
   <div class="progress">
     <div id="progressBar"></div>
