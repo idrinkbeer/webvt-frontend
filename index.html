@@ -199,7 +199,7 @@
   <tbody></tbody>
 </table>
 </div>
-
+<script src="https://unpkg.com/wavesurfer.js"></script>
 <script>
 const STORAGE_KEY = "webvt_token_" + window.location.hostname;
 let token = localStorage.getItem(STORAGE_KEY);
@@ -219,6 +219,7 @@ let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
 let uploaded = {};
+let wavesurfer;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -242,7 +243,7 @@ async function login() {
   spinner.style.display = "block";
   btn.disabled = true;
 
-  const res = await fetch("https://webvt-revolt-api.miup3p.easypanel.host/login", {
+  const res = await fetch("https://webvt-api.miup3p.easypanel.host/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -292,7 +293,7 @@ function logout() {
   btn.disabled = true;
 
   try {
-    const res = await fetch("https://webvt-revolt-api.miup3p.easypanel.host/upload", {
+    const res = await fetch("https://webvt-api.miup3p.easypanel.host/upload", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token
@@ -317,7 +318,7 @@ function logout() {
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  const res = await fetch("https://webvt-revolt-api.miup3p.easypanel.host/logs", {
+  const res = await fetch("https://webvt-api.miup3p.easypanel.host/logs", {
     headers: {
       Authorization: "Bearer " + token
     }
@@ -342,7 +343,7 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`https://webvt-revolt-api.miup3p.easypanel.host/logs/${filename}`, {
+  const res = await fetch(`https://webvt-api.miup3p.easypanel.host/logs/${filename}`, {
     headers: {
       Authorization: "Bearer " + token
     }
@@ -464,6 +465,7 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
+            <div id="waveform" style="margin-top:10px;"></div>
             <div class="audio-player">
   <button id="playBtn">▶</button>
   <div class="progress">
@@ -478,6 +480,29 @@ function renderTable() {
       `;
 
       tableBody.appendChild(recorderRow);
+      // 🎧 Init waveform
+setTimeout(() => {
+  const container = document.getElementById("waveform");
+
+  if (!container) return;
+
+  wavesurfer = WaveSurfer.create({
+    container: "#waveform",
+    waveColor: "#334155",
+    progressColor: "#22c55e",
+    height: 80
+  });
+
+  // If recording already exists, load it
+  const rowData = filteredLog[selectedIndex];
+  const saved = recordings[rowData.cart];
+
+  if (saved) {
+    wavesurfer.load(URL.createObjectURL(saved));
+  }
+
+}, 50);
+
       // 🔁 Restore previous recording if exists
       const rowData = filteredLog[selectedIndex];
       const saved = recordings[rowData.cart];
@@ -633,15 +658,20 @@ function setupPlayer(player, blob) {
 
     if (!playBtn || !progressBar || !timeLabel) return;
 
-    playBtn.onclick = () => {
-      if (player.paused) {
-        player.play();
-        playBtn.textContent = "⏸";
-      } else {
-        player.pause();
-        playBtn.textContent = "▶";
-      }
-    };
+playBtn.onclick = () => {
+  if (wavesurfer) {
+    wavesurfer.playPause();
+    playBtn.textContent = wavesurfer.isPlaying() ? "⏸" : "▶";
+  } else {
+    if (player.paused) {
+      player.play();
+      playBtn.textContent = "⏸";
+    } else {
+      player.pause();
+      playBtn.textContent = "▶";
+    }
+  }
+};
 
     player.ontimeupdate = () => {
       if (!player.duration) return;
@@ -698,6 +728,9 @@ function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
+  if (wavesurfer) {
+  wavesurfer.load(URL.createObjectURL(recordedBlob));
+}
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
