@@ -613,19 +613,14 @@ async function startRecording() {
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-  const processor = audioContext.createScriptProcessor(8192, 2, 2);
+  const processor = audioContext.createScriptProcessor(8192, 1, 1);
 
   let samples = [];
 
-processor.onaudioprocess = (e) => {
-  const left = e.inputBuffer.getChannelData(0);
-  const right = e.inputBuffer.getChannelData(1);
-
-  samples.push({
-    left: new Float32Array(left),
-    right: new Float32Array(right)
-  });
-};
+  processor.onaudioprocess = (e) => {
+    const input = e.inputBuffer.getChannelData(0);
+    samples.push(new Float32Array(input));
+  };
 
   source.connect(gainNode);
   gainNode.connect(analyser);
@@ -706,75 +701,68 @@ playBtn.onclick = () => {
   }, 50);
 }
 
-function encodeMP3Stereo(left, right, sampleRate) {
-  const mp3encoder = new lamejs.Mp3Encoder(2, sampleRate, 128);
+function encodeMP3(samples, sampleRate) {
+  const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // mono, 128 kbps
   const blockSize = 1152;
 
   let mp3Data = [];
 
-  function convert(samples) {
-    const out = new Int16Array(samples.length);
-    for (let i = 0; i < samples.length; i++) {
-      let s = Math.max(-1, Math.min(1, samples[i]));
-      out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-    }
-    return out;
+  // convert Float32 → Int16
+  const samples16 = new Int16Array(samples.length);
+  for (let i = 0; i < samples.length; i++) {
+    let s = Math.max(-1, Math.min(1, samples[i]));
+    samples16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
 
-  const left16 = convert(left);
-  const right16 = convert(right);
-
-  for (let i = 0; i < left16.length; i += blockSize) {
-    const lChunk = left16.subarray(i, i + blockSize);
-    const rChunk = right16.subarray(i, i + blockSize);
-
-    const mp3buf = mp3encoder.encodeBuffer(lChunk, rChunk);
-    if (mp3buf.length > 0) mp3Data.push(mp3buf);
+  for (let i = 0; i < samples16.length; i += blockSize) {
+    const chunk = samples16.subarray(i, i + blockSize);
+    const mp3buf = mp3encoder.encodeBuffer(chunk);
+    if (mp3buf.length > 0) {
+      mp3Data.push(mp3buf);
+    }
   }
 
   const mp3buf = mp3encoder.flush();
-  if (mp3buf.length > 0) mp3Data.push(mp3buf);
+  if (mp3buf.length > 0) {
+    mp3Data.push(mp3buf);
+  }
 
   return new Blob(mp3Data, { type: "audio/mpeg" });
 }
   
 async function stopRecording() {
   await new Promise(r => setTimeout(r, 50));
-
+  // ⏱ STOP TIMER
   if (recordInterval) {
     clearInterval(recordInterval);
     recordInterval = null;
   }
 
   const { samples, processor } = window._recorder;
+
   processor.disconnect();
 
-  let left = [];
-  let right = [];
+  let length = samples.reduce((sum, s) => sum + s.length, 0);
+  let flat = new Float32Array(length);
 
-  samples.forEach(s => {
-    left.push(...s.left);
-    right.push(...s.right);
-  });
+  let offset = 0;
+  for (let s of samples) {
+    flat.set(s, offset);
+    offset += s.length;
+  }
 
-  left = new Float32Array(left);
-  right = new Float32Array(right);
+  const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
 
-  // ✅ trim based on left channel
-  const trimmedLeft = trimSilence(left, audioContext.sampleRate, 0.01);
-  const trimmedRight = right.slice(0, trimmedLeft.length);
-
-  recordedBlob = encodeMP3Stereo(trimmedLeft, trimmedRight, audioContext.sampleRate);
+  recordedBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
   const row = filteredLog[selectedIndex];
   recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-
   if (wavesurfer) {
-    wavesurfer.load(URL.createObjectURL(recordedBlob));
-  }
+  wavesurfer.load(URL.createObjectURL(recordedBlob));
+}
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
@@ -787,6 +775,7 @@ async function stopRecording() {
   }
 
   isRecording = false;
+  document.getElementById("recordBtn").textContent = "Start";
 }
 
 // =====================
