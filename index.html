@@ -730,7 +730,7 @@ function encodeMP3(samples, sampleRate) {
   return new Blob(mp3Data, { type: "audio/mpeg" });
 }
   
-function stopRecording() {
+async function stopRecording() {
   await new Promise(r => setTimeout(r, 50));
   // ⏱ STOP TIMER
   if (recordInterval) {
