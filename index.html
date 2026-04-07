@@ -613,14 +613,19 @@ async function startRecording() {
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-  const processor = audioContext.createScriptProcessor(8192, 1, 1);
+  const processor = audioContext.createScriptProcessor(8192, 2, 2);
 
   let samples = [];
 
-  processor.onaudioprocess = (e) => {
-    const input = e.inputBuffer.getChannelData(0);
-    samples.push(new Float32Array(input));
-  };
+processor.onaudioprocess = (e) => {
+  const left = e.inputBuffer.getChannelData(0);
+  const right = e.inputBuffer.getChannelData(1);
+
+  samples.push({
+    left: new Float32Array(left),
+    right: new Float32Array(right)
+  });
+};
 
   source.connect(gainNode);
   gainNode.connect(analyser);
@@ -701,31 +706,34 @@ playBtn.onclick = () => {
   }, 50);
 }
 
-function encodeMP3(samples, sampleRate) {
-  const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // mono, 128 kbps
+function encodeMP3Stereo(left, right, sampleRate) {
+  const mp3encoder = new lamejs.Mp3Encoder(2, sampleRate, 128);
   const blockSize = 1152;
 
   let mp3Data = [];
 
-  // convert Float32 → Int16
-  const samples16 = new Int16Array(samples.length);
-  for (let i = 0; i < samples.length; i++) {
-    let s = Math.max(-1, Math.min(1, samples[i]));
-    samples16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+  function convert(samples) {
+    const out = new Int16Array(samples.length);
+    for (let i = 0; i < samples.length; i++) {
+      let s = Math.max(-1, Math.min(1, samples[i]));
+      out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+    }
+    return out;
   }
 
-  for (let i = 0; i < samples16.length; i += blockSize) {
-    const chunk = samples16.subarray(i, i + blockSize);
-    const mp3buf = mp3encoder.encodeBuffer(chunk);
-    if (mp3buf.length > 0) {
-      mp3Data.push(mp3buf);
-    }
+  const left16 = convert(left);
+  const right16 = convert(right);
+
+  for (let i = 0; i < left16.length; i += blockSize) {
+    const lChunk = left16.subarray(i, i + blockSize);
+    const rChunk = right16.subarray(i, i + blockSize);
+
+    const mp3buf = mp3encoder.encodeBuffer(lChunk, rChunk);
+    if (mp3buf.length > 0) mp3Data.push(mp3buf);
   }
 
   const mp3buf = mp3encoder.flush();
-  if (mp3buf.length > 0) {
-    mp3Data.push(mp3buf);
-  }
+  if (mp3buf.length > 0) mp3Data.push(mp3buf);
 
   return new Blob(mp3Data, { type: "audio/mpeg" });
 }
@@ -742,8 +750,16 @@ async function stopRecording() {
 
   processor.disconnect();
 
-  let length = samples.reduce((sum, s) => sum + s.length, 0);
-  let flat = new Float32Array(length);
+let left = [];
+let right = [];
+
+samples.forEach(s => {
+  left.push(...s.left);
+  right.push(...s.right);
+});
+
+left = new Float32Array(left);
+right = new Float32Array(right);
 
   let offset = 0;
   for (let s of samples) {
@@ -753,7 +769,7 @@ async function stopRecording() {
 
   const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
 
-  recordedBlob = encodeMP3(trimmed, audioContext.sampleRate);
+  recordedBlob = encodeMP3Stereo(left, right, audioContext.sampleRate);
 
   const row = filteredLog[selectedIndex];
   recordings[row.cart] = recordedBlob;
