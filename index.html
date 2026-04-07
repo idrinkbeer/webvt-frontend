@@ -740,45 +740,41 @@ function encodeMP3Stereo(left, right, sampleRate) {
   
 async function stopRecording() {
   await new Promise(r => setTimeout(r, 50));
-  // ⏱ STOP TIMER
+
   if (recordInterval) {
     clearInterval(recordInterval);
     recordInterval = null;
   }
 
   const { samples, processor } = window._recorder;
-
   processor.disconnect();
 
-let left = [];
-let right = [];
+  let left = [];
+  let right = [];
 
-samples.forEach(s => {
-  left.push(...s.left);
-  right.push(...s.right);
-});
+  samples.forEach(s => {
+    left.push(...s.left);
+    right.push(...s.right);
+  });
 
-left = new Float32Array(left);
-right = new Float32Array(right);
+  left = new Float32Array(left);
+  right = new Float32Array(right);
 
-  let offset = 0;
-  for (let s of samples) {
-    flat.set(s, offset);
-    offset += s.length;
-  }
+  // ✅ trim based on left channel
+  const trimmedLeft = trimSilence(left, audioContext.sampleRate, 0.01);
+  const trimmedRight = right.slice(0, trimmedLeft.length);
 
-  const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
-
-  recordedBlob = encodeMP3Stereo(left, right, audioContext.sampleRate);
+  recordedBlob = encodeMP3Stereo(trimmedLeft, trimmedRight, audioContext.sampleRate);
 
   const row = filteredLog[selectedIndex];
   recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
+
   if (wavesurfer) {
-  wavesurfer.load(URL.createObjectURL(recordedBlob));
-}
+    wavesurfer.load(URL.createObjectURL(recordedBlob));
+  }
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
@@ -791,7 +787,6 @@ right = new Float32Array(right);
   }
 
   isRecording = false;
-  document.getElementById("recordBtn").textContent = "Start";
 }
 
 // =====================
