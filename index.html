@@ -475,10 +475,10 @@ function renderTable() {
           <div class="recorder">
             🎙️ Recording for Cart: ${row.cart}<br><br>
 
-            <button id="recordBtn" onclick="toggleRecording()">Start</button>
+            <button id="playBtn">Start VT</button>
 
             <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-              Upload to AIR
+              Upload VT to AIR
             </button>
 
             <div class="vu-container">
@@ -491,7 +491,6 @@ function renderTable() {
             <div id="waveVT" style="margin-top:10px;"></div>
             <div id="waveNext" style="margin-top:10px;"></div>
             <div class="audio-player">
-  <button id="playBtn">▶</button>
   <button onclick="previewBreak()">▶ Preview Break</button>
   <div class="progress">
     <div id="progressBar"></div>
