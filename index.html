@@ -721,22 +721,25 @@ function setupVTButton() {
   const btn = document.getElementById("playBtn");
   if (!btn) return;
 
-  // always reset when attaching
   vtStage = 0;
   btn.textContent = "Start VT";
 
   btn.onclick = async () => {
     if (!wavePrev || !waveVT || !waveNext) return;
 
-    const row = filteredLog[selectedIndex];
-    const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
-
     // 1️⃣ PLAY PREVIOUS SONG
     if (vtStage === 0) {
-      wavePrev.play();
+      btn.textContent = "Loading...";
 
-      btn.textContent = "Start Recording";
-      vtStage = 1;
+      wavePrev.once("ready", () => {
+        const duration = wavePrev.getDuration();
+        wavePrev.setTime(Math.max(0, duration - 15));
+        wavePrev.play();
+
+        btn.textContent = "Start Recording";
+        vtStage = 1;
+      });
+
       return;
     }
 
@@ -751,16 +754,15 @@ function setupVTButton() {
 
     // 3️⃣ START NEXT SONG
     if (vtStage === 2) {
-      if (waveNext.isReady) {
-        waveNext.play();
-      } else {
-        waveNext.once("ready", () => {
-          waveNext.play();
-        });
-      }
+      btn.textContent = "Loading Next...";
 
-      btn.textContent = "Stop VT";
-      vtStage = 3;
+      waveNext.once("ready", () => {
+        waveNext.play();
+
+        btn.textContent = "Stop VT";
+        vtStage = 3;
+      });
+
       return;
     }
 
