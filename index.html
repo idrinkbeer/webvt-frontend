@@ -226,6 +226,9 @@ let uploaded = {};
 let wavesurfer;
 let vtStage = 0;
 let wavePrev, waveVT, waveNext;
+let prevOffset = 0;
+let vtOffset = 0;
+let nextOffset = 0;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -536,6 +539,21 @@ setTimeout(() => {
     height: 60
   });
 
+wavePrev.on("seek", (progress) => {
+  const duration = wavePrev.getDuration();
+  prevOffset = progress * duration;
+});
+
+waveVT.on("seek", (progress) => {
+  const duration = waveVT.getDuration();
+  vtOffset = progress * duration;
+});
+
+waveNext.on("seek", (progress) => {
+  const duration = waveNext.getDuration();
+  nextOffset = progress * duration;
+});
+
   const row = filteredLog[selectedIndex];
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
@@ -547,7 +565,12 @@ setTimeout(() => {
 
     wavePrev.once("ready", () => {
       const duration = wavePrev.getDuration();
-      wavePrev.setTime(Math.max(0, duration - 15)); // 🔥 last 15 sec
+      const start = Math.max(0, duration - 20);
+
+      wavePrev.setTime(start);
+
+      // 🔥 zoom so 20 sec fills the waveform
+      wavePrev.zoom(100);
     });
   }
 
@@ -564,6 +587,11 @@ setTimeout(() => {
   if (nextSong?.filename) {
     const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
     waveNext.load(url);
+
+    waveNext.once("ready", () => {
+      waveNext.setTime(0);
+      waveNext.zoom(100);
+    });
   }
 
 }, 50);
@@ -603,6 +631,9 @@ function selectRow(i) {
   vtStage = 0; // 🔥 reset workflow
   selectedIndex = i;
   renderTable();
+  prevOffset = 0;
+  vtOffset = 0;
+  nextOffset = 0;
 }
 
   // TRIM SILENCE ON WAV VT
