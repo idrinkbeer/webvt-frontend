@@ -588,7 +588,7 @@ waveVT = WaveSurfer.create({
   waveColor: "#facc15",
   progressColor: "#22c55e",
   height: 35,
-  fillParent: false,
+  fillParent: true,
   scrollParent: false,
   minPxPerSec: 10
 });
@@ -629,7 +629,14 @@ waveNext.on("seek", (progress) => {
 
     wavePrev.once("ready", () => {
       const duration = wavePrev.getDuration();
-      const start = Math.max(0, duration - WINDOW_SECONDS);
+
+      // 👇 show only last ~10 seconds visually
+      const CLIP = 10;
+      const start = Math.max(0, duration - CLIP);
+
+      wavePrev.setOptions({
+        minPxPerSec: 20 // 👈 tighter zoom for short clip
+      });
 
       wavePrev.setTime(start);
     });
