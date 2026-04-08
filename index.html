@@ -225,6 +225,8 @@ let uploaded = {};
 let vtWave;
 let songWave;
 let isPreviewPlaying = false;
+let vtFinished = false;
+let songFinished = false;
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
@@ -837,14 +839,12 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
-  // stop anything already playing before starting new
-if (vtWave) vtWave.stop();
-if (songWave) songWave.stop();
+  // 🔁 toggle behavior
   if (isPreviewPlaying) {
     stopPreview();
     return;
   }
-    
+
   if (selectedIndex === null) return;
 
   const { nextSong } = getPrevNextSongs(selectedIndex);
@@ -861,10 +861,18 @@ if (songWave) songWave.stop();
     return;
   }
 
+  // 🧼 reset state
+  vtFinished = false;
+  songFinished = false;
+
+  // 🛑 stop anything already playing
+  if (vtWave) vtWave.stop();
+  if (songWave) songWave.stop();
+
   const vtUrl = URL.createObjectURL(vtBlob);
   const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
-  // Load both
+  // 🔄 load both
   vtWave.load(vtUrl);
   songWave.load(songUrl);
 
@@ -874,42 +882,44 @@ if (songWave) songWave.stop();
       const vtDuration = vtWave.getDuration();
       const intro = nextSong.intro || 0;
 
-      // 🎯 YOUR RULE
       let songDelay = 0;
-
       if (vtDuration > intro) {
         songDelay = vtDuration - intro;
       }
 
       console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
 
-      // 🎙️ Start VT immediately
+      // ▶ start VT
       vtWave.play();
+
       isPreviewPlaying = true;
 
-const btn = document.querySelector("button[onclick='previewBreak()']");
-if (btn) btn.textContent = "⏹ Stop Preview";
+      const btn = document.querySelector("button[onclick='previewBreak()']");
+      if (btn) btn.textContent = "⏹ Stop Preview";
 
-
-      // 🎵 Start song based on logic
+      // ▶ start song (delayed if needed)
       setTimeout(() => {
         songWave.play();
-        songWave.setVolume(0.3); // duck under VT
+        songWave.setVolume(0.3);
       }, songDelay * 1000);
 
-      // 🔊 Restore volume after VT ends
-vtWave.once("finish", () => {
-  songWave.setVolume(1);
+      // 🎙 VT finished
+      vtWave.once("finish", () => {
+        vtFinished = true;
+        songWave.setVolume(1);
+        checkPreviewEnd();
+      });
 
-  isPreviewPlaying = false;
-
-  const btn = document.querySelector("button[onclick='previewBreak()']");
-  if (btn) btn.textContent = "▶ Preview Break";
-});
+      // 🎵 SONG finished ✅ (this was missing)
+      songWave.once("finish", () => {
+        songFinished = true;
+        checkPreviewEnd();
+      });
 
     });
   });
 }
+
 
 function stopPreview() {
   if (vtWave) vtWave.stop();
