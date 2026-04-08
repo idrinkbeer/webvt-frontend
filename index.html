@@ -182,9 +182,16 @@
   margin-top: 15px;
 }
 
-.wave {
-  position: absolute;
-  width: 10%; /* 👈 better size */
+.wave.prev {
+  width: 20%; /* 👈 shorter */
+}
+
+.wave.vt {
+  width: 40%; /* 👈 main focus */
+}
+
+.wave.next {
+  width: 20%; /* 👈 shorter */
 }
 
 /* 🎵 Previous song */
@@ -570,30 +577,30 @@ wavePrev = WaveSurfer.create({
   container: "#wavePrev",
   waveColor: "#64748b",
   progressColor: "#22c55e",
-  height: 40,
-  fillParent: true,
+  height: 35,
+  fillParent: false,
   scrollParent: false,
-  minPxPerSec: 5
+  minPxPerSec: 10
 });
 
 waveVT = WaveSurfer.create({
   container: "#waveVT",
   waveColor: "#facc15",
   progressColor: "#22c55e",
-  height: 40,
-  fillParent: true,
+  height: 35,
+  fillParent: false,
   scrollParent: false,
-  minPxPerSec: 5
+  minPxPerSec: 10
 });
 
 waveNext = WaveSurfer.create({
   container: "#waveNext",
   waveColor: "#64748b",
   progressColor: "#22c55e",
-  height: 40,
-  fillParent: true,
+  height: 35,
+  fillParent: false,
   scrollParent: false,
-  minPxPerSec: 5
+  minPxPerSec: 10
 });
 
 wavePrev.on("seek", (progress) => {
