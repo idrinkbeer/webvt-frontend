@@ -716,38 +716,49 @@ async function startRecording() {
   }, 1000);
 }
 
-function setupVTButton() {
-  const playBtn = document.getElementById("playBtn");
-  if (!playBtn) return;
 
-  playBtn.onclick = async () => {
+function setupVTButton() {
+  const btn = document.getElementById("playBtn");
+  if (!btn) return;
+
+  // always reset when attaching
+  vtStage = 0;
+  btn.textContent = "Start VT";
+
+  btn.onclick = async () => {
     if (!wavePrev || !waveVT || !waveNext) return;
 
-    // 🎯 STAGE 0 → PLAY PREVIOUS SONG
+    const row = filteredLog[selectedIndex];
+    const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+
+    // 1️⃣ PLAY PREVIOUS SONG
     if (vtStage === 0) {
       wavePrev.play();
+
+      btn.textContent = "Start Recording";
       vtStage = 1;
-      playBtn.textContent = "🎙️ Start VT";
       return;
     }
 
-    // 🎯 STAGE 1 → START RECORDING
+    // 2️⃣ START RECORDING
     if (vtStage === 1) {
       await startRecording();
+
+      btn.textContent = "Start Next Song";
       vtStage = 2;
-      playBtn.textContent = "⏭ Start Next";
       return;
     }
 
-    // 🎯 STAGE 2 → START NEXT SONG
+    // 3️⃣ START NEXT SONG
     if (vtStage === 2) {
       waveNext.play();
+
+      btn.textContent = "Stop VT";
       vtStage = 3;
-      playBtn.textContent = "⏹ Stop";
       return;
     }
 
-    // 🎯 STAGE 3 → STOP EVERYTHING
+    // 4️⃣ STOP EVERYTHING
     if (vtStage === 3) {
       wavePrev.stop();
       waveNext.stop();
@@ -757,7 +768,7 @@ function setupVTButton() {
       }
 
       vtStage = 0;
-      playBtn.textContent = "▶ Play Intro";
+      btn.textContent = "Start VT";
       return;
     }
   };
