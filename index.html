@@ -925,12 +925,24 @@ function stopPreview() {
   if (vtWave) vtWave.stop();
   if (songWave) songWave.stop();
 
+  vtFinished = false;
+  songFinished = false;
+
   isPreviewPlaying = false;
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
   if (btn) btn.textContent = "▶ Preview Break";
 }
-  
+
+function checkPreviewEnd() {
+  if (vtFinished && songFinished) {
+    isPreviewPlaying = false;
+
+    const btn = document.querySelector("button[onclick='previewBreak()']");
+    if (btn) btn.textContent = "▶ Preview Break";
+  }
+}
+
 // =====================
 loadLogs();
   
