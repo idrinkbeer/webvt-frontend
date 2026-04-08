@@ -623,7 +623,9 @@ waveNext.on("seek", (progress) => {
 
   // 🎵 PREVIOUS SONG (last 30 seconds)
   if (prevSong?.filename) {
-    const url = `${API_URL}/audio/song/${encodeURIComponent(prevSong.filename)}`;
+    const duration = 9999; // doesn't matter, just grab last X seconds
+    const CLIP = 8;
+    const url = `${API_URL}/audio/clip?file=${encodeURIComponent(prevSong.filename)}&start=-${CLIP}&duration=${CLIP}`;
 
     wavePrev.load(url);
 
@@ -657,7 +659,9 @@ waveNext.on("seek", (progress) => {
 
   // 🎵 NEXT SONG (start)
   if (nextSong?.filename) {
-    const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+    const CLIP = 8;
+
+    const url = `${API_URL}/audio/clip?file=${encodeURIComponent(nextSong.filename)}&start=0&duration=${CLIP}`;
     waveNext.load(url);
 
     waveNext.once("ready", () => {
