@@ -764,7 +764,16 @@ if (vtStage === 2) {
   const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
   waveNext.load(url);
-  waveNext.once("ready", () => waveNext.play());
+
+  // 🔥 IMPORTANT: remove any previous listeners
+  waveNext.unAll();
+
+  waveNext.once("ready", () => {
+    // 🔥 only play if still in correct stage
+    if (vtStage === 3) {
+      waveNext.play();
+    }
+  });
 
   btn.textContent = "Stop VT";
   vtStage = 3;
@@ -774,6 +783,8 @@ if (vtStage === 2) {
     // 4️⃣ STOP EVERYTHING
     if (vtStage === 3) {
       wavePrev.stop();
+
+      waveNext.unAll(); // 🔥 cancel pending play
       waveNext.stop();
 
       if (isRecording) {
