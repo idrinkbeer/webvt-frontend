@@ -650,7 +650,7 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
 // =====================
 async function toggleRecording() {
   if (!isRecording) {
-    await startRecording();
+    startRecording();
   } else {
     stopRecording();
   }
@@ -699,7 +699,6 @@ async function startRecording() {
 
   isRecording = true;
 
-  document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
 
   // ⏱ START TIMER
@@ -744,7 +743,7 @@ function setupVTButton() {
 
 // 2️⃣ RECORDING STAGE
 if (vtStage === 1) {
-  await startRecording();
+  startRecording();
 
   btn.textContent = "Stop Recording";
   vtStage = 2;
@@ -899,7 +898,6 @@ async function stopRecording() {
   }
 
   isRecording = false;
-  document.getElementById("recordBtn").textContent = "Start";
 }
 
 
