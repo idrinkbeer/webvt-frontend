@@ -372,7 +372,7 @@ function processASC(text) {
           time: parts[0],
           title: parts[5],
           artist: parts[6],
-          filename: parts[12],
+          filename: parts[12]?.trim(),
           intro: parseInt(parts[10]) || 0,
           end: parts[11]
         };
