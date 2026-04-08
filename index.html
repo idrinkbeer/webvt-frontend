@@ -183,6 +183,35 @@
   }
 }
 
+.timeline {
+  position: relative;
+  height: 140px;
+  margin-top: 15px;
+}
+
+.wave {
+  position: absolute;
+  width: 70%;
+}
+
+/* 🎵 Previous song */
+.wave.prev {
+  top: 0;
+  left: 0;
+}
+
+/* 🎙️ Voicetrack */
+.wave.vt {
+  top: 45px;
+  left: 15%;
+}
+
+/* 🎵 Next song */
+.wave.next {
+  top: 90px;
+  left: 30%;
+}
+
     
   </style>
 </head>
@@ -517,9 +546,11 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <div id="wavePrev" style="margin-top:10px;"></div>
-            <div id="waveVT" style="margin-top:10px;"></div>
-            <div id="waveNext" style="margin-top:10px;"></div>
+            <div class="timeline">
+              <div id="wavePrev" class="wave prev"></div>
+              <div id="waveVT" class="wave vt"></div>
+              <div id="waveNext" class="wave next"></div>
+            </div>
             <div class="audio-player">
   <button onclick="previewBreak()">▶ Preview Break</button>
   <div class="progress">
@@ -547,7 +578,7 @@ setTimeout(() => {
     container: "#wavePrev",
     waveColor: "#64748b",
     progressColor: "#22c55e",
-    height: 60
+    height: 35
   });
 
   // 🎙️ Voicetrack
@@ -555,7 +586,7 @@ setTimeout(() => {
     container: "#waveVT",
     waveColor: "#facc15",
     progressColor: "#22c55e",
-    height: 60
+    height: 35
   });
 
   // 🎵 Next song
@@ -563,7 +594,7 @@ setTimeout(() => {
     container: "#waveNext",
     waveColor: "#64748b",
     progressColor: "#22c55e",
-    height: 60
+    height: 35
   });
 
 wavePrev.on("seek", (progress) => {
