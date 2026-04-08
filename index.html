@@ -10,7 +10,6 @@
       color: #e2e8f0;
       padding: 20px;
       margin: 0;
-      overflow-x: hidden;
     }
 
     table {
@@ -161,57 +160,6 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-
-#wavePrev,
-#waveVT,
-#waveNext {
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-}
-
-.recorder {
-  width: 100%;
-  box-sizing: border-box;
-}
-
-
-.timeline {
-  position: relative;
-  height: 140px;
-  margin-top: 15px;
-}
-
-.wave.prev {
-  width: 20%; /* 👈 shorter */
-}
-
-.wave.vt {
-  width: 40%; /* 👈 main focus */
-}
-
-.wave.next {
-  width: 20%; /* 👈 shorter */
-}
-
-/* 🎵 Previous song */
-.wave.prev {
-  top: 0;
-  left: 0;
-}
-
-/* 🎙️ Voicetrack */
-.wave.vt {
-  top: 45px;
-  left: 25%;
-}
-
-/* 🎵 Next song */
-.wave.next {
-  top: 90px;
-  left: 50%;
-}
-
     
   </style>
 </head>
@@ -258,7 +206,6 @@
 <script>
 const STORAGE_KEY = "webvt_token_" + window.location.hostname;
 let token = localStorage.getItem(STORAGE_KEY);
-const API_URL = "https://web-vt-api.miup3p.easypanel.host";
 let log = [];
 let filteredLog = [];
 let selectedIndex = null;
@@ -276,15 +223,6 @@ let recordInterval = null;
 let recordings = {};
 let uploaded = {};
 let wavesurfer;
-let vtStage = 0;
-let wavePrev, waveVT, waveNext;
-let prevOffset = 0;
-let vtOffset = 0;
-let nextOffset = 0;
-
-const isMobile = window.innerWidth < 600;
-const pxPerSec = isMobile ? 20 : 40;
-const WINDOW_SECONDS = 20;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -308,7 +246,7 @@ async function login() {
   spinner.style.display = "block";
   btn.disabled = true;
 
-  const res = await fetch(`${API_URL}/login`, {
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/login", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -336,10 +274,7 @@ async function login() {
 
 function logout() {
   localStorage.removeItem(STORAGE_KEY);
-
-  // show login UI instead of reload loop
-  document.getElementById("app").style.display = "none";
-  document.getElementById("loginContainer").style.display = "flex";
+  location.reload();
 }
   
 // =====================
@@ -361,7 +296,7 @@ function logout() {
   btn.disabled = true;
 
   try {
-    const res = await fetch(`${API_URL}/upload`, {
+    const res = await fetch("https://web-vt-api.miup3p.easypanel.host/upload", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token
@@ -386,24 +321,12 @@ function logout() {
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  const res = await fetch(`${API_URL}/logs`, {
+  const res = await fetch("https://web-vt-api.miup3p.easypanel.host/logs", {
     headers: {
       Authorization: "Bearer " + token
     }
   });
-
-  if (res.status === 401 || res.status === 403) {
-    console.warn("Token expired or invalid");
-    logout();
-    return;
-  }
-
   const files = await res.json();
-
-  if (!Array.isArray(files)) {
-    console.error("Bad response:", files);
-    return;
-  }
 
   const select = document.getElementById("logSelect");
   select.innerHTML = "<option>Select a log...</option>";
@@ -416,14 +339,14 @@ async function loadLogs() {
   });
 
   select.onchange = () => {
-    if (select.value !== "Select a log...") {
+    if (select.value !== "Select music log...") {
       loadSelectedLog(select.value);
     }
   };
 }
 
 async function loadSelectedLog(filename) {
-  const res = await fetch(`${API_URL}/logs/${filename}`, {
+  const res = await fetch(`https://web-vt-api.miup3p.easypanel.host/logs/${filename}`, {
     headers: {
       Authorization: "Bearer " + token
     }
@@ -448,7 +371,7 @@ function processASC(text) {
           time: parts[0],
           title: parts[5],
           artist: parts[6],
-          filename: parts[12]?.trim(),
+          filename: parts[12],
           intro: parseInt(parts[10]) || 0,
           end: parts[11]
         };
@@ -534,10 +457,10 @@ function renderTable() {
           <div class="recorder">
             🎙️ Recording for Cart: ${row.cart}<br><br>
 
-            <button id="playBtn">Start VT</button>
+            <button id="recordBtn" onclick="toggleRecording()">Start</button>
 
             <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-              Upload VT to AIR
+              Upload to AIR
             </button>
 
             <div class="vu-container">
@@ -546,12 +469,9 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <div class="timeline">
-              <div id="wavePrev" class="wave prev"></div>
-              <div id="waveVT" class="wave vt"></div>
-              <div id="waveNext" class="wave next"></div>
-            </div>
+            <div id="waveform" style="margin-top:10px;"></div>
             <div class="audio-player">
+  <button id="playBtn">▶</button>
   <button onclick="previewBreak()">▶ Preview Break</button>
   <div class="progress">
     <div id="progressBar"></div>
@@ -567,116 +487,26 @@ function renderTable() {
       tableBody.appendChild(recorderRow);
       // 🎧 Init waveform
 setTimeout(() => {
-  const prevEl = document.getElementById("wavePrev");
-  const vtEl = document.getElementById("waveVT");
-  const nextEl = document.getElementById("waveNext");
+  const container = document.getElementById("waveform");
 
-  if (!prevEl || !vtEl || !nextEl) return;
+  if (!container) return;
 
-wavePrev = WaveSurfer.create({
-  container: "#wavePrev",
-  waveColor: "#64748b",
-  progressColor: "#22c55e",
-  height: 35,
-  fillParent: true,
-  scrollParent: false,
-  minPxPerSec: 10
-});
+  wavesurfer = WaveSurfer.create({
+    container: "#waveform",
+    waveColor: "#334155",
+    progressColor: "#22c55e",
+    height: 80
+  });
 
-waveVT = WaveSurfer.create({
-  container: "#waveVT",
-  waveColor: "#facc15",
-  progressColor: "#22c55e",
-  height: 35,
-  fillParent: true,
-  scrollParent: false,
-  minPxPerSec: 10
-});
+  // If recording already exists, load it
+  const rowData = filteredLog[selectedIndex];
+  const saved = recordings[rowData.cart];
 
-waveNext = WaveSurfer.create({
-  container: "#waveNext",
-  waveColor: "#64748b",
-  progressColor: "#22c55e",
-  height: 35,
-  fillParent: true,
-  scrollParent: false,
-  minPxPerSec: 10
-});
-
-wavePrev.on("seek", (progress) => {
-  const duration = wavePrev.getDuration();
-  prevOffset = progress * duration;
-});
-
-waveVT.on("seek", (progress) => {
-  const duration = waveVT.getDuration();
-  vtOffset = progress * duration;
-});
-
-waveNext.on("seek", (progress) => {
-  const duration = waveNext.getDuration();
-  nextOffset = progress * duration;
-});
-
-  const row = filteredLog[selectedIndex];
-  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
-
-  // 🎵 PREVIOUS SONG (last 30 seconds)
-  if (prevSong?.filename) {
-    const url = `${API_URL}/audio/clip?file=${encodeURIComponent(prevSong.filename)}&start=-8&duration=8`;
-
-    wavePrev.load(url);
-
-    wavePrev.once("ready", () => {
-      const duration = wavePrev.getDuration();
-
-      const CLIP_SECONDS = 8; // 👈 how much of tail you want
-      const start = Math.max(0, duration - CLIP_SECONDS);
-
-      // 🔥 THIS is the magic
-      const containerWidth = wavePrev.container.clientWidth;
-      const pxPerSec = containerWidth / CLIP_SECONDS;
-
-      wavePrev.setOptions({
-        minPxPerSec: pxPerSec
-      });
-
-      wavePrev.setTime(start);
-    });
-
-  }
-
-  // 🎙️ VOICETRACK
-  const vtBlob = recordings[row.cart];
-
-  if (vtBlob) {
-    waveVT.load(URL.createObjectURL(vtBlob));
-  } else {
-    waveVT.load(`${API_URL}/audio/vt/${row.cart}.mp3`);
-  }
-
-  // 🎵 NEXT SONG (start)
-  if (nextSong?.filename) {
-    const url = `${API_URL}/audio/clip?file=${encodeURIComponent(nextSong.filename)}&start=0&duration=8`;
-    waveNext.load(url);
-
-    waveNext.once("ready", () => {
-      const CLIP_SECONDS = 8;
-
-      const containerWidth = waveNext.container.clientWidth;
-      const pxPerSec = containerWidth / CLIP_SECONDS;
-
-      waveNext.setOptions({
-        minPxPerSec: pxPerSec
-      });
-
-      waveNext.setTime(0);
-    });
+  if (saved) {
+    wavesurfer.load(URL.createObjectURL(saved));
   }
 
 }, 50);
-setupVTButton();
-
 
       // 🔁 Restore previous recording if exists
       const rowData = filteredLog[selectedIndex];
@@ -707,13 +537,8 @@ setupVTButton();
 
 function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
-
-  vtStage = 0; // 🔥 reset workflow
   selectedIndex = i;
   renderTable();
-  prevOffset = 0;
-  vtOffset = 0;
-  nextOffset = 0;
 }
 
   // TRIM SILENCE ON WAV VT
@@ -761,7 +586,7 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
 // =====================
 async function toggleRecording() {
   if (!isRecording) {
-    startRecording();
+    await startRecording();
   } else {
     stopRecording();
   }
@@ -810,6 +635,7 @@ async function startRecording() {
 
   isRecording = true;
 
+  document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
 
   // ⏱ START TIMER
@@ -826,89 +652,31 @@ async function startRecording() {
   }, 1000);
 }
 
-
-function setupVTButton() {
-  const btn = document.getElementById("playBtn");
-  if (!btn) return;
-
-  vtStage = 0;
-  btn.textContent = "Start VT";
-
-  btn.onclick = async () => {
-    if (!wavePrev || !waveVT || !waveNext) return;
-
-    // 1️⃣ PLAY PREVIOUS SONG
-    if (vtStage === 0) {
-      const duration = wavePrev.getDuration();
-
-      if (duration > 0) {
-        wavePrev.setTime(Math.max(0, duration - 15));
-      }
-
-      wavePrev.play();
-
-      btn.textContent = "Start Recording";
-      vtStage = 1;
-      return;
-    }
-
-// 2️⃣ RECORDING STAGE
-if (vtStage === 1) {
-  startRecording();
-
-  btn.textContent = "Stop Recording";
-  vtStage = 2;
-  return;
-}
-
-// 3️⃣ START NEXT SONG (KEEP RECORDING)
-if (vtStage === 2) {
-  if (!waveNext || waveNext.isPlaying()) return;
-
-  // 🔥 if not ready yet, wait
-  if (!waveNext.getDuration()) {
-    waveNext.once("ready", () => {
-      if (vtStage === 3) {
-        waveNext.play();
-      }
-    });
-  } else {
-    waveNext.play();
-  }
-
-  btn.textContent = "Stop VT";
-  vtStage = 3;
-  return;
-}
-
-    // 4️⃣ STOP EVERYTHING
-    if (vtStage === 3) {
-      wavePrev.stop();
-
-      waveNext.unAll(); // 🔥 cancel pending play
-      waveNext.stop();
-
-      if (isRecording) {
-        await stopRecording();
-      }
-
-      vtStage = 0;
-      btn.textContent = "Start VT";
-      return;
-    }
-  };
-}
-
 function setupPlayer(player, blob) {
   player.src = URL.createObjectURL(blob);
 
   setTimeout(() => {
+    const playBtn = document.getElementById("playBtn");
     const progressBar = document.getElementById("progressBar");
     const timeLabel = document.getElementById("time");
     const progressContainer = document.querySelector(".progress");
 
-    if (!progressBar || !timeLabel) return;
+    if (!playBtn || !progressBar || !timeLabel) return;
 
+playBtn.onclick = () => {
+  if (wavesurfer) {
+    wavesurfer.playPause();
+    playBtn.textContent = wavesurfer.isPlaying() ? "⏸" : "▶";
+  } else {
+    if (player.paused) {
+      player.play();
+      playBtn.textContent = "⏸";
+    } else {
+      player.pause();
+      playBtn.textContent = "▶";
+    }
+  }
+};
 
     player.ontimeupdate = () => {
       if (!player.duration) return;
@@ -994,10 +762,9 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-  
-  if (waveVT) {
-    waveVT.load(URL.createObjectURL(recordedBlob));
-  }
+  if (wavesurfer) {
+  wavesurfer.load(URL.createObjectURL(recordedBlob));
+}
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
@@ -1010,8 +777,8 @@ async function stopRecording() {
   }
 
   isRecording = false;
+  document.getElementById("recordBtn").textContent = "Start";
 }
-
 
 // =====================
 // VU
@@ -1085,10 +852,11 @@ async function previewBreak() {
   const vtBlob = recordings[row.cart];
   const vtUrl = vtBlob
     ? URL.createObjectURL(vtBlob)
-    : `${API_URL}/audio/vt/${row.cart}.mp3`;
+    : `/audio/vt/${row.cart}.mp3`;
 
-    const prevUrl = `${API_URL}/audio/song/${encodeURIComponent(prevSong.filename)}`;
-    const nextUrl = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+  // 🎵 songs from Dropbox
+  const prevUrl = `/audio/song/${encodeURIComponent(prevSong.filename)}`;
+  const nextUrl = `/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
   console.log("Previewing:", prevSong.filename, row.cart, nextSong.filename);
 
@@ -1103,6 +871,7 @@ async function previewBreak() {
 }
   
 // =====================
+loadLogs();
   
 </script>
 
