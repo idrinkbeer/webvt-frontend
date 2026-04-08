@@ -731,14 +731,20 @@ function setupVTButton() {
     if (vtStage === 0) {
       btn.textContent = "Loading...";
 
-      wavePrev.once("ready", () => {
+      const playPrev = () => {
         const duration = wavePrev.getDuration();
         wavePrev.setTime(Math.max(0, duration - 15));
         wavePrev.play();
 
         btn.textContent = "Start Recording";
         vtStage = 1;
-      });
+      };
+
+      if (wavePrev.isReady) {
+        playPrev();
+      } else {
+        wavePrev.once("ready", playPrev);
+      }
 
       return;
     }
@@ -756,12 +762,18 @@ function setupVTButton() {
     if (vtStage === 2) {
       btn.textContent = "Loading Next...";
 
-      waveNext.once("ready", () => {
+      const playNext = () => {
         waveNext.play();
 
         btn.textContent = "Stop VT";
         vtStage = 3;
-      });
+      };
+
+      if (waveNext.isReady) {
+        playNext();
+      } else {
+        waveNext.once("ready", playNext);
+      }
 
       return;
     }
