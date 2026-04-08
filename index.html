@@ -371,7 +371,6 @@ function processASC(text) {
           time: parts[0],
           title: parts[5],
           artist: parts[6],
-          filename: parts[12],
           intro: parseInt(parts[10]) || 0,
           end: parts[11]
         };
@@ -472,7 +471,6 @@ function renderTable() {
             <div id="waveform" style="margin-top:10px;"></div>
             <div class="audio-player">
   <button id="playBtn">▶</button>
-  <button onclick="previewBreak()">▶ Preview Break</button>
   <div class="progress">
     <div id="progressBar"></div>
   </div>
@@ -796,80 +794,6 @@ function updateVU() {
   requestAnimationFrame(updateVU);
 }
 
-
-function getPrevNextSongs(index) {
-  let prevSong = null;
-  let nextSong = null;
-
-  for (let i = index - 1; i >= 0; i--) {
-    if (filteredLog[i].type === "SONG") {
-      prevSong = filteredLog[i];
-      break;
-    }
-  }
-
-  for (let i = index + 1; i < filteredLog.length; i++) {
-    if (filteredLog[i].type === "SONG") {
-      nextSong = filteredLog[i];
-      break;
-    }
-  }
-
-  return { prevSong, nextSong };
-}
-
-
-function playTrack(src, startTime = 0) {
-  return new Promise(resolve => {
-    wavesurfer.load(src);
-
-    wavesurfer.once("ready", () => {
-      if (startTime > 0) {
-        wavesurfer.setTime(startTime);
-      }
-      wavesurfer.play();
-    });
-
-    wavesurfer.once("finish", () => {
-      resolve();
-    });
-  });
-}
-
-
-async function previewBreak() {
-  if (selectedIndex === null) return;
-
-  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
-  const row = filteredLog[selectedIndex];
-
-  if (!prevSong || !nextSong) {
-    alert("Missing surrounding songs");
-    return;
-  }
-
-  // 🎙️ VT
-  const vtBlob = recordings[row.cart];
-  const vtUrl = vtBlob
-    ? URL.createObjectURL(vtBlob)
-    : `/audio/vt/${row.cart}.mp3`;
-
-  // 🎵 songs from Dropbox
-  const prevUrl = `/audio/song/${encodeURIComponent(prevSong.filename)}`;
-  const nextUrl = `/audio/song/${encodeURIComponent(nextSong.filename)}`;
-
-  console.log("Previewing:", prevSong.filename, row.cart, nextSong.filename);
-
-  // 1. play ramp of previous song
-  await playTrack(prevUrl, prevSong.intro);
-
-  // 2. play VT
-  await playTrack(vtUrl);
-
-  // 3. play next song
-  await playTrack(nextUrl);
-}
-  
 // =====================
 loadLogs();
   
