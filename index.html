@@ -861,17 +861,7 @@ if (vtStage === 2) {
 
   const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
-  waveNext.load(url);
-
-  // 🔥 IMPORTANT: remove any previous listeners
-  waveNext.unAll();
-
-  waveNext.once("ready", () => {
-    // 🔥 only play if still in correct stage
-    if (vtStage === 3) {
-      waveNext.play();
-    }
-  });
+  waveNext.play();
 
   btn.textContent = "Stop VT";
   vtStage = 3;
