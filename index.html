@@ -222,7 +222,8 @@ let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
 let uploaded = {};
-let wavesurfer;
+let vtWave;
+let songWave;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -371,6 +372,7 @@ function processASC(text) {
           time: parts[0],
           title: parts[5],
           artist: parts[6],
+          filename: parts[12],
           intro: parseInt(parts[10]) || 0,
           end: parts[11]
         };
@@ -468,9 +470,11 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <div id="waveform" style="margin-top:10px;"></div>
+            <div id="vtWaveform" style="margin-top:10px;"></div>
+            <div id="songWaveform" style="margin-top:10px;"></div>
             <div class="audio-player">
   <button id="playBtn">▶</button>
+  <button onclick="previewBreak()">▶ Preview Break</button>
   <div class="progress">
     <div id="progressBar"></div>
   </div>
@@ -489,19 +493,26 @@ setTimeout(() => {
 
   if (!container) return;
 
-  wavesurfer = WaveSurfer.create({
-    container: "#waveform",
-    waveColor: "#334155",
-    progressColor: "#22c55e",
-    height: 80
-  });
+    vtWave = WaveSurfer.create({
+      container: "#vtWaveform",
+      waveColor: "#facc15",
+      progressColor: "#eab308",
+      height: 60
+    });
+
+    songWave = WaveSurfer.create({
+      container: "#songWaveform",
+      waveColor: "#334155",
+      progressColor: "#22c55e",
+      height: 60
+    });
 
   // If recording already exists, load it
   const rowData = filteredLog[selectedIndex];
   const saved = recordings[rowData.cart];
 
   if (saved) {
-    wavesurfer.load(URL.createObjectURL(saved));
+    vtWave.load(URL.createObjectURL(saved));
   }
 
 }, 50);
@@ -662,8 +673,8 @@ function setupPlayer(player, blob) {
     if (!playBtn || !progressBar || !timeLabel) return;
 
 playBtn.onclick = () => {
-  if (wavesurfer) {
-    wavesurfer.playPause();
+  if (vtWave) {
+    vtWave.playPause();
     playBtn.textContent = wavesurfer.isPlaying() ? "⏸" : "▶";
   } else {
     if (player.paused) {
@@ -760,9 +771,9 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-  if (wavesurfer) {
-  wavesurfer.load(URL.createObjectURL(recordedBlob));
-}
+    if (vtWave) {
+      vtWave.load(URL.createObjectURL(recordedBlob));
+    }
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
@@ -794,6 +805,86 @@ function updateVU() {
   requestAnimationFrame(updateVU);
 }
 
+
+function getPrevNextSongs(index) {
+  let prevSong = null;
+  let nextSong = null;
+
+  for (let i = index - 1; i >= 0; i--) {
+    if (filteredLog[i].type === "SONG") {
+      prevSong = filteredLog[i];
+      break;
+    }
+  }
+
+  for (let i = index + 1; i < filteredLog.length; i++) {
+    if (filteredLog[i].type === "SONG") {
+      nextSong = filteredLog[i];
+      break;
+    }
+  }
+
+  return { prevSong, nextSong };
+}
+
+
+async function previewBreak() {
+  if (selectedIndex === null) return;
+
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+  const row = filteredLog[selectedIndex];
+
+  if (!nextSong) {
+    alert("Missing next song");
+    return;
+  }
+
+  const vtBlob = recordings[row.cart];
+  if (!vtBlob) {
+    alert("No VT recorded");
+    return;
+  }
+
+  const vtUrl = URL.createObjectURL(vtBlob);
+  const songUrl = `/audio/song/${encodeURIComponent(nextSong.filename)}`;
+
+  // Load both
+  vtWave.load(vtUrl);
+  songWave.load(songUrl);
+
+  vtWave.once("ready", () => {
+    songWave.once("ready", () => {
+
+      const vtDuration = vtWave.getDuration();
+      const intro = nextSong.intro || 0;
+
+      // 🎯 YOUR RULE
+      let songDelay = 0;
+
+      if (vtDuration > intro) {
+        songDelay = vtDuration - intro;
+      }
+
+      console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
+
+      // 🎙️ Start VT immediately
+      vtWave.play();
+
+      // 🎵 Start song based on logic
+      setTimeout(() => {
+        songWave.play();
+        songWave.setVolume(0.3); // duck under VT
+      }, songDelay * 1000);
+
+      // 🔊 Restore volume after VT ends
+      vtWave.once("finish", () => {
+        songWave.setVolume(1);
+      });
+
+    });
+  });
+}
+  
 // =====================
 loadLogs();
   
