@@ -753,7 +753,19 @@ function setupVTButton() {
 
     // 3️⃣ START NEXT SONG
     if (vtStage === 2) {
-      waveNext.play();
+      const row = filteredLog[selectedIndex];
+      const { nextSong } = getPrevNextSongs(selectedIndex);
+
+      if (!nextSong?.filename) return;
+
+      const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+
+      // 🔥 force reload + play
+      waveNext.load(url);
+
+      waveNext.once("ready", () => {
+        waveNext.play();
+      });
 
       btn.textContent = "Stop VT";
       vtStage = 3;
