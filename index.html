@@ -588,7 +588,7 @@ waveVT = WaveSurfer.create({
   waveColor: "#facc15",
   progressColor: "#22c55e",
   height: 35,
-  fillParent: true,
+  fillParent: false,
   scrollParent: false,
   minPxPerSec: 10
 });
@@ -630,21 +630,20 @@ waveNext.on("seek", (progress) => {
     wavePrev.once("ready", () => {
       const duration = wavePrev.getDuration();
 
-      // 👇 show only last ~10 seconds visually
-      const CLIP = 10;
-      const start = Math.max(0, duration - CLIP);
+      const CLIP_SECONDS = 8; // 👈 how much of tail you want
+      const start = Math.max(0, duration - CLIP_SECONDS);
+
+      // 🔥 THIS is the magic
+      const containerWidth = wavePrev.container.clientWidth;
+      const pxPerSec = containerWidth / CLIP_SECONDS;
 
       wavePrev.setOptions({
-        minPxPerSec: 20 // 👈 tighter zoom for short clip
+        minPxPerSec: pxPerSec
       });
 
       wavePrev.setTime(start);
     });
 
-    wavePrev.on("scroll", () => {
-      const duration = wavePrev.getDuration();
-      wavePrev.setTime(Math.max(0, duration - WINDOW_SECONDS));
-    });
   }
 
   // 🎙️ VOICETRACK
@@ -662,11 +661,15 @@ waveNext.on("seek", (progress) => {
     waveNext.load(url);
 
     waveNext.once("ready", () => {
+      const CLIP_SECONDS = 8;
 
-      waveNext.setTime(0);
-    });
+      const containerWidth = waveNext.container.clientWidth;
+      const pxPerSec = containerWidth / CLIP_SECONDS;
 
-    waveNext.on("scroll", () => {
+      waveNext.setOptions({
+        minPxPerSec: pxPerSec
+      });
+
       waveNext.setTime(0);
     });
   }
