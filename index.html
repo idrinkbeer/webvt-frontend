@@ -10,6 +10,7 @@
       color: #e2e8f0;
       padding: 20px;
       margin: 0;
+      overflow-x: hidden;
     }
 
     table {
@@ -160,6 +161,28 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+#wavePrev,
+#waveVT,
+#waveNext {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.recorder {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  #wavePrev,
+  #waveVT,
+  #waveNext {
+    height: 40px !important;
+  }
+}
+
     
   </style>
 </head>
@@ -229,6 +252,10 @@ let wavePrev, waveVT, waveNext;
 let prevOffset = 0;
 let vtOffset = 0;
 let nextOffset = 0;
+
+const isMobile = window.innerWidth < 600;
+
+const zoomLevel = isMobile ? 40 : 80;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -570,7 +597,7 @@ waveNext.on("seek", (progress) => {
       wavePrev.setTime(start);
 
       // 🔥 zoom so 20 sec fills the waveform
-      wavePrev.zoom(100);
+      wavePrev.zoom(zoomLevel);
     });
   }
 
@@ -590,7 +617,7 @@ waveNext.on("seek", (progress) => {
 
     waveNext.once("ready", () => {
       waveNext.setTime(0);
-      waveNext.zoom(100);
+      waveNext.zoom(zoomLevel);
     });
   }
 
