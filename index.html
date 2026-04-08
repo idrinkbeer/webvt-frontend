@@ -255,6 +255,7 @@ let nextOffset = 0;
 
 const isMobile = window.innerWidth < 600;
 const pxPerSec = isMobile ? 20 : 40;
+const WINDOW_SECONDS = 20;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -591,10 +592,22 @@ waveNext.on("seek", (progress) => {
 
     wavePrev.once("ready", () => {
       const duration = wavePrev.getDuration();
-      const start = Math.max(0, duration - 20);
+      const start = Math.max(0, duration - WINDOW_SECONDS);
+
+      // 👇 zoom so only ~20s fits screen
+      const containerWidth = wavePrev.container.clientWidth;
+      const pxPerSec = containerWidth / WINDOW_SECONDS;
+
+      wavePrev.setOptions({
+        minPxPerSec: pxPerSec
+      });
 
       wavePrev.setTime(start);
-      wavePrev.setOptions({ minPxPerSec: pxPerSec });
+    });
+
+    wavePrev.on("scroll", () => {
+      const duration = wavePrev.getDuration();
+      wavePrev.setTime(Math.max(0, duration - WINDOW_SECONDS));
     });
   }
 
@@ -613,8 +626,18 @@ waveNext.on("seek", (progress) => {
     waveNext.load(url);
 
     waveNext.once("ready", () => {
+      const containerWidth = waveNext.container.clientWidth;
+      const pxPerSec = containerWidth / WINDOW_SECONDS;
+
+      waveNext.setOptions({
+        minPxPerSec: pxPerSec
+      });
+
       waveNext.setTime(0);
-      waveNext.setOptions({ minPxPerSec: pxPerSec });
+    });
+
+    waveNext.on("scroll", () => {
+      waveNext.setTime(0);
     });
   }
 
