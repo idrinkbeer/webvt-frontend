@@ -568,6 +568,7 @@ setTimeout(() => {
   }
 
 }, 50);
+setupVTButton();
 
 
       // 🔁 Restore previous recording if exists
@@ -599,6 +600,8 @@ setTimeout(() => {
 
 function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
+
+  vtStage = 0; // 🔥 reset workflow
   selectedIndex = i;
   renderTable();
 }
@@ -714,64 +717,63 @@ async function startRecording() {
   }, 1000);
 }
 
+function setupVTButton() {
+  const playBtn = document.getElementById("playBtn");
+  if (!playBtn) return;
+
+  playBtn.onclick = async () => {
+    if (!wavePrev || !waveVT || !waveNext) return;
+
+    // 🎯 STAGE 0 → PLAY PREVIOUS SONG
+    if (vtStage === 0) {
+      wavePrev.play();
+      vtStage = 1;
+      playBtn.textContent = "🎙️ Start VT";
+      return;
+    }
+
+    // 🎯 STAGE 1 → START RECORDING
+    if (vtStage === 1) {
+      await startRecording();
+      vtStage = 2;
+      playBtn.textContent = "⏭ Start Next";
+      return;
+    }
+
+    // 🎯 STAGE 2 → START NEXT SONG
+    if (vtStage === 2) {
+      waveNext.play();
+      vtStage = 3;
+      playBtn.textContent = "⏹ Stop";
+      return;
+    }
+
+    // 🎯 STAGE 3 → STOP EVERYTHING
+    if (vtStage === 3) {
+      wavePrev.stop();
+      waveNext.stop();
+
+      if (isRecording) {
+        await stopRecording();
+      }
+
+      vtStage = 0;
+      playBtn.textContent = "▶ Play Intro";
+      return;
+    }
+  };
+}
+
 function setupPlayer(player, blob) {
   player.src = URL.createObjectURL(blob);
 
   setTimeout(() => {
-    const playBtn = document.getElementById("playBtn");
     const progressBar = document.getElementById("progressBar");
     const timeLabel = document.getElementById("time");
     const progressContainer = document.querySelector(".progress");
 
-    if (!playBtn || !progressBar || !timeLabel) return;
+    if (!progressBar || !timeLabel) return;
 
-playBtn.onclick = async () => {
-  if (!wavePrev || !waveVT || !waveNext) return;
-
-  const btn = document.getElementById("playBtn");
-
-  // 🎯 STAGE 0 → PLAY PREVIOUS SONG
-  if (vtStage === 0) {
-    wavePrev.play();
-    vtStage = 1;
-    btn.textContent = "🎙️ Start VT";
-    console.log("Stage 1: Playing previous song");
-    return;
-  }
-
-  // 🎯 STAGE 1 → START RECORDING
-  if (vtStage === 1) {
-    await startRecording();
-    vtStage = 2;
-    btn.textContent = "⏭ Start Next";
-    console.log("Stage 2: Recording VT");
-    return;
-  }
-
-  // 🎯 STAGE 2 → START NEXT SONG
-  if (vtStage === 2) {
-    waveNext.play();
-    vtStage = 3;
-    btn.textContent = "⏹ Stop";
-    console.log("Stage 3: Playing next song");
-    return;
-  }
-
-  // 🎯 STAGE 3 → STOP EVERYTHING
-  if (vtStage === 3) {
-    wavePrev.stop();
-    waveNext.stop();
-
-    if (isRecording) {
-      await stopRecording();
-    }
-
-    vtStage = 0;
-    btn.textContent = "▶ Play Intro";
-    console.log("Stage 4: Stopped + Reset");
-    return;
-  }
-};
 
     player.ontimeupdate = () => {
       if (!player.duration) return;
@@ -857,9 +859,6 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-  if (wavesurfer) {
-  wavesurfer.load(URL.createObjectURL(recordedBlob));
-}
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
