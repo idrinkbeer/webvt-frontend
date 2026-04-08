@@ -852,16 +852,20 @@ if (vtStage === 1) {
   return;
 }
 
-// 3️⃣ STOP RECORDING → START NEXT SONG
+// 3️⃣ START NEXT SONG (KEEP RECORDING)
 if (vtStage === 2) {
-  const row = filteredLog[selectedIndex];
-  const { nextSong } = getPrevNextSongs(selectedIndex);
+  if (!waveNext || waveNext.isPlaying()) return;
 
-  if (!nextSong?.filename) return;
-
-  const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
-
-  waveNext.play();
+  // 🔥 if not ready yet, wait
+  if (!waveNext.getDuration()) {
+    waveNext.once("ready", () => {
+      if (vtStage === 3) {
+        waveNext.play();
+      }
+    });
+  } else {
+    waveNext.play();
+  }
 
   btn.textContent = "Stop VT";
   vtStage = 3;
