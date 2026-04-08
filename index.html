@@ -489,24 +489,32 @@ function renderTable() {
       tableBody.appendChild(recorderRow);
       // 🎧 Init waveform
 setTimeout(() => {
-  const container = document.getElementById("waveform");
+  const vtContainer = document.getElementById("vtWaveform");
+  const songContainer = document.getElementById("songWaveform");
 
-  if (!container) return;
+  if (!vtContainer || !songContainer) return;
 
-    vtWave = WaveSurfer.create({
-      container: "#vtWaveform",
-      waveColor: "#facc15",
-      progressColor: "#eab308",
-      height: 60
-    });
+  vtWave = WaveSurfer.create({
+    container: "#vtWaveform",
+    waveColor: "#facc15",
+    progressColor: "#eab308",
+    height: 60
+  });
 
-    songWave = WaveSurfer.create({
-      container: "#songWaveform",
-      waveColor: "#334155",
-      progressColor: "#22c55e",
-      height: 60
-    });
+  songWave = WaveSurfer.create({
+    container: "#songWaveform",
+    waveColor: "#334155",
+    progressColor: "#22c55e",
+    height: 60
+  });
 
+  // ✅ PRELOAD NEXT SONG WAVEFORM
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+  if (nextSong) {
+    const songUrl = `/audio/song/${encodeURIComponent(nextSong.filename)}`;
+    songWave.load(songUrl);
+  }
+  
   // If recording already exists, load it
   const rowData = filteredLog[selectedIndex];
   const saved = recordings[rowData.cart];
@@ -675,7 +683,7 @@ function setupPlayer(player, blob) {
 playBtn.onclick = () => {
   if (vtWave) {
     vtWave.playPause();
-    playBtn.textContent = wavesurfer.isPlaying() ? "⏸" : "▶";
+    playBtn.textContent = vtWave.isPlaying() ? "⏸" : "▶";
   } else {
     if (player.paused) {
       player.play();
