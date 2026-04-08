@@ -175,13 +175,6 @@
   box-sizing: border-box;
 }
 
-@media (max-width: 600px) {
-  #wavePrev,
-  #waveVT,
-  #waveNext {
-    height: 40px !important;
-  }
-}
 
 .timeline {
   position: relative;
@@ -191,7 +184,7 @@
 
 .wave {
   position: absolute;
-  width: 70%;
+  width: 35%;
 }
 
 /* 🎵 Previous song */
@@ -861,10 +854,6 @@ if (vtStage === 1) {
 
 // 3️⃣ STOP RECORDING → START NEXT SONG
 if (vtStage === 2) {
-  if (isRecording) {
-    await stopRecording();
-  }
-
   const row = filteredLog[selectedIndex];
   const { nextSong } = getPrevNextSongs(selectedIndex);
 
