@@ -275,7 +275,10 @@ async function login() {
 
 function logout() {
   localStorage.removeItem(STORAGE_KEY);
-  location.reload();
+
+  // show login UI instead of reload loop
+  document.getElementById("app").style.display = "none";
+  document.getElementById("loginContainer").style.display = "flex";
 }
   
 // =====================
@@ -893,7 +896,6 @@ async function previewBreak() {
 }
   
 // =====================
-loadLogs();
   
 </script>
 
