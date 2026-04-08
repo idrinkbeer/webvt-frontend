@@ -751,36 +751,43 @@ function setupVTButton() {
       return;
     }
 
-     // 3️⃣ START NEXT SONG
-    if (vtStage === 2) {
-      const row = filteredLog[selectedIndex];
-      const { nextSong } = getPrevNextSongs(selectedIndex);
+// 3️⃣ START NEXT SONG
+if (vtStage === 2) {
+  const row = filteredLog[selectedIndex];
+  const { nextSong } = getPrevNextSongs(selectedIndex);
 
-      if (!nextSong?.filename) return;
+  if (!nextSong?.filename) return;
 
-      const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+  const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
-      // 🔥 destroy + recreate (guaranteed fresh)
-      waveNext.destroy();
+  // 🔥 destroy safely
+  if (waveNext) {
+    waveNext.destroy();
+  }
 
-      waveNext = WaveSurfer.create({
-        container: "#waveNext",
-        waveColor: "#64748b",
-        progressColor: "#22c55e",
-        height: 60
-      });
+  // 🔥 CLEAR THE CONTAINER (THIS WAS MISSING)
+  const container = document.getElementById("waveNext");
+  container.innerHTML = "";
 
-      waveNext.load(url);
+  // 🔥 recreate
+  waveNext = WaveSurfer.create({
+    container: "#waveNext",
+    waveColor: "#64748b",
+    progressColor: "#22c55e",
+    height: 60
+  });
 
-      // 🔥 small delay ensures load starts
-      setTimeout(() => {
-        waveNext.play();
-      }, 200);
+  waveNext.load(url);
 
-      btn.textContent = "Stop VT";
-      vtStage = 3;
-      return;
-    }
+  // 🔥 ensure play AFTER load starts
+  waveNext.once("ready", () => {
+    waveNext.play();
+  });
+
+  btn.textContent = "Stop VT";
+  vtStage = 3;
+  return;
+}
 
     // 4️⃣ STOP EVERYTHING
     if (vtStage === 3) {
