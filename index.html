@@ -224,6 +224,7 @@ let recordings = {};
 let uploaded = {};
 let vtWave;
 let songWave;
+let isPreviewPlaying = false;
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
@@ -836,6 +837,14 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
+  // stop anything already playing before starting new
+if (vtWave) vtWave.stop();
+if (songWave) songWave.stop();
+  if (isPreviewPlaying) {
+    stopPreview();
+    return;
+  }
+    
   if (selectedIndex === null) return;
 
   const { nextSong } = getPrevNextSongs(selectedIndex);
@@ -876,6 +885,11 @@ async function previewBreak() {
 
       // 🎙️ Start VT immediately
       vtWave.play();
+      isPreviewPlaying = true;
+
+const btn = document.querySelector("button[onclick='previewBreak()']");
+if (btn) btn.textContent = "⏹ Stop Preview";
+
 
       // 🎵 Start song based on logic
       setTimeout(() => {
@@ -884,12 +898,27 @@ async function previewBreak() {
       }, songDelay * 1000);
 
       // 🔊 Restore volume after VT ends
-      vtWave.once("finish", () => {
-        songWave.setVolume(1);
-      });
+vtWave.once("finish", () => {
+  songWave.setVolume(1);
+
+  isPreviewPlaying = false;
+
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+  if (btn) btn.textContent = "▶ Preview Break";
+});
 
     });
   });
+}
+
+function stopPreview() {
+  if (vtWave) vtWave.stop();
+  if (songWave) songWave.stop();
+
+  isPreviewPlaying = false;
+
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+  if (btn) btn.textContent = "▶ Preview Break";
 }
   
 // =====================
