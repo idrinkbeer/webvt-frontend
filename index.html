@@ -571,7 +571,9 @@ setTimeout(() => {
     container: "#wavePrev",
     waveColor: "#64748b",
     progressColor: "#22c55e",
-    height: 35
+    height: 35,
+    fillParent: true,
+    scrollParent: false
   });
 
   // 🎙️ Voicetrack
@@ -579,7 +581,10 @@ setTimeout(() => {
     container: "#waveVT",
     waveColor: "#facc15",
     progressColor: "#22c55e",
-    height: 35
+    height: 35,
+    fillParent: true,
+    scrollParent: false,
+    minPxPerSec: 15 // 👈 ADD THIS
   });
 
   // 🎵 Next song
@@ -587,7 +592,9 @@ setTimeout(() => {
     container: "#waveNext",
     waveColor: "#64748b",
     progressColor: "#22c55e",
-    height: 35
+    height: 35,
+    fillParent: true,
+    scrollParent: false
   });
 
 wavePrev.on("seek", (progress) => {
@@ -620,7 +627,7 @@ waveNext.on("seek", (progress) => {
 
       // 👇 zoom so only ~20s fits screen
       const containerWidth = wavePrev.container.clientWidth;
-      const pxPerSec = containerWidth / WINDOW_SECONDS;
+      const pxPerSec = 10; // 🔥 force compact waveform
 
       wavePrev.setOptions({
         minPxPerSec: pxPerSec
@@ -651,7 +658,7 @@ waveNext.on("seek", (progress) => {
 
     waveNext.once("ready", () => {
       const containerWidth = waveNext.container.clientWidth;
-      const pxPerSec = containerWidth / WINDOW_SECONDS;
+      const pxPerSec = 10; // 🔥 force compact waveform
 
       waveNext.setOptions({
         minPxPerSec: pxPerSec
