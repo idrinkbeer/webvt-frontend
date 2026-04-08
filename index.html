@@ -224,6 +224,8 @@ let recordInterval = null;
 let recordings = {};
 let uploaded = {};
 let wavesurfer;
+let vtStage = 0;
+let wavePrev, waveVT, waveNext;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -485,7 +487,9 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <div id="waveform" style="margin-top:10px;"></div>
+            <div id="wavePrev" style="margin-top:10px;"></div>
+            <div id="waveVT" style="margin-top:10px;"></div>
+            <div id="waveNext" style="margin-top:10px;"></div>
             <div class="audio-player">
   <button id="playBtn">▶</button>
   <button onclick="previewBreak()">▶ Preview Break</button>
@@ -503,31 +507,64 @@ function renderTable() {
       tableBody.appendChild(recorderRow);
       // 🎧 Init waveform
 setTimeout(() => {
-  const container = document.getElementById("waveform");
-  if (!container) return;
+  const prevEl = document.getElementById("wavePrev");
+  const vtEl = document.getElementById("waveVT");
+  const nextEl = document.getElementById("waveNext");
 
-  wavesurfer = WaveSurfer.create({
-    container: "#waveform",
-    waveColor: "#334155",
+  if (!prevEl || !vtEl || !nextEl) return;
+
+  // 🎵 Previous song
+  wavePrev = WaveSurfer.create({
+    container: "#wavePrev",
+    waveColor: "#64748b",
     progressColor: "#22c55e",
-    height: 80
+    height: 60
   });
 
-  const rowData = filteredLog[selectedIndex];
-  const saved = recordings[rowData.cart];
+  // 🎙️ Voicetrack
+  waveVT = WaveSurfer.create({
+    container: "#waveVT",
+    waveColor: "#facc15",
+    progressColor: "#22c55e",
+    height: 60
+  });
 
-  // 🎙️ If VT exists → load it
-  if (saved) {
-    wavesurfer.load(URL.createObjectURL(saved));
+  // 🎵 Next song
+  waveNext = WaveSurfer.create({
+    container: "#waveNext",
+    waveColor: "#64748b",
+    progressColor: "#22c55e",
+    height: 60
+  });
+
+  const row = filteredLog[selectedIndex];
+  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+
+  // 🎵 PREVIOUS SONG (last 30 seconds)
+  if (prevSong?.filename) {
+    const url = `${API_URL}/audio/song/${encodeURIComponent(prevSong.filename)}`;
+
+    wavePrev.load(url);
+
+    wavePrev.once("ready", () => {
+      const duration = wavePrev.getDuration();
+      wavePrev.setTime(Math.max(0, duration - 15)); // 🔥 last 15 sec
+    });
+  }
+
+  // 🎙️ VOICETRACK
+  const vtBlob = recordings[row.cart];
+
+  if (vtBlob) {
+    waveVT.load(URL.createObjectURL(vtBlob));
   } else {
-    // 🎵 Otherwise load previous song
-    const { prevSong } = getPrevNextSongs(selectedIndex);
+    waveVT.load(`${API_URL}/audio/vt/${row.cart}.mp3`);
+  }
 
-    if (prevSong && prevSong.filename) {
-      const url = `${API_URL}/audio/song/${encodeURIComponent(prevSong.filename)}`;
-      console.log("Loading waveform:", url);
-      wavesurfer.load(url);
-    }
+  // 🎵 NEXT SONG (start)
+  if (nextSong?.filename) {
+    const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+    waveNext.load(url);
   }
 
 }, 50);
@@ -688,18 +725,51 @@ function setupPlayer(player, blob) {
 
     if (!playBtn || !progressBar || !timeLabel) return;
 
-playBtn.onclick = () => {
-  if (wavesurfer) {
-    wavesurfer.playPause();
-    playBtn.textContent = wavesurfer.isPlaying() ? "⏸" : "▶";
-  } else {
-    if (player.paused) {
-      player.play();
-      playBtn.textContent = "⏸";
-    } else {
-      player.pause();
-      playBtn.textContent = "▶";
+playBtn.onclick = async () => {
+  if (!wavePrev || !waveVT || !waveNext) return;
+
+  const btn = document.getElementById("playBtn");
+
+  // 🎯 STAGE 0 → PLAY PREVIOUS SONG
+  if (vtStage === 0) {
+    wavePrev.play();
+    vtStage = 1;
+    btn.textContent = "🎙️ Start VT";
+    console.log("Stage 1: Playing previous song");
+    return;
+  }
+
+  // 🎯 STAGE 1 → START RECORDING
+  if (vtStage === 1) {
+    await startRecording();
+    vtStage = 2;
+    btn.textContent = "⏭ Start Next";
+    console.log("Stage 2: Recording VT");
+    return;
+  }
+
+  // 🎯 STAGE 2 → START NEXT SONG
+  if (vtStage === 2) {
+    waveNext.play();
+    vtStage = 3;
+    btn.textContent = "⏹ Stop";
+    console.log("Stage 3: Playing next song");
+    return;
+  }
+
+  // 🎯 STAGE 3 → STOP EVERYTHING
+  if (vtStage === 3) {
+    wavePrev.stop();
+    waveNext.stop();
+
+    if (isRecording) {
+      await stopRecording();
     }
+
+    vtStage = 0;
+    btn.textContent = "▶ Play Intro";
+    console.log("Stage 4: Stopped + Reset");
+    return;
   }
 };
 
