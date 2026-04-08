@@ -875,6 +875,10 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
+  
+  if (waveVT) {
+    waveVT.load(URL.createObjectURL(recordedBlob));
+  }
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
