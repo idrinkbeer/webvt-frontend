@@ -751,7 +751,13 @@ function setupVTButton() {
 
     // 3️⃣ START NEXT SONG
     if (vtStage === 2) {
-      waveNext.play();
+      if (waveNext.isReady) {
+        waveNext.play();
+      } else {
+        waveNext.once("ready", () => {
+          waveNext.play();
+        });
+      }
 
       btn.textContent = "Stop VT";
       vtStage = 3;
