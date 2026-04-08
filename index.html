@@ -254,8 +254,7 @@ let vtOffset = 0;
 let nextOffset = 0;
 
 const isMobile = window.innerWidth < 600;
-
-const zoomLevel = isMobile ? 40 : 80;
+const pxPerSec = isMobile ? 20 : 40;
 
 const tableBody = document.querySelector("#logTable tbody");
 
@@ -595,9 +594,7 @@ waveNext.on("seek", (progress) => {
       const start = Math.max(0, duration - 20);
 
       wavePrev.setTime(start);
-
-      // 🔥 zoom so 20 sec fills the waveform
-      wavePrev.zoom(zoomLevel);
+      wavePrev.setOptions({ minPxPerSec: pxPerSec });
     });
   }
 
@@ -617,7 +614,7 @@ waveNext.on("seek", (progress) => {
 
     waveNext.once("ready", () => {
       waveNext.setTime(0);
-      waveNext.zoom(zoomLevel);
+      waveNext.setOptions({ minPxPerSec: pxPerSec });
     });
   }
 
