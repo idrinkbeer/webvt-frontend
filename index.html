@@ -742,17 +742,21 @@ function setupVTButton() {
       return;
     }
 
-    // 2️⃣ START RECORDING
-    if (vtStage === 1) {
-      await startRecording();
+// 2️⃣ RECORDING STAGE
+if (vtStage === 1) {
+  await startRecording();
 
-      btn.textContent = "Start Next Song";
-      vtStage = 2;
-      return;
-    }
+  btn.textContent = "Stop Recording";
+  vtStage = 2;
+  return;
+}
 
-// 3️⃣ START NEXT SONG
+// 3️⃣ STOP RECORDING → START NEXT SONG
 if (vtStage === 2) {
+  if (isRecording) {
+    await stopRecording();
+  }
+
   const row = filteredLog[selectedIndex];
   const { nextSong } = getPrevNextSongs(selectedIndex);
 
@@ -760,29 +764,8 @@ if (vtStage === 2) {
 
   const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
-  // 🔥 destroy safely
-  if (waveNext) {
-    waveNext.destroy();
-  }
-
-  // 🔥 CLEAR THE CONTAINER (THIS WAS MISSING)
-  const container = document.getElementById("waveNext");
-  container.innerHTML = "";
-
-  // 🔥 recreate
-  waveNext = WaveSurfer.create({
-    container: "#waveNext",
-    waveColor: "#64748b",
-    progressColor: "#22c55e",
-    height: 60
-  });
-
   waveNext.load(url);
-
-  // 🔥 ensure play AFTER load starts
-  waveNext.once("ready", () => {
-    waveNext.play();
-  });
+  waveNext.once("ready", () => waveNext.play());
 
   btn.textContent = "Stop VT";
   vtStage = 3;
