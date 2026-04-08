@@ -780,6 +780,23 @@ async function stopRecording() {
   document.getElementById("recordBtn").textContent = "Start";
 }
 
+function loadPreviewWaveform(index) {
+  const { prevSong } = getPrevNextSongs(index);
+
+  if (!prevSong || !prevSong.filename) {
+    console.warn("No previous song found");
+    return;
+  }
+
+  const url = `/audio/song/${encodeURIComponent(prevSong.filename)}`;
+
+  console.log("Loading waveform:", url);
+
+  if (wavesurfer) {
+    wavesurfer.load(url);
+  }
+}
+
 // =====================
 // VU
 // =====================
