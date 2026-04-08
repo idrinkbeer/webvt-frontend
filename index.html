@@ -566,36 +566,35 @@ setTimeout(() => {
 
   if (!prevEl || !vtEl || !nextEl) return;
 
-  // 🎵 Previous song
-  wavePrev = WaveSurfer.create({
-    container: "#wavePrev",
-    waveColor: "#64748b",
-    progressColor: "#22c55e",
-    height: 35,
-    fillParent: true,
-    scrollParent: false
-  });
+wavePrev = WaveSurfer.create({
+  container: "#wavePrev",
+  waveColor: "#64748b",
+  progressColor: "#22c55e",
+  height: 35,
+  fillParent: true,
+  scrollParent: false,
+  minPxPerSec: 10
+});
 
-  // 🎙️ Voicetrack
-  waveVT = WaveSurfer.create({
-    container: "#waveVT",
-    waveColor: "#facc15",
-    progressColor: "#22c55e",
-    height: 35,
-    fillParent: true,
-    scrollParent: false,
-    minPxPerSec: 15 // 👈 ADD THIS
-  });
+waveVT = WaveSurfer.create({
+  container: "#waveVT",
+  waveColor: "#facc15",
+  progressColor: "#22c55e",
+  height: 35,
+  fillParent: true,
+  scrollParent: false,
+  minPxPerSec: 10
+});
 
-  // 🎵 Next song
-  waveNext = WaveSurfer.create({
-    container: "#waveNext",
-    waveColor: "#64748b",
-    progressColor: "#22c55e",
-    height: 35,
-    fillParent: true,
-    scrollParent: false
-  });
+waveNext = WaveSurfer.create({
+  container: "#waveNext",
+  waveColor: "#64748b",
+  progressColor: "#22c55e",
+  height: 35,
+  fillParent: true,
+  scrollParent: false,
+  minPxPerSec: 10
+});
 
 wavePrev.on("seek", (progress) => {
   const duration = wavePrev.getDuration();
@@ -625,14 +624,6 @@ waveNext.on("seek", (progress) => {
       const duration = wavePrev.getDuration();
       const start = Math.max(0, duration - WINDOW_SECONDS);
 
-      // 👇 zoom so only ~20s fits screen
-      const containerWidth = wavePrev.container.clientWidth;
-      const pxPerSec = 10; // 🔥 force compact waveform
-
-      wavePrev.setOptions({
-        minPxPerSec: pxPerSec
-      });
-
       wavePrev.setTime(start);
     });
 
@@ -657,12 +648,6 @@ waveNext.on("seek", (progress) => {
     waveNext.load(url);
 
     waveNext.once("ready", () => {
-      const containerWidth = waveNext.container.clientWidth;
-      const pxPerSec = 10; // 🔥 force compact waveform
-
-      waveNext.setOptions({
-        minPxPerSec: pxPerSec
-      });
 
       waveNext.setTime(0);
     });
