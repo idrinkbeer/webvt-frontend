@@ -751,7 +751,7 @@ function setupVTButton() {
       return;
     }
 
-    // 3️⃣ START NEXT SONG
+     // 3️⃣ START NEXT SONG
     if (vtStage === 2) {
       const row = filteredLog[selectedIndex];
       const { nextSong } = getPrevNextSongs(selectedIndex);
@@ -760,12 +760,22 @@ function setupVTButton() {
 
       const url = `${API_URL}/audio/song/${encodeURIComponent(nextSong.filename)}`;
 
-      // 🔥 force reload + play
+      // 🔥 destroy + recreate (guaranteed fresh)
+      waveNext.destroy();
+
+      waveNext = WaveSurfer.create({
+        container: "#waveNext",
+        waveColor: "#64748b",
+        progressColor: "#22c55e",
+        height: 60
+      });
+
       waveNext.load(url);
 
-      waveNext.once("ready", () => {
+      // 🔥 small delay ensures load starts
+      setTimeout(() => {
         waveNext.play();
-      });
+      }, 200);
 
       btn.textContent = "Stop VT";
       vtStage = 3;
