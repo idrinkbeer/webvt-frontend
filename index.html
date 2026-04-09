@@ -202,6 +202,7 @@
 
 <script src="https://unpkg.com/lamejs@1.2.0/lame.min.js"></script>
 <script src="https://unpkg.com/wavesurfer.js"></script>
+<script src="https://unpkg.com/browser-id3-writer"></script>
   
 <script>
 const STORAGE_KEY = "webvt_token_" + window.location.hostname;
@@ -854,7 +855,13 @@ async function stopRecording() {
 
   const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
 
-  recordedBlob = encodeMP3(trimmed, audioContext.sampleRate);
+  let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
+
+const row = filteredLog[selectedIndex];
+const { nextSong } = getPrevNextSongs(selectedIndex);
+
+// 🎯 ADD TAGS HERE
+recordedBlob = await addID3Tags(rawBlob, row, nextSong);
 
   const row = filteredLog[selectedIndex];
   recordings[row.cart] = recordedBlob;
@@ -1015,6 +1022,53 @@ function checkPreviewEnd() {
     const btn = document.querySelector("button[onclick='previewBreak()']");
     if (btn) btn.textContent = "▶ Preview Break";
   }
+}
+
+function addID3Tags(blob, row, nextSong) {
+  return new Promise(async (resolve) => {
+    const arrayBuffer = await blob.arrayBuffer();
+
+    const writer = new ID3Writer(arrayBuffer);
+
+    // 🎯 Basic tags
+    writer.setFrame("TIT2", `VT ${row.cart}`);
+    writer.setFrame("TPE1", "VOICETRACK");
+    writer.setFrame("TALB", "Web VT");
+
+    // 🎵 If next song exists, make it smarter
+    if (nextSong) {
+      writer.setFrame("TIT2", `${nextSong.artist} - ${nextSong.title}`);
+    }
+
+    // 🧠 Timing metadata
+    const duration = trimmed.length / audioContext.sampleRate;
+
+    writer.setFrame("TXXX", {
+      description: "EOM",
+      value: duration.toFixed(2)
+    });
+
+    if (nextSong) {
+      writer.setFrame("TXXX", {
+        description: "INTRO",
+        value: nextSong.intro?.toString() || "0"
+      });
+    }
+
+    // 💬 Comment
+    writer.setFrame("COMM", {
+      description: "VT",
+      text: `Cart ${row.cart}`
+    });
+
+    writer.addTag();
+
+    const taggedBlob = new Blob([writer.arrayBuffer], {
+      type: "audio/mpeg"
+    });
+
+    resolve(taggedBlob);
+  });
 }
 
 // =====================
