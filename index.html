@@ -1023,25 +1023,19 @@ function checkPreviewEnd() {
   }
 }
 
-function addID3Tags(blob, row, nextSong) {
+function addID3Tags(blob, row, nextSong, duration) {
   return new Promise(async (resolve) => {
     const arrayBuffer = await blob.arrayBuffer();
 
     const writer = new ID3Writer(arrayBuffer);
 
-    // 🎯 Basic tags
     writer.setFrame("TIT2", `VT ${row.cart}`);
     writer.setFrame("TPE1", "VOICETRACK");
     writer.setFrame("TALB", "Web VT");
 
-    // 🎵 If next song exists, make it smarter
     if (nextSong) {
       writer.setFrame("TIT2", `${nextSong.artist} - ${nextSong.title}`);
     }
-
-    // 🧠 Timing metadata
-    const duration = trimmed.length / audioContext.sampleRate;
-    recordedBlob = await addID3Tags(rawBlob, row, nextSong, duration);
 
     writer.setFrame("TXXX", {
       description: "EOM",
@@ -1055,7 +1049,6 @@ function addID3Tags(blob, row, nextSong) {
       });
     }
 
-    // 💬 Comment
     writer.setFrame("COMM", {
       description: "VT",
       text: `Cart ${row.cart}`
@@ -1063,11 +1056,7 @@ function addID3Tags(blob, row, nextSong) {
 
     writer.addTag();
 
-    const taggedBlob = new Blob([writer.arrayBuffer], {
-      type: "audio/mpeg"
-    });
-
-    resolve(taggedBlob);
+    resolve(new Blob([writer.arrayBuffer], { type: "audio/mpeg" }));
   });
 }
 
