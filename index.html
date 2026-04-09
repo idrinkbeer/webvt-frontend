@@ -861,9 +861,7 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-    if (vtWave) {
-      vtWave.load(URL.createObjectURL(recordedBlob));
-    }
+  selectRow(selectedIndex);
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
