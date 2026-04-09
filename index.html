@@ -857,7 +857,6 @@ async function stopRecording() {
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
-const row = filteredLog[selectedIndex];
 const { nextSong } = getPrevNextSongs(selectedIndex);
 
 // 🎯 ADD TAGS HERE
@@ -1042,6 +1041,7 @@ function addID3Tags(blob, row, nextSong) {
 
     // 🧠 Timing metadata
     const duration = trimmed.length / audioContext.sampleRate;
+    recordedBlob = await addID3Tags(rawBlob, row, nextSong, duration);
 
     writer.setFrame("TXXX", {
       description: "EOM",
