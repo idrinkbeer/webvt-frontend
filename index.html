@@ -926,19 +926,7 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
-    if (!window.isAudioReady) {
-      console.log("⏳ waiting for VT...");
-
-      const wait = setInterval(() => {
-        if (window.isAudioReady) {
-          clearInterval(wait);
-          previewBreak();
-        }
-      }, 100);
-
-      return;
-    }
-  // 🔁 toggle behavior
+  // 🔁 toggle
   if (isPreviewPlaying) {
     stopPreview();
     return;
@@ -968,50 +956,41 @@ async function previewBreak() {
   if (vtWave) vtWave.stop();
   if (songWave) songWave.stop();
 
-  const vtUrl = URL.createObjectURL(vtBlob);
-  const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+  const vtDuration = vtWave.getDuration();
+  const intro = nextSong.intro || 0;
 
-  vtWave.once("ready", () => {
-    songWave.once("ready", () => {
+  let songDelay = 0;
+  if (vtDuration > intro) {
+    songDelay = vtDuration - intro;
+  }
 
-      const vtDuration = vtWave.getDuration();
-      const intro = nextSong.intro || 0;
+  console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
 
-      let songDelay = 0;
-      if (vtDuration > intro) {
-        songDelay = vtDuration - intro;
-      }
+  // ▶ start VT immediately
+  vtWave.play();
 
-      console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
+  isPreviewPlaying = true;
 
-      // ▶ start VT
-      vtWave.play();
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+  if (btn) btn.textContent = "⏹ Stop Preview";
 
-      isPreviewPlaying = true;
+  // ▶ start song
+  setTimeout(() => {
+    songWave.play();
+    songWave.setVolume(0.3);
+  }, songDelay * 1000);
 
-      const btn = document.querySelector("button[onclick='previewBreak()']");
-      if (btn) btn.textContent = "⏹ Stop Preview";
+  // 🎙 VT finished
+  vtWave.once("finish", () => {
+    vtFinished = true;
+    songWave.setVolume(1);
+    checkPreviewEnd();
+  });
 
-      // ▶ start song (delayed if needed)
-      setTimeout(() => {
-        songWave.play();
-        songWave.setVolume(0.3);
-      }, songDelay * 1000);
-
-      // 🎙 VT finished
-      vtWave.once("finish", () => {
-        vtFinished = true;
-        songWave.setVolume(1);
-        checkPreviewEnd();
-      });
-
-      // 🎵 SONG finished ✅ (this was missing)
-      songWave.once("finish", () => {
-        songFinished = true;
-        checkPreviewEnd();
-      });
-
-    });
+  // 🎵 SONG finished
+  songWave.once("finish", () => {
+    songFinished = true;
+    checkPreviewEnd();
   });
 }
 
