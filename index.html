@@ -1033,12 +1033,8 @@ async function addID3Tags(blob, row, nextSong, duration) {
     const writer = new ID3Writer(arrayBuffer);
 
     writer.setFrame("TIT2", `VT ${row.cart}`);
-    writer.setFrame("TPE1", "VOICETRACK");
+    writer.setFrame("TPE1", ["VOICETRACK"]);
     writer.setFrame("TALB", "Web VT");
-
-    if (nextSong) {
-      writer.setFrame("TIT2", `${nextSong.artist} - ${nextSong.title}`);
-    }
 
     writer.setFrame("TXXX", {
       description: "EOM",
