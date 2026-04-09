@@ -861,7 +861,33 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-  selectRow(selectedIndex);
+    if (vtWave) {
+      window.isAudioReady = false;
+
+      let vtReady = false;
+      let songReady = false;
+
+      vtWave.load(URL.createObjectURL(recordedBlob));
+
+      vtWave.once("ready", () => {
+        vtReady = true;
+        checkReady();
+      });
+
+      if (songWave) {
+        songWave.once("ready", () => {
+          songReady = true;
+          checkReady();
+        });
+      }
+
+      function checkReady() {
+        if (vtReady && songReady) {
+          console.log("🔥 VT + Song ready after recording");
+          window.isAudioReady = true;
+        }
+      }
+    }
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
