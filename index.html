@@ -443,7 +443,12 @@ function renderTable() {
     tr.innerHTML = `
       <td>${row.time}</td>
       <td>${row.type}</td>
-      <td>${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}</td>
+      <td>
+        ${row.type === "SONG" ? `
+          <button onclick="playSong('${row.filename}', this)">▶</button>
+        ` : ""}
+        ${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}
+      </td>
       <td>${row.artist || ""}</td>
       <td>${row.intro || ""}</td>
       <td>${row.end || ""}</td>
@@ -510,19 +515,42 @@ setTimeout(() => {
     height: 60
   });
 
-  // ✅ PRELOAD NEXT SONG WAVEFORM
+  const rowData = filteredLog[selectedIndex];
+  if (!rowData) return;
+
   const { nextSong } = getPrevNextSongs(selectedIndex);
+
+  // 🎙 preload VT
+  const saved = recordings[rowData.cart];
+  if (saved) {
+    vtWave.load(URL.createObjectURL(saved));
+  }
+
+  // 🎵 preload next song
   if (nextSong) {
     const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
     songWave.load(songUrl);
   }
-  
-  // If recording already exists, load it
-  const rowData = filteredLog[selectedIndex];
-  const saved = recordings[rowData.cart];
 
-  if (saved) {
-    vtWave.load(URL.createObjectURL(saved));
+  // ✅ Track readiness
+  let vtReady = false;
+  let songReady = false;
+
+  vtWave.once("ready", () => {
+    vtReady = true;
+    checkReady();
+  });
+
+  songWave.once("ready", () => {
+    songReady = true;
+    checkReady();
+  });
+
+  function checkReady() {
+    if (vtReady && songReady) {
+      console.log("🔥 Both waveforms ready");
+      window.isAudioReady = true;
+    }
   }
 
 }, 50);
@@ -553,6 +581,55 @@ setTimeout(() => {
     }
   });
 }
+
+let previewAudio = null;
+
+function playSong(filename) {
+  // stop VT preview if playing
+  if (isPreviewPlaying) {
+    stopPreview();
+  }
+
+  // stop previous song preview
+  if (previewAudio) {
+    previewAudio.pause();
+    previewAudio = null;
+  }
+
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+
+  previewAudio = new Audio(url);
+  previewAudio.volume = 1;
+
+  previewAudio.play();
+
+  previewAudio.onended = () => {
+    previewAudio = null;
+  };
+
+  console.log("Playing:", filename);
+}
+
+function playSong(filename, btn) {
+  if (previewAudio) {
+    previewAudio.pause();
+    previewAudio = null;
+    btn.textContent = "▶";
+    return;
+  }
+
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+  previewAudio = new Audio(url);
+
+  previewAudio.play();
+  btn.textContent = "⏹";
+
+  previewAudio.onended = () => {
+    previewAudio = null;
+    btn.textContent = "▶";
+  };
+}
+
 
 function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
@@ -839,6 +916,10 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
+  if (!window.isAudioReady) {
+  alert("Audio still loading...");
+  return;
+}
   // 🔁 toggle behavior
   if (isPreviewPlaying) {
     stopPreview();
@@ -871,10 +952,6 @@ async function previewBreak() {
 
   const vtUrl = URL.createObjectURL(vtBlob);
   const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
-
-  // 🔄 load both
-  vtWave.load(vtUrl);
-  songWave.load(songUrl);
 
   vtWave.once("ready", () => {
     songWave.once("ready", () => {
