@@ -1170,17 +1170,29 @@ function createTXXX(desc, value) {
 
     const tagSize = frames.reduce((sum, f) => sum + f.length, 0);
 
-    const header = new Uint8Array(10);
-    header.set([0x49,0x44,0x33]); // ID3
-    header[3] = 3; // version 2.3
-    header[4] = 0;
-    header[5] = 0;
+function toSynchsafe(size) {
+  return [
+    (size >> 21) & 0x7f,
+    (size >> 14) & 0x7f,
+    (size >> 7) & 0x7f,
+    size & 0x7f
+  ];
+}
 
-    // synchsafe size
-    header[6] = (tagSize >> 21) & 0x7f;
-    header[7] = (tagSize >> 14) & 0x7f;
-    header[8] = (tagSize >> 7) & 0x7f;
-    header[9] = tagSize & 0x7f;
+const header = new Uint8Array(10);
+header[0] = 0x49; // I
+header[1] = 0x44; // D
+header[2] = 0x33; // 3
+header[3] = 3;    // version 2.3
+header[4] = 0;
+header[5] = 0;
+
+const sizeBytes = toSynchsafe(tagSize);
+
+header[6] = sizeBytes[0];
+header[7] = sizeBytes[1];
+header[8] = sizeBytes[2];
+header[9] = sizeBytes[3];
 
     // Combine everything
     const final = new Uint8Array(10 + tagSize + mp3Data.length);
