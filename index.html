@@ -861,32 +861,15 @@ async function stopRecording() {
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-    if (vtWave) {
+     if (vtWave) {
       window.isAudioReady = false;
-
-      let vtReady = false;
-      let songReady = false;
 
       vtWave.load(URL.createObjectURL(recordedBlob));
 
       vtWave.once("ready", () => {
-        vtReady = true;
-        checkReady();
+        console.log("🎙 VT ready after recording");
+        window.isAudioReady = true;
       });
-
-      if (songWave) {
-        songWave.once("ready", () => {
-          songReady = true;
-          checkReady();
-        });
-      }
-
-      function checkReady() {
-        if (vtReady && songReady) {
-          console.log("🔥 VT + Song ready after recording");
-          window.isAudioReady = true;
-        }
-      }
     }
 
   document.getElementById("uploadBtn").disabled = false;
@@ -943,10 +926,18 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
-  if (!window.isAudioReady) {
-  alert("Audio still loading...");
-  return;
-}
+    if (!window.isAudioReady) {
+      console.log("⏳ waiting for VT...");
+
+      const wait = setInterval(() => {
+        if (window.isAudioReady) {
+          clearInterval(wait);
+          previewBreak();
+        }
+      }, 100);
+
+      return;
+    }
   // 🔁 toggle behavior
   if (isPreviewPlaying) {
     stopPreview();
