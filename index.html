@@ -1028,7 +1028,7 @@ function addID3Tags(blob, row, nextSong, duration) {
   return new Promise(async (resolve) => {
     const arrayBuffer = await blob.arrayBuffer();
 
-    const writer = new ID3Writer(arrayBuffer);
+    const writer = new window.ID3Writer(arrayBuffer);
 
     writer.setFrame("TIT2", `VT ${row.cart}`);
     writer.setFrame("TPE1", "VOICETRACK");
