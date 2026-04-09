@@ -202,7 +202,6 @@
 
 <script src="https://unpkg.com/lamejs@1.2.0/lame.min.js"></script>
 <script src="https://unpkg.com/wavesurfer.js"></script>
-<script src="https://unpkg.com/browser-id3-writer/dist/browser-id3-writer.min.js"></script>
   
 <script>
 const STORAGE_KEY = "webvt_token_" + window.location.hostname;
@@ -1024,10 +1023,13 @@ function checkPreviewEnd() {
   }
 }
 
-function addID3Tags(blob, row, nextSong, duration) {
-  return new Promise(async (resolve) => {
-    const arrayBuffer = await blob.arrayBuffer();
+async function addID3Tags(blob, row, nextSong, duration) {
+  try {
+    const { default: ID3Writer } = await import(
+      "https://cdn.jsdelivr.net/npm/browser-id3-writer@4.4.0/+esm"
+    );
 
+    const arrayBuffer = await blob.arrayBuffer();
     const writer = new ID3Writer(arrayBuffer);
 
     writer.setFrame("TIT2", `VT ${row.cart}`);
@@ -1057,8 +1059,12 @@ function addID3Tags(blob, row, nextSong, duration) {
 
     writer.addTag();
 
-    resolve(new Blob([writer.arrayBuffer], { type: "audio/mpeg" }));
-  });
+    return new Blob([writer.arrayBuffer], { type: "audio/mpeg" });
+
+  } catch (err) {
+    console.error("❌ Tagging failed:", err);
+    return blob; // fallback so recording never breaks
+  }
 }
 
 // =====================
