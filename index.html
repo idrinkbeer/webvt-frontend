@@ -227,6 +227,10 @@ let songWave;
 let isPreviewPlaying = false;
 let vtFinished = false;
 let songFinished = false;
+let currentPlayBtn = null;
+previewAudio = new Audio(url);
+previewAudio.preload = "auto";
+
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
@@ -584,49 +588,42 @@ setTimeout(() => {
 
 let previewAudio = null;
 
-function playSong(filename) {
-  // stop VT preview if playing
-  if (isPreviewPlaying) {
-    stopPreview();
-  }
-
-  // stop previous song preview
-  if (previewAudio) {
-    previewAudio.pause();
-    previewAudio = null;
-  }
-
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
-
-  previewAudio = new Audio(url);
-  previewAudio.volume = 1;
-
-  previewAudio.play();
-
-  previewAudio.onended = () => {
-    previewAudio = null;
-  };
-
-  console.log("Playing:", filename);
-}
 
 function playSong(filename, btn) {
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+
+  // 🎵 If something is already playing
   if (previewAudio) {
     previewAudio.pause();
     previewAudio = null;
-    btn.textContent = "▶";
+
+    // reset previous button
+    if (currentPlayBtn) {
+      currentPlayBtn.textContent = "▶";
+    }
+  }
+
+  // 🔁 If clicking same button → just stop
+  if (currentPlayBtn === btn) {
+    currentPlayBtn = null;
     return;
   }
 
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+  // ▶ start new audio
   previewAudio = new Audio(url);
-
   previewAudio.play();
+
+  // update buttons
   btn.textContent = "⏹";
+  currentPlayBtn = btn;
 
   previewAudio.onended = () => {
     previewAudio = null;
-    btn.textContent = "▶";
+
+    if (currentPlayBtn) {
+      currentPlayBtn.textContent = "▶";
+      currentPlayBtn = null;
+    }
   };
 }
 
