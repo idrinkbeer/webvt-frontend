@@ -961,13 +961,12 @@ recordedBlob = await addID3Tags(
   document.getElementById("recordBtn").textContent = "Start";
 
   // 🔊 stop song + restore volume
-if (songWave) {
-  songWave.setVolume(1);
-  songWave.stop();
-}
+  if (songWave) {
+    songWave.setVolume(1);
+    songWave.stop();
+  }
 
-// reset marker
-secToneTime = null;
+
 }
 
 // =====================
@@ -1040,13 +1039,26 @@ async function previewBreak() {
   if (vtWave) vtWave.stop();
   if (songWave) songWave.stop();
 
-  const vtDuration = vtWave.getDuration();
+const vtDuration = vtWave.getDuration();
+
+// 🎯 USE MANUAL SEC TONE IF AVAILABLE
+let songDelay = 0;
+
+if (secToneTime !== null) {
+  songDelay = secToneTime;
+  console.log("🎯 Preview using manual Sec Tone:", songDelay);
+} else {
+  // 🔁 fallback to old logic
   const intro = nextSong.intro || 0;
 
-  let songDelay = 0;
   if (vtDuration > intro) {
     songDelay = vtDuration - intro;
+  } else {
+    songDelay = vtDuration;
   }
+
+  console.log("🤖 Preview using auto timing:", songDelay);
+}
 
   console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
 
@@ -1098,6 +1110,9 @@ function checkPreviewEnd() {
 
     const btn = document.querySelector("button[onclick='previewBreak()']");
     if (btn) btn.textContent = "▶ Preview Break";
+
+    // 🔥 reset AFTER preview
+    secToneTime = null;
   }
 }
 
