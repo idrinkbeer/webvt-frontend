@@ -857,12 +857,13 @@ async function stopRecording() {
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
+const row = filteredLog[selectedIndex];
 const { nextSong } = getPrevNextSongs(selectedIndex);
 
 // 🎯 ADD TAGS HERE
-recordedBlob = await addID3Tags(rawBlob, row, nextSong);
+const duration = trimmed.length / audioContext.sampleRate;
 
-  const row = filteredLog[selectedIndex];
+recordedBlob = await addID3Tags(rawBlob, row, nextSong, duration);
   recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
