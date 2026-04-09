@@ -924,13 +924,14 @@ if (secToneTime !== null) {
 const secTone = Math.floor(secToneSeconds * audioContext.sampleRate);
 
 // 🎯 PASS TO TAGGING
-recordedBlob = await addID3Tags(
-  rawBlob,
-  row,
-  nextSong,
-  duration,
-  secTone
-);
+//recordedBlob = await addID3Tags(
+//  rawBlob,
+//  row,
+//  nextSong,
+//  duration,
+//  secTone
+//);
+recordedBlob = rawBlob;
 
   recordings[row.cart] = recordedBlob;
 
