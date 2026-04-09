@@ -227,6 +227,8 @@ let songWave;
 let isPreviewPlaying = false;
 let vtFinished = false;
 let songFinished = false;
+let recordStage = 0; // 0 = idle, 1 = recording, 2 = song fired
+let secToneTime = null;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -684,10 +686,49 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
 // RECORDING
 // =====================
 async function toggleRecording() {
-  if (!isRecording) {
+  // 1️⃣ START RECORDING
+  if (recordStage === 0) {
     await startRecording();
-  } else {
-    stopRecording();
+
+    recordStage = 1;
+    secToneTime = null;
+
+    document.getElementById("recordBtn").textContent = "▶ Fire Song";
+    return;
+  }
+
+  // 2️⃣ FIRE SONG (SET MARKER)
+  if (recordStage === 1) {
+    const { nextSong } = getPrevNextSongs(selectedIndex);
+
+    if (!nextSong) {
+      alert("No next song");
+      return;
+    }
+
+    // play song immediately
+    if (songWave) {
+      songWave.stop();
+      songWave.play();
+      songWave.setVolume(0.3);
+    }
+
+    // 🎯 MARK THE MOMENT
+    secToneTime = recordSeconds;
+
+    console.log("🎯 SecTone marked at:", secToneTime);
+
+    recordStage = 2;
+    document.getElementById("recordBtn").textContent = "⏹ Stop & Save";
+    return;
+  }
+
+  // 3️⃣ STOP + SAVE
+  if (recordStage === 2) {
+    await stopRecording();
+
+    recordStage = 0;
+    document.getElementById("recordBtn").textContent = "Start";
   }
 }
 
@@ -859,10 +900,38 @@ async function stopRecording() {
 const row = filteredLog[selectedIndex];
 const { nextSong } = getPrevNextSongs(selectedIndex);
 
-// 🎯 ADD TAGS HERE
+// 🎯 CALCULATE DURATION
 const duration = trimmed.length / audioContext.sampleRate;
 
-recordedBlob = await addID3Tags(rawBlob, row, nextSong, duration);
+// 🎯 DETERMINE SEC TONE (manual OR fallback)
+let secToneSeconds;
+
+if (secToneTime !== null) {
+  // ✅ USER SET IT MANUALLY
+  secToneSeconds = secToneTime;
+  console.log("🎯 Using manual Sec Tone:", secToneSeconds);
+} else {
+  // 🔁 FALLBACK AUTO LOGIC
+  if (nextSong && duration > nextSong.intro) {
+    secToneSeconds = duration - nextSong.intro;
+  } else {
+    secToneSeconds = duration;
+  }
+  console.log("🤖 Using auto Sec Tone:", secToneSeconds);
+}
+
+// 🎯 CONVERT TO SAMPLES (AIR FORMAT)
+const secTone = Math.floor(secToneSeconds * audioContext.sampleRate);
+
+// 🎯 PASS TO TAGGING
+recordedBlob = await addID3Tags(
+  rawBlob,
+  row,
+  nextSong,
+  duration,
+  secTone
+);
+
   recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
@@ -890,6 +959,15 @@ recordedBlob = await addID3Tags(rawBlob, row, nextSong, duration);
 
   isRecording = false;
   document.getElementById("recordBtn").textContent = "Start";
+
+  // 🔊 stop song + restore volume
+if (songWave) {
+  songWave.setVolume(1);
+  songWave.stop();
+}
+
+// reset marker
+secToneTime = null;
 }
 
 // =====================
@@ -1023,7 +1101,7 @@ function checkPreviewEnd() {
   }
 }
 
-async function addID3Tags(blob, row, nextSong, duration) {
+async function addID3Tags(blob, row, nextSong, duration, secTone) {
   try {
     const { default: ID3Writer } = await import(
       "https://cdn.jsdelivr.net/npm/browser-id3-writer@4.4.0/+esm"
@@ -1037,20 +1115,8 @@ async function addID3Tags(blob, row, nextSong, duration) {
     writer.setFrame("TALB", "Web VT");
 
     writer.setFrame("TXXX", {
-      description: "EOM",
-      value: duration.toFixed(2)
-    });
-
-    if (nextSong) {
-      writer.setFrame("TXXX", {
-        description: "INTRO",
-        value: nextSong.intro?.toString() || "0"
-      });
-    }
-
-    writer.setFrame("COMM", {
-      description: "VT",
-      text: `Cart ${row.cart}`
+      description: "Sec Tone",
+      value: secTone.toString()
     });
 
     writer.addTag();
