@@ -921,8 +921,7 @@ if (secToneTime !== null) {
 }
 
 // 🎯 CONVERT TO SAMPLES (AIR FORMAT)
-//const secTone = Math.floor(secToneSeconds * 44100);
-const secTone = Math.floor(secToneSeconds)
+const secTone = Math.floor(secToneSeconds * 44100);
 
 // 🎯 PASS TO TAGGING
 recordedBlob = await addID3Tags(
@@ -1127,26 +1126,43 @@ async function addID3Tags(blob, row, nextSong, duration, secTone) {
 
     const frames = [];
 
-    function createTXXX(desc, value) {
-      const content = encoder.encode(`\u0000${desc}\u0000${value}`);
-      const size = content.length;
+function createTXXX(desc, value) {
+  const encoder = new TextEncoder();
 
-      const frame = new Uint8Array(10 + size);
+  const descBytes = encoder.encode(desc);
+  const valueBytes = encoder.encode(value);
 
-      // Frame ID
-      frame.set(encoder.encode("TXXX"), 0);
+  const size = 1 + descBytes.length + 1 + valueBytes.length;
 
-      // Size
-      frame[4] = (size >> 24) & 0xff;
-      frame[5] = (size >> 16) & 0xff;
-      frame[6] = (size >> 8) & 0xff;
-      frame[7] = size & 0xff;
+  const frame = new Uint8Array(10 + size);
 
-      // Flags = 0
-      frame.set(content, 10);
+  // Frame ID
+  frame.set(encoder.encode("TXXX"), 0);
 
-      return frame;
-    }
+  // Size (big endian)
+  frame[4] = (size >> 24) & 0xff;
+  frame[5] = (size >> 16) & 0xff;
+  frame[6] = (size >> 8) & 0xff;
+  frame[7] = size & 0xff;
+
+  // Flags
+  frame[8] = 0;
+  frame[9] = 0;
+
+  // Encoding (0 = ISO-8859-1)
+  frame[10] = 0x00;
+
+  // Description
+  frame.set(descBytes, 11);
+
+  // Null separator
+  frame[11 + descBytes.length] = 0x00;
+
+  // Value
+  frame.set(valueBytes, 12 + descBytes.length);
+
+  return frame;
+}
 
     frames.push(createTXXX("Sec Tone", secTone.toString()));
     frames.push(createTXXX("Category", "AUDIO"));
