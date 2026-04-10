@@ -921,8 +921,8 @@ if (secToneTime !== null) {
 }
 
 // 🎯 CONVERT TO SAMPLES (AIR FORMAT)
-const secTone = Math.floor(secToneSeconds * 44100);
-
+const secTone = Math.floor(secToneSeconds * 1860);
+  
 // 🎯 PASS TO TAGGING
 recordedBlob = await addID3Tags(
   rawBlob,
