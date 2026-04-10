@@ -1117,44 +1117,95 @@ function checkPreviewEnd() {
 }
 
 async function addID3Tags(blob, row, nextSong, duration, secTone) {
-  try {
-    const { default: ID3Writer } = await import(
-      "https://cdn.jsdelivr.net/npm/browser-id3-writer@4.4.0/+esm"
-    );
+  const mp3 = new Uint8Array(await blob.arrayBuffer());
 
-    const arrayBuffer = await blob.arrayBuffer();
-    const writer = new ID3Writer(arrayBuffer);
-
-    // 🎵 Basic tags
-    writer.setFrame("TIT2", `VT ${row.cart}`);
-    writer.setFrame("TPE1", ["VOICETRACK"]);
-    writer.setFrame("TALB", "Web VT");
-
-    // 🎯 THIS IS THE IMPORTANT ONE
-    writer.setFrame("TXXX", {
-      description: "Sec Tone",
-      value: secTone.toString()
-    });
-
-    // Optional (InfoEdit style)
-    writer.setFrame("TXXX", {
-      description: "Category",
-      value: "AUDIO"
-    });
-
-    writer.setFrame("TXXX", {
-      description: "No fade",
-      value: "0"
-    });
-
-    writer.addTag();
-
-    return new Blob([writer.arrayBuffer], { type: "audio/mpeg" });
-
-  } catch (err) {
-    console.error("❌ Tagging failed:", err);
-    return blob;
+  function toSynchsafe(size) {
+    return [
+      (size >> 21) & 0x7f,
+      (size >> 14) & 0x7f,
+      (size >> 7) & 0x7f,
+      size & 0x7f
+    ];
   }
+
+  function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+      view[offset + i] = str.charCodeAt(i);
+    }
+  }
+
+  function createTXXX(desc, value) {
+    const descBytes = new TextEncoder("latin1").encode(desc);
+    const valueBytes = new TextEncoder("latin1").encode(value);
+
+    const size = 1 + descBytes.length + 1 + valueBytes.length;
+
+    const frame = new Uint8Array(10 + size);
+
+    // Frame ID
+    writeString(frame, 0, "TXXX");
+
+    // Frame size (normal int for v2.3)
+    frame[4] = (size >> 24) & 0xff;
+    frame[5] = (size >> 16) & 0xff;
+    frame[6] = (size >> 8) & 0xff;
+    frame[7] = size & 0xff;
+
+    // Flags
+    frame[8] = 0;
+    frame[9] = 0;
+
+    // Encoding = 0 (ISO-8859-1)
+    frame[10] = 0x00;
+
+    // Description
+    frame.set(descBytes, 11);
+
+    // Null separator
+    frame[11 + descBytes.length] = 0x00;
+
+    // Value
+    frame.set(valueBytes, 12 + descBytes.length);
+
+    return frame;
+  }
+
+  // 🎯 Build frames
+  const frames = [
+    createTXXX("Sec Tone", secTone.toString()),
+    createTXXX("Category", "AUDIO"),
+    createTXXX("No fade", "0")
+  ];
+
+  const tagSize = frames.reduce((sum, f) => sum + f.length, 0);
+
+  // 🎯 ID3 header
+  const header = new Uint8Array(10);
+  writeString(header, 0, "ID3");
+  header[3] = 3; // v2.3
+  header[4] = 0;
+  header[5] = 0;
+
+  const sizeBytes = toSynchsafe(tagSize);
+  header[6] = sizeBytes[0];
+  header[7] = sizeBytes[1];
+  header[8] = sizeBytes[2];
+  header[9] = sizeBytes[3];
+
+  // 🎯 Combine
+  const final = new Uint8Array(10 + tagSize + mp3.length);
+
+  final.set(header, 0);
+
+  let offset = 10;
+  for (const f of frames) {
+    final.set(f, offset);
+    offset += f.length;
+  }
+
+  final.set(mp3, offset);
+
+  return new Blob([final], { type: "audio/mpeg" });
 }
 
 // =====================
