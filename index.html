@@ -1408,6 +1408,33 @@ setInterval(() => {
 
   document.getElementById("clock").textContent = time;
 }, 1000);
+
+async function loadNowPlaying() {
+  try {
+    const res = await fetch(`${API_BASE}/played`, {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    });
+
+    if (!res.ok) return;
+
+    const text = await res.text();
+
+    const lines = text.trim().split("\n");
+    const last = lines[lines.length - 1];
+
+    // 🔥 Adjust depending on your format
+    document.getElementById("nowPlaying").textContent =
+      "Now Playing: " + last;
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+setInterval(loadNowPlaying, 3000);
+loadNowPlaying();
   
 </script>
 
