@@ -1421,15 +1421,25 @@ async function loadNowPlaying() {
 
     const text = await res.text();
 
-    const lines = text.trim().split("\n");
-    const last = lines[lines.length - 1];
+    const lines = text.trim().split("\n").map(l => l.trim());
 
-    // 🔥 Adjust depending on your format
-    document.getElementById("nowPlaying").textContent =
-      "Now Playing: " + last;
+    // 🎯 First block (latest song)
+    const artist = lines[2] || "Unknown Artist";
+    const title = lines[3] || "Unknown Title";
+
+    document.getElementById("clock").innerHTML = `
+      ${new Date().toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit'
+      })}
+      <div style="font-size:14px; margin-top:4px;">
+        ${title} - ${artist}
+      </div>
+    `;
 
   } catch (err) {
-    console.error(err);
+    console.error("Now Playing error:", err);
   }
 }
 
