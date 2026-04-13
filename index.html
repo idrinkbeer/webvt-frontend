@@ -245,58 +245,59 @@ button:hover {
 </div>
 
 <div id="app" style="display:none;">
-<div style="
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding: 10px 15px;
-">
 
-  <!-- LEFT: Logo + dropdown -->
-  <div style="display:flex; align-items:center; gap:15px;">
-    <img 
-      src="https://i.ibb.co/YB7M20Kt/AIR-Radio-Automation-logo-design.png"
-      style="height:70px;"
-    >
-
-    <select id="logSelect"></select>
-  </div>
-
-  <!-- CENTER: Title -->
+  <!-- HEADER -->
   <div style="
-    position:absolute;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:28px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 10px 15px;
+    position: relative;
   ">
-    WEB VT
+
+    <!-- LEFT -->
+    <div style="display:flex; align-items:center; gap:15px;">
+      <img 
+        src="https://i.ibb.co/YB7M20Kt/AIR-Radio-Automation-logo-design.png"
+        style="height:70px;"
+      >
+
+      <select id="logSelect"></select>
+      <select id="hourSelect" style="display:none;"></select>
+    </div>
+
+    <!-- CENTER -->
+    <div style="
+      position:absolute;
+      left:50%;
+      transform:translateX(-50%);
+      font-size:28px;
+    ">
+      WEB VT
+    </div>
+
+    <!-- RIGHT -->
+    <div>
+      <button onclick="logout()">Logout</button>
+    </div>
+
   </div>
 
-  <!-- RIGHT: Logout -->
-  <div>
-    <button onclick="logout()">Logout</button>
-  </div>
+  <!-- TABLE -->
+  <table id="logTable">
+    <thead>
+      <tr>
+        <th>Time</th>
+        <th>Type</th>
+        <th>Title</th>
+        <th>Artist</th>
+        <th>Intro</th>
+        <th>End</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-</div>
-
-</div>
-<button onclick="logout()" style="float:right;">Logout</button>
-<select id="logSelect"></select>
-<select id="hourSelect" style="display:none;"></select>
-
-<table id="logTable">
-  <thead>
-    <tr>
-      <th>Time</th>
-      <th>Type</th>
-      <th>Title</th>
-      <th>Artist</th>
-      <th>Intro</th>
-      <th>End</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
 </div>
 
 <script src="https://unpkg.com/lamejs@1.2.0/lame.min.js"></script>
