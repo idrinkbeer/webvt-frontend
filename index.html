@@ -117,17 +117,6 @@ button:hover {
   margin-top: 10px;
 }
 
-.audio-player button {
-  background: #00cc33;
-  border: 2px solid #000;
-  border-radius: 0;
-  width: 32px;
-  height: 32px;
-  color: black;
-  font-weight: bold;
-  cursor: pointer;
-}
-
 .progress {
   flex: 1;
   height: 6px;
@@ -200,6 +189,34 @@ button:hover {
   border-radius: 0 !important;
   box-shadow: none !important;
 }
+
+.air-btn {
+  background: #0033cc;
+  color: #fff;
+  border: 3px solid #000;
+
+  font-family: "Arial Narrow", Arial, sans-serif;
+  font-weight: bold;
+  text-transform: uppercase;
+
+  padding: 10px 18px;
+  min-width: 160px;
+
+  cursor: pointer;
+
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.air-btn:hover {
+  background: #0055ff;
+}
+
+.air-btn-green {
+  background: #00cc33 !important;
+  color: #000 !important;
+}
+
 </style>
 </head>
 
@@ -522,8 +539,10 @@ function renderTable() {
             <div id="vtWaveform" style="margin-top:10px;"></div>
             <div id="songWaveform" style="margin-top:10px;"></div>
             <div class="audio-player">
-  <button id="uploadBtn">Preview VT</button>
-  <button id="uploadBtn" onclick="previewBreak()">Preview Break</button>
+<div style="margin-top:10px;">
+  <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
+  <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
+</div>
   <div class="progress">
     <div id="progressBar"></div>
   </div>
