@@ -1159,8 +1159,11 @@ function stopPreview() {
 
   isPreviewPlaying = false;
 
-  const btn = document.querySelector("button[onclick='previewBreak()']");
-  if (btn) btn.textContent = "Preview Break";
+  const breakBtn = document.querySelector("button[onclick='previewBreak()']");
+  if (breakBtn) breakBtn.textContent = "Preview Break";
+
+  const vtBtn = document.querySelector("button[onclick='previewVT()']");
+  if (vtBtn) vtBtn.textContent = "Preview VT";
 }
 
 function checkPreviewEnd() {
@@ -1173,6 +1176,48 @@ function checkPreviewEnd() {
     // 🔥 reset AFTER preview
     secToneTime = null;
   }
+}
+
+
+function previewVT() {
+  // 🔁 toggle behavior (same as previewBreak)
+  if (isPreviewPlaying) {
+    stopPreview();
+    return;
+  }
+
+  if (selectedIndex === null) return;
+
+  const row = filteredLog[selectedIndex];
+  const vtBlob = recordings[row.cart];
+
+  if (!vtBlob) {
+    alert("No VT recorded");
+    return;
+  }
+
+  // 🛑 stop anything else
+  if (songWave) songWave.stop();
+  if (vtWave) vtWave.stop();
+
+  vtFinished = false;
+  songFinished = false;
+
+  // ▶ play VT only
+  vtWave.play();
+
+  isPreviewPlaying = true;
+
+  // 🎛 update button text
+  const vtBtn = document.querySelector("button[onclick='previewVT()']");
+  if (vtBtn) vtBtn.textContent = "Stop VT";
+
+  // reset when done
+  vtWave.once("finish", () => {
+    isPreviewPlaying = false;
+
+    if (vtBtn) vtBtn.textContent = "Preview VT";
+  });
 }
 
 async function addID3Tags(blob, row, nextSong, duration, secTone) {
