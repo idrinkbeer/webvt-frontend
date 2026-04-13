@@ -248,24 +248,34 @@ button:hover {
 <div style="
   display:flex;
   align-items:center;
-  justify-content:center;
-  position:relative;
-  margin-bottom:10px;
+  justify-content:space-between;
+  padding: 10px 15px;
 ">
 
-  <!-- LOGO (top-left corner) -->
-  <img 
-    src="https://i.ibb.co/YB7M20Kt/AIR-Radio-Automation-logo-design.png"
-    style="
-      position:absolute;
-      left:0;
-      top:0;
-      height:80px;
-    "
-  >
+  <!-- LEFT: Logo + dropdown -->
+  <div style="display:flex; align-items:center; gap:15px;">
+    <img 
+      src="https://i.ibb.co/YB7M20Kt/AIR-Radio-Automation-logo-design.png"
+      style="height:70px;"
+    >
 
-  <!-- TITLE (centered) -->
-  <h1 style="margin:0;">WEB VT</h1>
+    <select id="logSelect"></select>
+  </div>
+
+  <!-- CENTER: Title -->
+  <div style="
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:28px;
+  ">
+    WEB VT
+  </div>
+
+  <!-- RIGHT: Logout -->
+  <div>
+    <button onclick="logout()">Logout</button>
+  </div>
 
 </div>
 
