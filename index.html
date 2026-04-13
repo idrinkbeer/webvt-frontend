@@ -218,6 +218,7 @@ button:hover {
 }
 
 </style>
+  <div id="clock" style="margin-left:10px;"></div>
 </head>
 
 <body>
@@ -1358,6 +1359,12 @@ async function addID3Tags(blob, row, nextSong, duration, secTone) {
 
 // =====================
 loadLogs();
+
+setInterval(() => {
+  const now = new Date();
+  document.getElementById("clock").textContent =
+    now.toLocaleTimeString();
+}, 1000);
   
 </script>
 
