@@ -409,6 +409,8 @@ document.getElementById("logSelect").value = todayLog;
 await loadSelectedLog(todayLog);
 
 // 🎯 wait for table render THEN jump
+await loadNowPlaying();
+
 setTimeout(() => {
   jumpToCurrentTime();
 }, 200);
@@ -455,6 +457,8 @@ const todayLog = getTodayLogName();
 document.getElementById("logSelect").value = todayLog;
 
 await loadSelectedLog(todayLog);
+
+await loadNowPlaying();
 
 setTimeout(() => {
   jumpToCurrentTime();
@@ -532,9 +536,6 @@ async function loadLogs() {
       loadSelectedLog(select.value);
     }
   };
-  setTimeout(() => {
-  jumpToCurrentTime();
-}, 300);
 }
 
 async function loadSelectedLog(filename) {
