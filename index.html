@@ -303,15 +303,9 @@ select + select {
     </div>
 
 <!-- CENTER -->
-<div style="flex:1; text-align:center; font-size:28px;">
-  <span id="clock"></span>
-</div>
-<div id="nowPlaying" style="
-  text-align:center;
-  font-size:14px;
-  margin-top:5px;
-">
-  Now Playing: ---
+<div style="flex:1; text-align:center;">
+  <div id="clock" style="font-size:28px;"></div>
+  <div id="nowPlaying" style="font-size:14px; margin-top:4px;"></div>
 </div>
 
     <!-- RIGHT -->
@@ -1420,23 +1414,13 @@ async function loadNowPlaying() {
     if (!res.ok) return;
 
     const text = await res.text();
-
     const lines = text.trim().split("\n").map(l => l.trim());
 
-    // 🎯 First block (latest song)
     const artist = lines[2] || "Unknown Artist";
     const title = lines[3] || "Unknown Title";
 
-    document.getElementById("clock").innerHTML = `
-      ${new Date().toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit'
-      })}
-      <div style="font-size:14px; margin-top:4px;">
-        ${title} - ${artist}
-      </div>
-    `;
+    document.getElementById("nowPlaying").textContent =
+      `${title} - ${artist}`;
 
   } catch (err) {
     console.error("Now Playing error:", err);
