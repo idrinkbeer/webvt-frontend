@@ -400,12 +400,18 @@ const tableBody = document.querySelector("#logTable tbody");
 if (token) {
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
-  loadLogs();
+await loadLogs();
 
-  const todayLog = getTodayLogName();
+const todayLog = getTodayLogName();
 
 document.getElementById("logSelect").value = todayLog;
-loadLog(todayLog);
+
+await loadSelectedLog(todayLog);
+
+// 🎯 wait for table render THEN jump
+setTimeout(() => {
+  jumpToCurrentTime();
+}, 200);
 }
   
 async function login() {
@@ -442,7 +448,17 @@ async function login() {
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
 
-  loadLogs();
+  await loadLogs();
+
+const todayLog = getTodayLogName();
+
+document.getElementById("logSelect").value = todayLog;
+
+await loadSelectedLog(todayLog);
+
+setTimeout(() => {
+  jumpToCurrentTime();
+}, 200);
 }
 
 function logout() {
@@ -1424,8 +1440,6 @@ async function addID3Tags(blob, row, nextSong, duration, secTone) {
   return new Blob([final], { type: "audio/mpeg" });
 }
 
-// =====================
-loadLogs();
 
 setInterval(() => {
   const now = new Date();
@@ -1511,42 +1525,59 @@ function getTodayLogName() {
 }
   
 
-  function jumpToCurrentTime() {
+function jumpToCurrentTime() {
+  if (!currentSongStart) return;
+
   const rows = document.querySelectorAll("#logTable tbody tr");
 
   const now = new Date();
+  const currentTimeStr = now.toTimeString().split(" ")[0]; // HH:MM:SS
 
-  let bestMatch = null;
-  let smallestDiff = Infinity;
+  let match = null;
 
   rows.forEach(tr => {
     const timeCell = tr.querySelector("td");
-
     if (!timeCell) return;
 
-    const timeText = timeCell.textContent.trim();
-
-    // convert log time (HH:MM:SS)
-    const [h, m, s] = timeText.split(":").map(Number);
-
-    const logTime = new Date();
-    logTime.setHours(h, m, s, 0);
-
-    const diff = Math.abs(now - logTime);
-
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
-      bestMatch = tr;
+    if (timeCell.textContent.trim() === currentTimeStr) {
+      match = tr;
     }
   });
 
-  if (bestMatch) {
-    bestMatch.scrollIntoView({
+  // fallback to closest if exact not found
+  if (!match) {
+    let smallestDiff = Infinity;
+
+    rows.forEach(tr => {
+      const timeCell = tr.querySelector("td");
+      if (!timeCell) return;
+
+      const [h, m, s] = timeCell.textContent.split(":").map(Number);
+
+      const logTime = new Date();
+      logTime.setHours(h, m, s, 0);
+
+      const diff = Math.abs(now - logTime);
+
+      if (diff < smallestDiff) {
+        smallestDiff = diff;
+        match = tr;
+      }
+    });
+  }
+
+  if (match) {
+    match.scrollIntoView({
       behavior: "smooth",
       block: "center"
     });
 
-    bestMatch.classList.add("active");
+    // clear old highlights
+    document.querySelectorAll("#logTable tbody tr").forEach(tr => {
+  tr.classList.remove("active");
+});
+
+    match.classList.add("active");
   }
 }
   
