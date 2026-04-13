@@ -218,7 +218,8 @@ button:hover {
 }
 
 
-    select {
+
+select {
   background: #0033cc;
   color: #fff;
   border: 2px solid #000;
@@ -226,7 +227,7 @@ button:hover {
   font-family: "Arial Narrow", Arial, sans-serif;
   font-weight: bold;
 
-  padding: 6px 10px;
+  padding: 6px 30px 6px 10px; /* 👈 extra right padding */
   height: 34px;
 
   appearance: none;
@@ -234,14 +235,15 @@ button:hover {
   -moz-appearance: none;
 
   cursor: pointer;
-}
 
-/* dropdown arrow fix */
-select {
-  background-image: linear-gradient(45deg, transparent 50%, #fff 50%),
-                    linear-gradient(135deg, #fff 50%, transparent 50%);
-  background-position: calc(100% - 15px) calc(50% - 3px),
-                       calc(100% - 10px) calc(50% - 3px);
+  background-image:
+    linear-gradient(45deg, transparent 50%, #fff 50%),
+    linear-gradient(135deg, #fff 50%, transparent 50%);
+
+  background-position:
+    calc(100% - 12px) center,
+    calc(100% - 7px) center;
+
   background-size: 5px 5px;
   background-repeat: no-repeat;
 }
@@ -252,7 +254,6 @@ select + select {
 }
     
 </style>
-  <div id="clock" style="margin-left:10px;"></div>
 </head>
 
 <body>
@@ -301,14 +302,9 @@ select + select {
       <select id="hourSelect" style="display:none;"></select>
     </div>
 
-<div id="clock" style="
-  position:absolute;
-  left:50%;
-  transform:translate(-50%, -50%);
-  top:50%;
-  font-size:28px;
-  white-space: nowrap;
-">
+<!-- CENTER -->
+<div style="flex:1; text-align:center; font-size:28px;">
+  <span id="clock"></span>
 </div>
 
     <!-- RIGHT -->
