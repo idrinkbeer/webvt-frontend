@@ -389,6 +389,8 @@ let vtFinished = false;
 let songFinished = false;
 let recordStage = 0; // 0 = idle, 1 = recording, 2 = song fired
 let secToneTime = null;
+let currentTitle = "";
+let currentArtist = "";
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1477,8 +1479,11 @@ async function loadNowPlaying() {
 
     // 🎯 parse data
     const startTimeStr = lines[0];
-    const artist = lines[2];
-    const title = lines[3];
+currentArtist = (lines[2] || "").toLowerCase();
+currentTitle = (lines[3] || "").toLowerCase();
+
+const artist = lines[2];
+const title = lines[3];
     const duration = parseInt(lines[6]) || 0;
 
     // convert start time
@@ -1532,22 +1537,26 @@ function getTodayLogName() {
   
 
 
-function jumpToCUrrentTime() {
-  if (!currentTitle || !currentArtist) return;
+function jumpToCurrentTime() {
+  if (!currentTitle || !currentArtist) {
+    console.log("❌ Missing now playing data");
+    return;
+  }
 
-  // 🕒 get current hour from real clock
   const now = new Date();
-  const currentHourStr = String(now.getHours()).padStart(2, "0");
+  const currentHourStr = now.getHours().toString(); // 🔥 FIXED (no padding)
 
-  // 🔁 switch hour FIRST
+  console.log("🕒 Current hour:", currentHourStr);
+  console.log("🎵 Looking for:", currentTitle, currentArtist);
+
   const hourSelect = document.getElementById("hourSelect");
+
+  // 🔁 switch hour
   hourSelect.value = currentHourStr;
   currentHour = currentHourStr;
 
-  // 🔁 filter table to that hour
   filterByHour(currentHourStr);
 
-  // ⏳ wait for table render
   setTimeout(() => {
     const rows = document.querySelectorAll("#logTable tbody tr");
 
@@ -1562,6 +1571,8 @@ function jumpToCUrrentTime() {
         text.includes(currentTitle) &&
         text.includes(currentArtist)
       ) {
+        console.log("✅ MATCH FOUND:", text);
+
         tr.classList.add("active");
 
         tr.scrollIntoView({
@@ -1574,10 +1585,10 @@ function jumpToCUrrentTime() {
     });
 
     if (!found) {
-      console.log("⚠️ Song not found in current hour");
+      console.log("⚠️ No match found in current hour");
     }
 
-  }, 100);
+  }, 150);
 }
   
 </script>
