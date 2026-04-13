@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -397,24 +398,29 @@ const tableBody = document.querySelector("#logTable tbody");
 // =====================
 // LOGIN SYSTEM 
 // =====================
-if (token) {
+async function initApp() {
+  if (!token) return;
+
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
-await loadLogs();
 
-const todayLog = getTodayLogName();
+  await loadLogs();
 
-document.getElementById("logSelect").value = todayLog;
+  const todayLog = getTodayLogName();
 
-await loadSelectedLog(todayLog);
+  document.getElementById("logSelect").value = todayLog;
 
-// 🎯 wait for table render THEN jump
-await loadNowPlaying();
+  await loadSelectedLog(todayLog);
 
-setTimeout(() => {
-  jumpToCurrentTime();
-}, 200);
+  await loadNowPlaying();
+
+  setTimeout(() => {
+    jumpToCurrentTime();
+  }, 200);
 }
+
+// 🚀 run it
+initApp();
   
 async function login() {
   const username = document.getElementById("username").value;
