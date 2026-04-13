@@ -306,6 +306,23 @@ select + select {
 <div style="flex:1; text-align:center;">
   <div id="clock" style="font-size:28px;"></div>
   <div id="nowPlaying" style="font-size:14px; margin-top:4px;"></div>
+
+  <div id="playBarContainer" style="
+  width:300px;
+  height:8px;
+  background:#222;
+  margin:6px auto 0 auto;
+  border:1px solid #000;
+">
+
+  <div id="playBar" style="
+    height:100%;
+    width:0%;
+    background:#00cc33;
+  "></div>
+
+</div>
+  
 </div>
 
     <!-- RIGHT -->
@@ -1403,6 +1420,9 @@ setInterval(() => {
   document.getElementById("clock").textContent = time;
 }, 1000);
 
+let currentSongStart = null;
+let currentSongDuration = 0;
+
 async function loadNowPlaying() {
   try {
     const res = await fetch(`${API_BASE}/played`, {
@@ -1416,19 +1436,41 @@ async function loadNowPlaying() {
     const text = await res.text();
     const lines = text.trim().split("\n").map(l => l.trim());
 
-    const artist = lines[2] || "Unknown Artist";
-    const title = lines[3] || "Unknown Title";
+    // 🎯 parse data
+    const startTimeStr = lines[0];
+    const artist = lines[2];
+    const title = lines[3];
+    const duration = parseInt(lines[6]) || 0;
+
+    // convert start time
+    currentSongStart = new Date(startTimeStr);
+    currentSongDuration = duration;
 
     document.getElementById("nowPlaying").textContent =
       `${title} - ${artist}`;
 
   } catch (err) {
-    console.error("Now Playing error:", err);
+    console.error(err);
   }
 }
 
 setInterval(loadNowPlaying, 3000);
 loadNowPlaying();
+
+  setInterval(() => {
+  if (!currentSongStart || !currentSongDuration) return;
+
+  const now = new Date();
+  const elapsed = (now - currentSongStart) / 1000;
+
+  let percent = (elapsed / currentSongDuration) * 100;
+
+  // clamp
+  percent = Math.max(0, Math.min(100, percent));
+
+  document.getElementById("playBar").style.width = percent + "%";
+
+}, 1000);
   
 </script>
 
