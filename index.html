@@ -751,7 +751,7 @@ async function toggleRecording() {
     recordStage = 1;
     secToneTime = null;
 
-    document.getElementById("recordBtn").textContent = "▶ Fire Song";
+    document.getElementById("recordBtn").textContent = "Fire Song";
     return;
   }
 
@@ -777,7 +777,7 @@ async function toggleRecording() {
     console.log("🎯 SecTone marked at:", secToneTime);
 
     recordStage = 2;
-    document.getElementById("recordBtn").textContent = "⏹ Stop & Save";
+    document.getElementById("recordBtn").textContent = "Stop & Save";
     return;
   }
 
@@ -1127,7 +1127,7 @@ if (secToneTime !== null) {
   isPreviewPlaying = true;
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
-  if (btn) btn.textContent = "⏹ Stop Preview";
+  if (btn) btn.textContent = "Stop Preview";
 
   // ▶ start song
   setTimeout(() => {
@@ -1160,7 +1160,7 @@ function stopPreview() {
   isPreviewPlaying = false;
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
-  if (btn) btn.textContent = "▶ Preview Break";
+  if (btn) btn.textContent = "Preview Break";
 }
 
 function checkPreviewEnd() {
@@ -1168,7 +1168,7 @@ function checkPreviewEnd() {
     isPreviewPlaying = false;
 
     const btn = document.querySelector("button[onclick='previewBreak()']");
-    if (btn) btn.textContent = "▶ Preview Break";
+    if (btn) btn.textContent = "Preview Break";
 
     // 🔥 reset AFTER preview
     secToneTime = null;
