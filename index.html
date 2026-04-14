@@ -400,7 +400,7 @@ select + select {
   position: relative;
 }
 
-#vtSecMarker {
+#editorSecMarker {
   position: absolute;
   top: 0;
   width: 2px;
@@ -1455,10 +1455,27 @@ setTimeout(() => {
 
       vtWave.load(URL.createObjectURL(recordedBlob));
 
-      vtWave.once("ready", () => {
-        console.log("🎙 VT ready after recording");
-        window.isAudioReady = true;
-      });
+vtWave.once("ready", () => {
+  console.log("🎙 VT ready after recording");
+  window.isAudioReady = true;
+
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+  const rowData = filteredLog[selectedIndex];
+
+  if (vtWave && nextSong) {
+    const vtDuration = vtWave.getDuration();
+    const songDuration = 240;
+    const intro = nextSong.intro || 0;
+
+    const secTone = secTones[rowData.cart] ?? secToneTime ?? 0;
+
+    drawBlocks(vtDuration, songDuration, intro, secTone);
+  }
+
+  setTimeout(() => {
+    setupDragging();
+  }, 50);
+});
     }
 
   document.getElementById("uploadBtn").disabled = false;
@@ -1537,6 +1554,10 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
+  if (!vtWave || !window.isAudioReady) {
+  alert("VT still loading...");
+  return;
+}
   if (isPreviewPlaying) {
     stopPreview();
     return;
