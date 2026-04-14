@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -405,13 +406,21 @@ async function initApp() {
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
 
-  await loadLogs();
+ const files = await loadLogs();
 
-  const todayLog = getTodayLogName();
+const todayLog = getTodayLogName();
 
-  document.getElementById("logSelect").value = todayLog;
+// 🔥 check if today's log exists
+let selectedLog = files.includes(todayLog)
+  ? todayLog
+  : "DEFAULT.ASC";
 
-  await loadSelectedLog(todayLog);
+console.log("📂 Loading log:", selectedLog);
+
+// set dropdown properly
+document.getElementById("logSelect").value = selectedLog;
+
+await loadSelectedLog(selectedLog);
 
   await loadNowPlaying();
 
@@ -457,13 +466,19 @@ async function login() {
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
 
-  await loadLogs();
+const files = await loadLogs();
 
 const todayLog = getTodayLogName();
 
-document.getElementById("logSelect").value = todayLog;
+let selectedLog = files.includes(todayLog)
+  ? todayLog
+  : "DEFAULT.ASC";
 
-await loadSelectedLog(todayLog);
+console.log("📂 Loading log:", selectedLog);
+
+document.getElementById("logSelect").value = selectedLog;
+
+await loadSelectedLog(selectedLog);
 
 await loadNowPlaying();
 
@@ -526,10 +541,11 @@ async function loadLogs() {
       Authorization: "Bearer " + token
     }
   });
+
   const files = await res.json();
 
   const select = document.getElementById("logSelect");
-  select.innerHTML = "<option>Select a log...</option>";
+  select.innerHTML = "";
 
   files.forEach(file => {
     const opt = document.createElement("option");
@@ -538,11 +554,14 @@ async function loadLogs() {
     select.appendChild(opt);
   });
 
+  // 🔥 FIX: proper onchange
   select.onchange = () => {
-    if (select.value !== "Select music log...") {
+    if (select.value) {
       loadSelectedLog(select.value);
     }
   };
+
+  return files; // 👈 important
 }
 
 async function loadSelectedLog(filename) {
