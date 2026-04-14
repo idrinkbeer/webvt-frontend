@@ -479,8 +479,6 @@ select + select {
 
 <div id="app" style="display:none;">
 
-  <div id="vtWaveform" style="display:none;"></div>
-
   <!-- HEADER -->
   <div style="
     display:flex;
@@ -992,7 +990,7 @@ vtWave.once("ready", () => {
   const { nextSong } = getPrevNextSongs(selectedIndex);
 
   if (vtWave && nextSong) {
-    const vtDuration = recordedBlobDuration || 0;
+    const vtDuration = vtWave.getDuration();
     const songDuration = 240; // 🔥 use fixed for now
     const intro = nextSong.intro || 0;
 
@@ -1362,9 +1360,11 @@ function encodeMP3(samples, sampleRate) {
 async function stopRecording() {
   vuActive = false;
 
-const vu = document.getElementById("vuBar");
-if (vu) vu.style.width = "0%";
+  const vu = document.getElementById("vuBar");
+  if (vu) vu.style.width = "0%";
+
   await new Promise(r => setTimeout(r, 50));
+
   // ⏱ STOP TIMER
   if (recordInterval) {
     clearInterval(recordInterval);
@@ -1372,9 +1372,9 @@ if (vu) vu.style.width = "0%";
   }
 
   const { samples, processor } = window._recorder;
-
   processor.disconnect();
 
+  // 🎧 Flatten audio
   let length = samples.reduce((sum, s) => sum + s.length, 0);
   let flat = new Float32Array(length);
 
@@ -1385,101 +1385,82 @@ if (vu) vu.style.width = "0%";
   }
 
   const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
+  const duration = trimmed.length / audioContext.sampleRate;
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
-const row = filteredLog[selectedIndex];
-const { nextSong } = getPrevNextSongs(selectedIndex);
+  const row = filteredLog[selectedIndex];
+  const { nextSong } = getPrevNextSongs(selectedIndex);
 
-// 🎯 CALCULATE DURATION
-const duration = trimmed.length / audioContext.sampleRate;
+  // 🎯 DETERMINE SEC TONE
+  let secToneSeconds;
 
-// 🎯 DETERMINE SEC TONE
-// 🎯 DETERMINE SEC TONE
-let secToneSeconds;
-
-if (secToneTime !== null) {
-  secToneSeconds = secToneTime;
-  console.log("🎯 Using manual Sec Tone:", secToneSeconds);
-} else {
-  if (nextSong && duration > nextSong.intro) {
-    secToneSeconds = duration - nextSong.intro;
+  if (secToneTime !== null) {
+    secToneSeconds = secToneTime;
+    console.log("🎯 Using manual Sec Tone:", secToneSeconds);
   } else {
-    secToneSeconds = duration;
+    if (nextSong && duration > nextSong.intro) {
+      secToneSeconds = duration - nextSong.intro;
+    } else {
+      secToneSeconds = duration;
+    }
+    console.log("🤖 Using auto Sec Tone:", secToneSeconds);
   }
-  console.log("🤖 Using auto Sec Tone:", secToneSeconds);
-}
 
+  // 💾 Save sec tone
   secTones[row.cart] = secToneSeconds;
 
-// 🔥 DRAW MARKER (ALWAYS RUN)
-setTimeout(() => {
-  if (secToneSeconds === null || !vtWave) return;
+  // 🎯 Convert for AIR (remaining time)
+  const remaining = duration - secToneSeconds;
+  const secTone = Math.floor(remaining * 1000);
 
-  const waveDuration = vtWave.getDuration();
-  if (!waveDuration) return;
-
-  const percent = (secToneSeconds / waveDuration) * 100;
-
-  const marker = document.getElementById("editorSecMarker");
-  if (!marker) return;
-
-  marker.style.left = percent + "%";
-  marker.style.display = "block";
-
-  console.log("📍 Sec marker at:", percent.toFixed(1) + "%");
-
-}, 150);
-
-// 🎯 CONVERT TO SAMPLES (AIR FORMAT)
-const remaining = duration - secToneSeconds;
-const secTone = Math.floor(remaining * 1000);
-  
-// 🎯 PASS TO TAGGING
-recordedBlob = await addID3Tags(
-  rawBlob,
-  row,
-  nextSong,
-  duration,
-  secTone
-);
-
-setTimeout(() => {
-  drawSecMarker(secToneSeconds);
-}, 150);
+  // 🏷 Tag MP3
+  recordedBlob = await addID3Tags(
+    rawBlob,
+    row,
+    nextSong,
+    duration,
+    secTone
+  );
 
   recordings[row.cart] = recordedBlob;
 
+  // 🎧 Player preview
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-     if (vtWave) {
-      window.isAudioReady = false;
 
-      vtWave.load(URL.createObjectURL(recordedBlob));
+  // 🔥 Reload waveform + UI
+  if (vtWave) {
+    window.isAudioReady = false;
 
-vtWave.once("ready", () => {
-  console.log("🎙 VT ready after recording");
-  window.isAudioReady = true;
+    vtWave.load(URL.createObjectURL(recordedBlob));
 
-  const { nextSong } = getPrevNextSongs(selectedIndex);
-  const rowData = filteredLog[selectedIndex];
+    vtWave.once("ready", () => {
+      console.log("🎙 VT ready after recording");
+      window.isAudioReady = true;
 
-  if (vtWave && nextSong) {
-    const vtDuration = vtWave.getDuration();
-    const songDuration = 240;
-    const intro = nextSong.intro || 0;
+      const { nextSong } = getPrevNextSongs(selectedIndex);
+      const rowData = filteredLog[selectedIndex];
 
-    const secTone = secTones[rowData.cart] ?? secToneTime ?? 0;
+      const vtDuration = vtWave.getDuration();
+      const songDuration = 240; // temp fallback
+      const intro = nextSong?.intro || 0;
+      const secTone = secTones[rowData.cart] ?? 0;
 
-    drawBlocks(vtDuration, songDuration, intro, secTone);
+      // 🎯 DRAW BLOCKS
+      drawBlocks(vtDuration, songDuration, intro, secTone);
+
+      // 🎯 DRAW MARKER (SAFE NOW)
+      drawSecMarker(secTone);
+
+      // 🖱 Enable dragging
+      setTimeout(() => {
+        setupDragging();
+      }, 50);
+    });
   }
 
-  setTimeout(() => {
-    setupDragging();
-  }, 50);
-});
-    }
-
+  // ✅ UI updates
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
 
@@ -1493,14 +1474,12 @@ vtWave.once("ready", () => {
   isRecording = false;
   document.getElementById("recordBtn").textContent = "Start";
 
-  // 🔊 stop song + restore volume
-if (songAudio) {
-  songAudio.pause();
-  songAudio.currentTime = 0;
-  songAudio.volume = 1;
-}
-
-
+  // 🔊 Stop song
+  if (songAudio) {
+    songAudio.pause();
+    songAudio.currentTime = 0;
+    songAudio.volume = 1;
+  }
 }
 
 // =====================
