@@ -398,6 +398,8 @@ let recordStage = 0; // 0 = idle, 1 = recording, 2 = song fired
 let secToneTime = null;
 let currentTitle = "";
 let currentArtist = "";
+let lastTitle = "";
+let lastArtist = "";
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1516,7 +1518,22 @@ const title = lines[3];
     currentSongDuration = duration;
 
     document.getElementById("nowPlaying").textContent =
-      `${title} - ${artist}`;
+  `${title} - ${artist}`;
+
+// 🔥 detect song change
+if (
+  currentTitle !== lastTitle ||
+  currentArtist !== lastArtist
+) {
+  console.log("🎵 Song changed → updating highlight");
+
+  lastTitle = currentTitle;
+  lastArtist = currentArtist;
+
+  if (autoFollowEnabled) {
+    jumpToCurrentTime();
+  }
+}
 
   } catch (err) {
     console.error(err);
