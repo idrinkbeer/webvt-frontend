@@ -541,6 +541,7 @@ let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
 let uploaded = {};
+let secTones = {};
 let vtWave;
 let songAudio = null;
 let isPreviewPlaying = false;
@@ -917,6 +918,10 @@ vtWave = WaveSurfer.create({
     vtWave.load(URL.createObjectURL(saved));
   }
 
+  if (secTones[rowData.cart] !== undefined) {
+    secToneTime = secTones[rowData.cart];
+  }
+
   // 🎵 preload next song
 if (nextSong) {
   const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
@@ -928,10 +933,15 @@ if (nextSong) {
   let vtReady = false;
   let songReady = false;
 
-  vtWave.once("ready", () => {
-    vtReady = true;
-    checkReady();
-  });
+vtWave.once("ready", () => {
+  vtReady = true;
+  checkReady();
+
+  // 🔥 RESTORE SEC MARKER
+  if (secTones[rowData.cart] !== undefined) {
+    drawSecMarker(secTones[rowData.cart]);
+  }
+});
 
 
 function checkReady() {
@@ -1336,6 +1346,8 @@ if (secToneTime !== null) {
   console.log("🤖 Using auto Sec Tone:", secToneSeconds);
 }
 
+  secTones[row.cart] = secToneSeconds;
+
 // 🔥 DRAW MARKER (ALWAYS RUN)
 setTimeout(() => {
   if (secToneSeconds === null || !vtWave) return;
@@ -1367,6 +1379,10 @@ recordedBlob = await addID3Tags(
   duration,
   secTone
 );
+
+setTimeout(() => {
+  drawSecMarker(secToneSeconds);
+}, 150);
 
   recordings[row.cart] = recordedBlob;
 
@@ -1927,6 +1943,24 @@ function toggleAutoFollow() {
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
   
+
+  function drawSecMarker(secToneSeconds) {
+  if (!vtWave) return;
+
+  const duration = vtWave.getDuration();
+  if (!duration) return;
+
+  const percent = (secToneSeconds / duration) * 100;
+
+  const marker = document.getElementById("vtSecMarker");
+  if (!marker) return;
+
+  marker.style.left = percent + "%";
+  marker.style.display = "block";
+
+  console.log("📍 Restored marker at:", percent.toFixed(1) + "%");
+}
+
 </script>
 
 </body>
