@@ -874,137 +874,124 @@ function renderTable() {
     tr.onclick = () => selectRow(i);
     tableBody.appendChild(tr);
 
+    // 🎙 SHOW RECORDER FOR SELECTED VTX
     if (i === selectedIndex && row.type === "VTX") {
       const recorderRow = document.createElement("tr");
 
       recorderRow.innerHTML = `
         <td colspan="6">
-<div class="recorder">
+          <div class="recorder">
 
-  <!-- TOP BAR -->
-  <div class="recorder-top">
-    <div class="rec-title">🎙 Recording for Cart: ${row.cart}</div>
+            <div class="recorder-top">
+              <div class="rec-title">🎙 Recording for Cart: ${row.cart}</div>
 
-    <div class="rec-controls">
-      <button id="recordBtn" class="air-btn" onclick="toggleRecording()">START</button>
-      <button id="uploadBtn" class="air-btn" onclick="uploadToAIR()" disabled>UPLOAD TO AIR</button>
-    </div>
+              <div class="rec-controls">
+                <button id="recordBtn" class="air-btn" onclick="toggleRecording()">START</button>
+                <button id="uploadBtn" class="air-btn" onclick="uploadToAIR()" disabled>UPLOAD TO AIR</button>
+              </div>
 
-    <div class="rec-time-wrap">
-  <div class="rec-time" id="recordTime">⏱ 0:00</div>
+              <div class="rec-time-wrap">
+                <div class="rec-time" id="recordTime">⏱ 0:00</div>
+                <div class="vu-inline">
+                  <div id="vuBar"></div>
+                </div>
+              </div>
+            </div>
 
-  <div class="vu-inline">
-    <div id="vuBar"></div>
-  </div>
-</div>
+            <div id="vtEditor">
+              <div id="vtWaveform" style="display:none;"></div>
+              <div id="vtBlock"></div>
+              <div id="songBlock">
+                <div id="introRegion"></div>
+              </div>
+              <div id="editorSecMarker"></div>
+            </div>
 
-  </div>
+            <div class="rec-bottom">
+              <div class="rec-buttons">
+                <button class="air-btn air-btn-green" onclick="previewVT()">PREVIEW VT</button>
+                <button class="air-btn air-btn-green" onclick="previewBreak()">PREVIEW BREAK</button>
+              </div>
 
-<div id="vtEditor">
-<div id="vtWaveform" style="display:none;"></div>
-  <div id="vtBlock"></div>
-  <div id="songBlock">
-    <div id="introRegion"></div>
-  </div>
-  <div id="editorSecMarker"></div>
-</div>
+              <div class="rec-progress">
+                <div class="progress" style="position:relative;">
+                  <div id="progressBar"></div>
+                  <div id="secMarker"></div>
+                </div>
+                <span id="time">0:00</span>
+              </div>
+            </div>
 
-  <!-- PREVIEW + PROGRESS -->
-  <div class="rec-bottom">
-    <div class="rec-buttons">
-      <button class="air-btn air-btn-green" onclick="previewVT()">PREVIEW VT</button>
-      <button class="air-btn air-btn-green" onclick="previewBreak()">PREVIEW BREAK</button>
-    </div>
+            <div id="status"></div>
 
-    <div class="rec-progress">
-<div class="progress" style="position:relative;">
-  <div id="progressBar"></div>
-
-  <!-- 🔥 SEC TONE MARKER -->
-  <div id="secMarker"></div>
-</div>
-      <span id="time">0:00</span>
-    </div>
-  </div>
-
-  <div id="status"></div>
-
-</div>
-
-<audio id="player"></audio>
           </div>
+
+          <audio id="player"></audio>
         </td>
       `;
 
       tableBody.appendChild(recorderRow);
-      // 🎧 Init waveform
-setTimeout(() => {
-const vtContainer = document.getElementById("vtWaveform");
 
-if (!vtContainer) return;
+      // 🎧 INIT EVERYTHING AFTER DOM EXISTS
+      setTimeout(() => {
+        const vtContainer = document.getElementById("vtWaveform");
+        if (!vtContainer) return;
 
-vtWave = WaveSurfer.create({
-  container: "#vtWaveform",
-  waveColor: "#facc15",
-  progressColor: "#eab308",
-  height: 60
-});
+        vtWave = WaveSurfer.create({
+          container: "#vtWaveform",
+          waveColor: "#facc15",
+          progressColor: "#eab308",
+          height: 60
+        });
 
+        const rowData = filteredLog[selectedIndex];
+        if (!rowData) return;
 
-  const rowData = filteredLog[selectedIndex];
-  if (!rowData) return;
+        const { nextSong } = getPrevNextSongs(selectedIndex);
 
-  const next = getPrevNextSongs(selectedIndex).nextSong;
+        // 🎙 Load VT
+        const saved = recordings[rowData.cart];
+        if (saved) {
+          vtWave.load(URL.createObjectURL(saved));
+        }
 
-  // 🎙 preload VT
-  const saved = recordings[rowData.cart];
-  if (saved) {
-    vtWave.load(URL.createObjectURL(saved));
-  }
+        // restore sec tone
+        if (secTones[rowData.cart] !== undefined) {
+          secToneTime = secTones[rowData.cart];
+        }
 
-  if (secTones[rowData.cart] !== undefined) {
-    secToneTime = secTones[rowData.cart];
-  }
+        // 🎵 preload next song
+        if (nextSong) {
+          const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+          songAudio = new Audio(songUrl);
+          songAudio.preload = "auto";
+        }
 
-  // 🎵 preload next song
-if (nextSong) {
-  const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
-  songAudio = new Audio(songUrl);
-  songAudio.preload = "auto";
+        vtWave.once("ready", () => {
+          console.log("🔥 VT ready");
+          window.isAudioReady = true;
+
+          const vtDuration = vtWave.getDuration();
+          const songDuration = 240;
+          const intro = nextSong?.intro || 0;
+          const secTone = secTones[rowData.cart] ?? 0;
+
+          // 🎯 DRAW BLOCK UI
+          drawBlocks(vtDuration, songDuration, intro, secTone);
+
+          // 🔴 DRAW MARKER
+          drawSecMarker(secTone);
+
+          // 🖱 ENABLE DRAGGING
+          setTimeout(() => {
+            setupDragging();
+          }, 50);
+        });
+
+      }, 50);
+    }
+  });
 }
-
-  // ✅ Track readiness
-  let vtReady = false;
-  let songReady = false;
-
-vtWave.once("ready", () => {
-  vtReady = true;
-  checkReady();
-
-  // 🔥 restore sec tone
-  if (secTones[rowData.cart] !== undefined) {
-    secToneTime = secTones[rowData.cart];
-    drawSecMarker(secToneTime);
-  }
-
-  // 🔥 DRAW BLOCKS
-const { nextSong } = getPrevNextSongs(selectedIndex);
-
-if (vtWave && nextSong) {
-  const vtDuration = vtWave.getDuration();
-  const songDuration = 240;
-  const intro = nextSong.intro || 0;
-
-  const secTone = secTones[rowData.cart] ?? secToneTime ?? 0;
-
-  drawBlocks(vtDuration, songDuration, intro, secTone);
-}
-
-  // 🔥 enable dragging AFTER blocks exist
-  setTimeout(() => {
-    setupDragging();
-  }, 50);
-});
 
 
 function checkReady() {
@@ -1390,16 +1377,22 @@ async function stopRecording() {
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
-  const row = filteredLog[selectedIndex];
+  let secToneSeconds;
+
+const row = filteredLog[selectedIndex];
 const { nextSong } = getPrevNextSongs(selectedIndex);
 
-if (nextSong && duration > nextSong.intro) {
-  secToneSeconds = duration - nextSong.intro;
+if (secToneTime !== null) {
+  secToneSeconds = secToneTime;
+  console.log("🎯 Using manual Sec Tone:", secToneSeconds);
 } else {
-  secToneSeconds = duration;
-}
-    console.log("🤖 Using auto Sec Tone:", secToneSeconds);
+  if (nextSong && duration > nextSong.intro) {
+    secToneSeconds = duration - nextSong.intro;
+  } else {
+    secToneSeconds = duration;
   }
+  console.log("🤖 Using auto Sec Tone:", secToneSeconds);
+}
 
   // 💾 Save sec tone
   secTones[row.cart] = secToneSeconds;
@@ -1433,7 +1426,7 @@ if (nextSong && duration > nextSong.intro) {
       console.log("🎙 VT ready after recording");
       window.isAudioReady = true;
 
-      const next = getPrevNextSongs(selectedIndex).nextSong;
+      const { nextSong } = getPrevNextSongs(selectedIndex);
       const rowData = filteredLog[selectedIndex];
 
       const vtDuration = vtWave.getDuration();
