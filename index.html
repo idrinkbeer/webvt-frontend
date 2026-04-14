@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -1568,13 +1567,38 @@ function jumpToCurrentTime() {
   console.log("🕒 Current hour:", currentHourStr);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
 
-  const hourSelect = document.getElementById("hourSelect");
+const hourSelect = document.getElementById("hourSelect");
 
-  // 🔁 switch hour
-  hourSelect.value = currentHourStr;
-  currentHour = currentHourStr;
+// get available hours from dropdown
+const availableHours = Array.from(hourSelect.options).map(o => o.value);
 
-  filterByHour(currentHourStr);
+let selectedHour = currentHourStr;
+
+// 🎯 if exact hour doesn't exist → find closest
+if (!availableHours.includes(currentHourStr)) {
+  const nowHour = parseInt(currentHourStr);
+
+  let closest = availableHours[0];
+  let smallestDiff = Infinity;
+
+  availableHours.forEach(h => {
+    const diff = Math.abs(parseInt(h) - nowHour);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      closest = h;
+    }
+  });
+
+  selectedHour = closest;
+
+  console.log("⚠️ Hour not found, using closest:", selectedHour);
+}
+
+// 🔁 apply hour
+hourSelect.value = selectedHour;
+currentHour = selectedHour;
+
+filterByHour(selectedHour);
 
   setTimeout(() => {
     const rows = document.querySelectorAll("#logTable tbody tr");
