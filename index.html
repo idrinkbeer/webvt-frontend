@@ -395,6 +395,15 @@ select + select {
   background: #00cc33;
   transition: width 0.05s linear;
 }
+
+#secMarker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: red;
+  pointer-events: none;
+}
     
 </style>
 </head>
@@ -854,9 +863,12 @@ function renderTable() {
     </div>
 
     <div class="rec-progress">
-      <div class="progress">
-        <div id="progressBar"></div>
-      </div>
+<div class="progress" style="position:relative;">
+  <div id="progressBar"></div>
+
+  <!-- 🔥 SEC TONE MARKER -->
+  <div id="secMarker"></div>
+</div>
       <span id="time">0:00</span>
     </div>
   </div>
@@ -1308,6 +1320,15 @@ if (secToneTime !== null) {
     secToneSeconds = duration;
   }
   console.log("🤖 Using auto Sec Tone:", secToneSeconds);
+
+  setTimeout(() => {
+  const marker = document.getElementById("secMarker");
+  if (!marker) return;
+
+  const percent = (secToneTime / duration) * 100;
+
+  marker.style.left = percent + "%";
+}, 100);
 }
 
 // 🎯 CONVERT TO SAMPLES (AIR FORMAT)
