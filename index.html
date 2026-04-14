@@ -897,12 +897,29 @@ function selectRow(i) {
 
   renderTable();
 
-  // 🔥 restore ON AIR after re-render
+  // 🔥 ONLY restore ON AIR visually (no re-filtering!)
   setTimeout(() => {
     if (autoFollowEnabled) {
-      jumpToCurrentTime();
+      applyOnAirHighlight(); // 👈 new function
     }
   }, 100);
+}
+
+function applyOnAirHighlight() {
+  const rows = document.querySelectorAll("#logTable tbody tr");
+
+  rows.forEach(tr => {
+    tr.classList.remove("onair");
+
+    const text = tr.textContent.toLowerCase();
+
+    if (
+      text.includes(currentTitle) &&
+      text.includes(currentArtist)
+    ) {
+      tr.classList.add("onair");
+    }
+  });
 }
 
   // TRIM SILENCE ON WAV VT
@@ -1611,6 +1628,8 @@ setInterval(() => {
   // const timeText = `${mins}:${secs} / -${rmins}:${rsecs}`;
 
   // 🎯 row fill + overlay
+  if (!autoFollowEnabled) return;
+
   const activeRow = document.querySelector("#logTable tbody tr.onair");
 
   if (activeRow) {
@@ -1755,6 +1774,12 @@ function toggleAutoFollow() {
     btn.classList.remove("air-btn-green");
     btn.classList.add("air-btn-red");
     btn.textContent = "AUTO OFF";
+
+    // 🔥 CLEAR ON AIR + progress visuals
+    document.querySelectorAll("#logTable tbody tr").forEach(tr => {
+      tr.classList.remove("onair");
+      tr.style.background = "";
+    });
   }
 
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
