@@ -419,24 +419,18 @@ select + select {
 }
 
 /* VT block */
-#vtBlock {
-  background: #00cc33;
-  color: #000;
-  display: flex;
-  align-items: center;
-}
-
-/* SONG block */
+#vtBlock,
 #songBlock {
-  background: #0099ff;
-  color: white;
-  display: flex;
-  align-items: center;
+  position: absolute;
+  height: 30px;
 }
 
-/* INTRO overlay */
+#songBlock {
+  top: 35px;
+}
+
 #introRegion {
-  background: rgba(255, 255, 0, 0.5);
+  height: 100%;
 }
     
 </style>
@@ -1994,8 +1988,13 @@ function drawBlocks(vtDuration, songDuration, intro, secTone) {
   introEl.style.width = (intro * PX_PER_SEC) + "px";
 
   // 🎯 positions
-  vt.style.left = "0px";
-  song.style.left = "0px";
+ // VT always starts at 0
+vt.style.left = "0px";
+
+// 🎯 SONG starts at SEC TONE position
+const songStart = secTone * PX_PER_SEC;
+
+song.style.left = songStart + "px";
 
   // 🎙 VT LABEL
   vt.innerHTML = `
