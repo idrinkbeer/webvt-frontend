@@ -528,7 +528,7 @@ let recordInterval = null;
 let recordings = {};
 let uploaded = {};
 let vtWave;
-let songWave;
+let songAudio = null;
 let isPreviewPlaying = false;
 let vtFinished = false;
 let songFinished = false;
@@ -906,10 +906,11 @@ if (document.getElementById("songWaveform")) {
   }
 
   // 🎵 preload next song
-  if (nextSong) {
-    const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
-    songWave.load(songUrl);
-  }
+if (nextSong) {
+  const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+  songAudio = new Audio(songUrl);
+  songAudio.preload = "auto";
+}
 
   // ✅ Track readiness
   let vtReady = false;
@@ -1108,11 +1109,11 @@ async function toggleRecording() {
         return;
       }
 
-      if (songWave) {
-        songWave.stop();
-        songWave.play();
-        songWave.setVolume(0.3);
-      }
+if (songAudio) {
+  songAudio.currentTime = 0;
+  songAudio.volume = 0.3;
+  songAudio.play();
+}
 
       secToneTime = recordSeconds;
 
@@ -1364,10 +1365,11 @@ recordedBlob = await addID3Tags(
   document.getElementById("recordBtn").textContent = "Start";
 
   // 🔊 stop song + restore volume
-  if (songWave) {
-    songWave.setVolume(1);
-    songWave.stop();
-  }
+if (songAudio) {
+  songAudio.pause();
+  songAudio.currentTime = 0;
+  songAudio.volume = 1;
+}
 
 
 }
@@ -1488,10 +1490,13 @@ if (secToneTime !== null) {
   if (btn) btn.textContent = "Stop Preview";
 
   // ▶ start song
-  setTimeout(() => {
-    songWave.play();
-    songWave.setVolume(0.3);
-  }, songDelay * 1000);
+setTimeout(() => {
+  if (songAudio) {
+    songAudio.currentTime = 0;
+    songAudio.volume = 0.3;
+    songAudio.play();
+  }
+}, songDelay * 1000);
 
   // 🎙 VT finished
   vtWave.once("finish", () => {
