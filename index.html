@@ -2138,25 +2138,18 @@ function updateSecToneFromBlocks() {
   const vtRight = vtBlock.offsetLeft + vtBlock.offsetWidth;
   const songLeft = songBlock.offsetLeft;
 
-  // 🎯 difference in pixels
-  const diffPx = songLeft - vtRight;
-
-  // convert to seconds
-  const diffSec = diffPx / PX_PER_SEC;
-
-  const rowData = filteredLog[selectedIndex];
-
-  // 🔥 NEW SEC TONE
-  let newSecTone = (secToneTime || 0) + diffSec;
+  // 🎯 absolute sec tone (NOT incremental)
+  let newSecTone = (songLeft - vtBlock.offsetLeft) / PX_PER_SEC;
 
   newSecTone = Math.max(0, newSecTone);
+
+  const rowData = filteredLog[selectedIndex];
 
   secToneTime = newSecTone;
   secTones[rowData.cart] = newSecTone;
 
-  console.log("🎯 New Sec Tone:", newSecTone.toFixed(2));
+  console.log("🎯 NEW ABSOLUTE Sec Tone:", newSecTone.toFixed(2));
 
-  // 🔄 redraw blocks with new timing
   redrawBlocks();
 }
 
@@ -2176,12 +2169,19 @@ function updatePlayhead() {
   const playhead = document.getElementById("playhead");
   if (!playhead) return;
 
-  if (!vtWave || !vtWave.isPlaying()) return;
+  let time = 0;
 
-  const currentTime = vtWave.getCurrentTime();
+  // 🎙 VT playing
+  if (vtWave && vtWave.isPlaying()) {
+    time = vtWave.getCurrentTime();
+  }
 
-  const x = currentTime * PX_PER_SEC;
+  // 🎵 SONG playing AFTER VT
+  else if (songAudio && !songAudio.paused) {
+    time = (secToneTime || 0) + songAudio.currentTime;
+  }
 
+  const x = time * PX_PER_SEC;
   playhead.style.left = x + "px";
 
   requestAnimationFrame(updatePlayhead);
