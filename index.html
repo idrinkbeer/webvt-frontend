@@ -1057,49 +1057,49 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
 // RECORDING
 // =====================
 async function toggleRecording() {
-  // 1️⃣ START RECORDING
-  if (recordStage === 0) {
-    await startRecording();
+  try {
 
-    recordStage = 1;
-    secToneTime = null;
+    if (recordStage === 0) {
+      await startRecording();
 
-    document.getElementById("recordBtn").textContent = "Fire Song";
-    return;
-  }
+      recordStage = 1;
+      secToneTime = null;
 
-  // 2️⃣ FIRE SONG (SET MARKER)
-  if (recordStage === 1) {
-    const { nextSong } = getPrevNextSongs(selectedIndex);
-
-    if (!nextSong) {
-      alert("No next song");
+      document.getElementById("recordBtn").textContent = "Fire Song";
       return;
     }
 
-    // play song immediately
-    if (songWave) {
-      songWave.stop();
-      songWave.play();
-      songWave.setVolume(0.3);
+    if (recordStage === 1) {
+      const { nextSong } = getPrevNextSongs(selectedIndex);
+
+      if (!nextSong) {
+        alert("No next song");
+        return;
+      }
+
+      if (songWave) {
+        songWave.stop();
+        songWave.play();
+        songWave.setVolume(0.3);
+      }
+
+      secToneTime = recordSeconds;
+
+      recordStage = 2;
+      document.getElementById("recordBtn").textContent = "Stop & Save";
+      return;
     }
 
-    // 🎯 MARK THE MOMENT
-    secToneTime = recordSeconds;
+    if (recordStage === 2) {
+      await stopRecording();
 
-    console.log("🎯 SecTone marked at:", secToneTime);
+      recordStage = 0;
+      document.getElementById("recordBtn").textContent = "Start";
+    }
 
-    recordStage = 2;
-    document.getElementById("recordBtn").textContent = "Stop & Save";
-    return;
-  }
-
-  // 3️⃣ STOP + SAVE
-  if (recordStage === 2) {
-    await stopRecording();
-
-    recordStage = 0;
-    document.getElementById("recordBtn").textContent = "Start";
+  } catch (err) {
+    console.error("🔥 RECORD ERROR:", err);
+    alert("Recording failed — check console");
   }
 }
 
