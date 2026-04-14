@@ -58,7 +58,26 @@ tr:hover {
 }
 
 /* countdown overlay */
+.active {
+  position: relative;
+  color: #000;
+}
+
+/* WHITE base text */
 .active::after {
+  content: attr(data-time);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  pointer-events: none;
+}
+
+/* BLACK overlay (clipped by progress) */
+.active::before {
   content: attr(data-time);
   position: absolute;
   left: 50%;
@@ -68,6 +87,10 @@ tr:hover {
   font-weight: bold;
   color: #000;
   pointer-events: none;
+
+  width: var(--progress, 0%);
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 /* VOICE TRACK */
@@ -1585,18 +1608,20 @@ setInterval(() => {
   // 🎯 row fill + overlay
   const activeRow = document.querySelector("#logTable tbody tr.active");
 
-  if (activeRow) {
-    activeRow.style.background = `
-      linear-gradient(
-        to right,
-        #00cc33 ${percent}%,
-        #0b3d91 ${percent}%
-      )
-    `;
+if (activeRow) {
+  activeRow.style.background = `
+    linear-gradient(
+      to right,
+      #00cc33 ${percent}%,
+      #0b3d91 ${percent}%
+    )
+  `;
 
-    // 🔥 THIS IS THE NEW PART (overlay text)
-    activeRow.setAttribute("data-time", timeText);
-  }
+  activeRow.setAttribute("data-time", timeText);
+
+  // 🔥 THIS IS THE KEY LINE
+  activeRow.style.setProperty("--progress", percent + "%");
+}
 
   // 🧼 cleanup other rows
   document.querySelectorAll("#logTable tbody tr").forEach(tr => {
