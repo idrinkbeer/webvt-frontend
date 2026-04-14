@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -52,45 +52,8 @@ tr:hover {
 
 /* CURRENT PLAYING */
 .active {
+  background: #00cc33 !important;
   color: #000;
-  position: relative;
-  /*overflow: hidden;*/
-}
-
-/* countdown overlay */
-.active {
-  position: relative;
-  color: #000;
-}
-
-/* WHITE base text */
-.active::after {
-  content: attr(data-time);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 12px;
-  font-weight: bold;
-  color: #fff;
-  pointer-events: none;
-}
-
-/* BLACK overlay (clipped by progress) */
-.active::before {
-  content: attr(data-time);
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 12px;
-  font-weight: bold;
-  color: #000;
-  pointer-events: none;
-
-  width: var(--progress, 0%);
-  overflow: hidden;
-  white-space: nowrap;
 }
 
 /* VOICE TRACK */
@@ -1581,60 +1544,26 @@ setInterval(loadNowPlaying, 3000);
 loadNowPlaying();
 
 setInterval(() => {
-  if (!currentSongStart || !currentSongDuration) return;
+if (!currentSongStart || !currentSongDuration) return;
 
-  const now = new Date();
-  const elapsed = (now - currentSongStart) / 1000;
+const now = new Date();
+const elapsed = (now - currentSongStart) / 1000;
 
-  let percent = (elapsed / currentSongDuration) * 100;
-  percent = Math.max(0, Math.min(100, percent));
+let percent = (elapsed / currentSongDuration) * 100;
+percent = Math.max(0, Math.min(100, percent));
 
-  // 🎯 top progress bar
-  document.getElementById("playBar").style.width = percent + "%";
+document.getElementById("playBar").style.width = percent + "%";
 
-  // 🎯 time calculations
-  const mins = Math.floor(elapsed / 60);
-  const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
+// 🎯 time display
+const mins = Math.floor(elapsed / 60);
+const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
 
-  const remaining = currentSongDuration - elapsed;
-  const rmins = Math.floor(remaining / 60);
-  const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
+const remaining = currentSongDuration - elapsed;
+const rmins = Math.floor(remaining / 60);
+const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
 
-  // 🔥 choose display style
-  const timeText = `-${rmins}:${rsecs}`; 
-  // OR:
-  // const timeText = `${mins}:${secs} / -${rmins}:${rsecs}`;
-
-  // 🎯 row fill + overlay
-  const activeRow = document.querySelector("#logTable tbody tr.active");
-
-if (activeRow) {
-  activeRow.style.background = `
-    linear-gradient(
-      to right,
-      #00cc33 ${percent}%,
-      #0b3d91 ${percent}%
-    )
-  `;
-
-  activeRow.setAttribute("data-time", timeText);
-
-  // 🔥 THIS IS THE KEY LINE
-  activeRow.style.setProperty("--progress", percent + "%");
-}
-
-  // 🧼 cleanup other rows
-document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-  if (!tr.classList.contains("active") && tr.hasAttribute("data-time")) {
-    tr.style.background = "";
-    tr.removeAttribute("data-time");
-    tr.style.removeProperty("--progress");
-  }
-  });
-
-  // 🎯 top time display
-  document.getElementById("elapsed").textContent = `${mins}:${secs}`;
-  document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
+document.getElementById("elapsed").textContent = `${mins}:${secs}`;
+document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
 
 }, 1000);
 
