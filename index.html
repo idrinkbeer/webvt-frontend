@@ -1624,11 +1624,12 @@ if (activeRow) {
 }
 
   // 🧼 cleanup other rows
-  document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-    if (!tr.classList.contains("active")) {
-      tr.style.background = "";
-      tr.removeAttribute("data-time"); // 🔥 important
-    }
+document.querySelectorAll("#logTable tbody tr").forEach(tr => {
+  if (!tr.classList.contains("active") && tr.hasAttribute("data-time")) {
+    tr.style.background = "";
+    tr.removeAttribute("data-time");
+    tr.style.removeProperty("--progress");
+  }
   });
 
   // 🎯 top time display
