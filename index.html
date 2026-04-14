@@ -168,6 +168,16 @@ button:hover {
   color: #ccc;
 }
 
+#playhead {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: red;
+  z-index: 10;
+  pointer-events: none;
+}
+
 /* LOGIN SCREEN (AIR STYLE) */
 #loginContainer {
   position: fixed;
@@ -420,7 +430,15 @@ select + select {
 
 /* VT block */
 #vtBlock {
-background: rgba(255, 255, 0, 0.6); /* intro */
+  position: absolute;
+  top: 10px;
+  height: 30px;
+  background: #00cc33;
+  color: #000;
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  z-index: 2; /* 🔥 important so it sits above */
 }
 
 
@@ -901,6 +919,7 @@ function renderTable() {
             </div>
 
             <div id="vtEditor">
+            <div id="playhead"></div>
               <div id="vtWaveform" style="display:none;"></div>
               <div id="vtBlock"></div>
               <div id="songBlock">
@@ -1554,7 +1573,8 @@ const vtDuration = vtWave.getDuration();
 
   console.log("🎯 Preview delay:", songDelay);
 
-  vtWave.play();
+vtWave.play();
+updatePlayhead();
 
   isPreviewPlaying = true;
 
@@ -1635,6 +1655,7 @@ function previewVT() {
   if (vtWave) vtWave.stop();
 
   vtWave.play();
+updatePlayhead();
 
   isPreviewPlaying = true;
 
@@ -2149,6 +2170,21 @@ function redrawBlocks() {
   const intro = nextSong.intro || 0;
 
   drawBlocks(vtDuration, 240, intro, secToneTime);
+}
+
+function updatePlayhead() {
+  const playhead = document.getElementById("playhead");
+  if (!playhead) return;
+
+  if (!vtWave || !vtWave.isPlaying()) return;
+
+  const currentTime = vtWave.getCurrentTime();
+
+  const x = currentTime * PX_PER_SEC;
+
+  playhead.style.left = x + "px";
+
+  requestAnimationFrame(updatePlayhead);
 }
 
 </script>
