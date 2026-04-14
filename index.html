@@ -50,16 +50,16 @@ tr:hover {
   cursor: pointer;
 }
 
-/* CURRENT PLAYING */
-.active {
-  color: #000;
+
+/* ON AIR row */
+.onair {
   position: relative;
-  /*overflow: hidden;*/
+  color: #000;
 }
 
-/* ON AIR overlay */
-.active::after {
-  content: "ON AIR";
+/* ON AIR blinking text */
+.onair::after {
+  content: "● ON AIR";
   position: absolute;
   left: 50%;
   top: 50%;
@@ -69,9 +69,18 @@ tr:hover {
   font-weight: bold;
   color: #ff0000;
 
-  pointer-events: none;
-
   animation: blink 1s steps(2, start) infinite;
+  pointer-events: none;
+}
+
+/* selected (voicetrack) row */
+.selected {
+  outline: 2px solid #ffff00;
+}
+
+/* allow gradient to show through cells */
+#logTable tbody tr.onair td {
+  background: transparent !important;
 }
 
 @keyframes blink {
@@ -883,7 +892,19 @@ function playSong(filename, btn) {
 
 function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
+
   selectedIndex = i;
+
+  // highlight selection ONLY
+  document.querySelectorAll("#logTable tbody tr").forEach(tr => {
+    tr.classList.remove("selected");
+  });
+
+  const rows = document.querySelectorAll("#logTable tbody tr");
+  if (rows[i]) {
+    rows[i].classList.add("selected");
+  }
+
   renderTable();
 }
 
@@ -1593,7 +1614,7 @@ setInterval(() => {
   // const timeText = `${mins}:${secs} / -${rmins}:${rsecs}`;
 
   // 🎯 row fill + overlay
-  const activeRow = document.querySelector("#logTable tbody tr.active");
+  const activeRow = document.querySelector("#logTable tbody tr.onair");
 
   if (activeRow) {
     activeRow.style.background = `
@@ -1607,7 +1628,7 @@ setInterval(() => {
 
   // 🧼 cleanup other rows
   document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-    if (!tr.classList.contains("active")) {
+    if (!tr.classList.contains("onair")) {
       tr.style.background = "";
       tr.removeAttribute("data-time"); // 🔥 important
     }
@@ -1667,7 +1688,7 @@ function jumpToCurrentTime() {
     let found = false;
 
     rows.forEach(tr => {
-      tr.classList.remove("active");
+      tr.classList.remove("onair");
 
       const text = tr.textContent.toLowerCase();
 
@@ -1675,7 +1696,7 @@ function jumpToCurrentTime() {
         text.includes(currentTitle) &&
         text.includes(currentArtist)
       ) {
-        tr.classList.add("active");
+        tr.classList.add("onair");
 
         tr.scrollIntoView({
           behavior: "smooth",
