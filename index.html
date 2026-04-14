@@ -1314,6 +1314,7 @@ const { nextSong } = getPrevNextSongs(selectedIndex);
 const duration = trimmed.length / audioContext.sampleRate;
 
 // 🎯 DETERMINE SEC TONE
+// 🎯 DETERMINE SEC TONE
 let secToneSeconds;
 
 if (secToneTime !== null) {
@@ -1328,14 +1329,14 @@ if (secToneTime !== null) {
   console.log("🤖 Using auto Sec Tone:", secToneSeconds);
 }
 
-// 🔥 ALWAYS DRAW MARKER
+// 🔥 DRAW MARKER (ALWAYS RUN)
 setTimeout(() => {
   if (secToneSeconds === null || !vtWave) return;
 
-  const duration = vtWave.getDuration();
-  if (!duration) return;
+  const waveDuration = vtWave.getDuration();
+  if (!waveDuration) return;
 
-  const percent = (secToneSeconds / duration) * 100;
+  const percent = (secToneSeconds / waveDuration) * 100;
 
   const marker = document.getElementById("vtSecMarker");
   if (!marker) return;
@@ -1346,7 +1347,6 @@ setTimeout(() => {
   console.log("📍 Sec marker at:", percent.toFixed(1) + "%");
 
 }, 150);
-}
 
 // 🎯 CONVERT TO SAMPLES (AIR FORMAT)
 const remaining = duration - secToneSeconds;
