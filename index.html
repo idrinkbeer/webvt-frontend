@@ -256,7 +256,6 @@ button:hover {
 }
 
 
-
 select {
   background: #0033cc;
   color: #fff;
@@ -289,6 +288,88 @@ select {
 /* spacing between dropdowns */
 select + select {
   margin-left: 5px;
+}
+
+/* ===== RECORDER AIR LAYOUT ===== */
+
+.recorder {
+  background: #001a66;
+  border: 2px solid #000;
+  padding: 10px;
+}
+
+/* TOP BAR */
+.recorder-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.rec-title {
+  font-size: 14px;
+  color: #fff;
+}
+
+.rec-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.rec-time {
+  font-size: 14px;
+  color: #fff;
+}
+
+/* WAVEFORM */
+.waveform {
+  height: 70px;
+  margin: 8px 0;
+  background: #001a66;
+}
+
+/* BOTTOM SECTION */
+.rec-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rec-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.rec-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 40%;
+}
+
+/* tighten buttons */
+.recorder .air-btn {
+  min-width: 130px;
+  padding: 6px 10px;
+}
+
+/* progress bar matches AIR */
+.recorder .progress {
+  flex: 1;
+  height: 6px;
+  background: #222;
+  border: 1px solid #000;
+}
+
+.recorder #progressBar {
+  height: 100%;
+  background: #00cc33;
+}
+
+/* status text */
+#status {
+  margin-top: 6px;
+  font-size: 12px;
 }
     
 </style>
@@ -717,32 +798,40 @@ function renderTable() {
 
       recorderRow.innerHTML = `
         <td colspan="6">
-          <div class="recorder">
-            🎙️ Recording for Cart: ${row.cart}<br><br>
+<div class="recorder">
 
-            <button id="recordBtn" onclick="toggleRecording()">Start</button>
+  <!-- TOP BAR -->
+  <div class="recorder-top">
+    <div class="rec-title">🎙 Recording for Cart: ${row.cart}</div>
 
-            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-              Upload to AIR
-            </button>
+    <div class="rec-controls">
+      <button id="recordBtn" class="air-btn" onclick="toggleRecording()">START</button>
+      <button id="uploadBtn" class="air-btn" onclick="uploadToAIR()" disabled>UPLOAD TO AIR</button>
+    </div>
 
-            <div class="vu-container">
-              <div id="vuBar"></div>
-            </div>
-
-            <div id="status"></div>
-            <div id="recordTime">⏱ 0:00</div>
-            <div id="vtWaveform" style="margin-top:10px;"></div>
-            <div id="songWaveform" style="margin-top:10px;"></div>
-            <div class="audio-player">
-<div style="margin-top:10px;">
-  <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
-  <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
-</div>
-  <div class="progress">
-    <div id="progressBar"></div>
+    <div class="rec-time" id="recordTime">⏱ 0:00</div>
   </div>
-  <span id="time">0:00</span>
+
+  <!-- WAVEFORM -->
+  <div id="vtWaveform" class="waveform"></div>
+
+  <!-- PREVIEW + PROGRESS -->
+  <div class="rec-bottom">
+    <div class="rec-buttons">
+      <button class="air-btn air-btn-green" onclick="previewVT()">PREVIEW VT</button>
+      <button class="air-btn air-btn-green" onclick="previewBreak()">PREVIEW BREAK</button>
+    </div>
+
+    <div class="rec-progress">
+      <div class="progress">
+        <div id="progressBar"></div>
+      </div>
+      <span id="time">0:00</span>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
 </div>
 
 <audio id="player"></audio>
