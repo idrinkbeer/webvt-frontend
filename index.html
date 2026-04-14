@@ -2192,44 +2192,46 @@ function setupDragging() {
   makeDraggable(vtBlock);
   makeDraggable(songBlock);
 
-function makeDraggable(el) {
-  const editor = document.getElementById("vtEditor");
-  if (!editor) return;
+  function makeDraggable(el) {
+    const editor = document.getElementById("vtEditor");
+    if (!editor) return;
 
-  let isDragging = false;
+    let isDragging = false;
 
-  function onMouseMove(e) {
-    if (!isDragging) return;
+    function onMouseMove(e) {
+      if (!isDragging) return;
 
-    const rect = editor.getBoundingClientRect();
-    let x = e.clientX - rect.left;
+      const rect = editor.getBoundingClientRect();
+      let x = e.clientX - rect.left;
 
-    x = Math.max(0, Math.min(x, editor.offsetWidth - el.offsetWidth));
-    el.style.left = x + "px";
+      x = Math.max(0, Math.min(x, editor.offsetWidth - el.offsetWidth));
+      el.style.left = x + "px";
+    }
+
+    function onMouseUp() {
+      if (!isDragging) return;
+
+      isDragging = false;
+      el.style.cursor = "grab";
+
+      updateSecToneFromBlocks();
+
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+
+    el.onmousedown = (e) => {
+      isDragging = true;
+      el.style.cursor = "grabbing";
+
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+
+      e.preventDefault();
+    };
   }
 
-  function onMouseUp() {
-    if (!isDragging) return;
-
-    isDragging = false;
-    el.style.cursor = "grab";
-
-    updateSecToneFromBlocks();
-
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseup", onMouseUp);
-  }
-
-  el.onmousedown = (e) => {
-    isDragging = true;
-    el.style.cursor = "grabbing";
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-
-    e.preventDefault();
-  };
-}
+} // ✅ THIS WAS MISSING
 
 
 
