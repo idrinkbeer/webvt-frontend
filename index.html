@@ -371,6 +371,30 @@ select + select {
   margin-top: 6px;
   font-size: 12px;
 }
+
+/* VU + TIMER WRAP */
+.rec-time-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* SMALL AIR VU METER */
+.vu-inline {
+  width: 100px;
+  height: 10px;
+  background: #111;
+  border: 1px solid #000;
+  position: relative;
+}
+
+/* LEVEL BAR */
+#vuBar {
+  height: 100%;
+  width: 0%;
+  background: #00cc33;
+  transition: width 0.05s linear;
+}
     
 </style>
 </head>
@@ -809,7 +833,14 @@ function renderTable() {
       <button id="uploadBtn" class="air-btn" onclick="uploadToAIR()" disabled>UPLOAD TO AIR</button>
     </div>
 
-    <div class="rec-time" id="recordTime">⏱ 0:00</div>
+    <div class="rec-time-wrap">
+  <div class="rec-time" id="recordTime">⏱ 0:00</div>
+
+  <div class="vu-inline">
+    <div id="vuBar"></div>
+  </div>
+</div>
+
   </div>
 
   <!-- WAVEFORM -->
@@ -1347,12 +1378,26 @@ recordedBlob = await addID3Tags(
 function updateVU() {
   if (!analyser) return;
 
+  const vu = document.getElementById("vuBar");
+  if (!vu) return;
+
   analyser.getByteFrequencyData(dataArray);
 
-  let sum = dataArray.reduce((a,b)=>a+b,0);
+  let sum = dataArray.reduce((a, b) => a + b, 0);
   let avg = sum / dataArray.length;
 
-  document.getElementById("vuBar").style.width = (avg/255*100) + "%";
+  let percent = (avg / 255) * 100;
+
+  vu.style.width = percent + "%";
+
+  // 🎯 color zones (AIR style)
+  if (percent > 85) {
+    vu.style.background = "#ff0000"; // red
+  } else if (percent > 60) {
+    vu.style.background = "#ffcc00"; // yellow
+  } else {
+    vu.style.background = "#00cc33"; // green
+  }
 
   requestAnimationFrame(updateVU);
 }
