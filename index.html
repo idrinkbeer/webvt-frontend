@@ -988,17 +988,17 @@ vtWave.once("ready", () => {
   }
 
   // 🔥 DRAW BLOCKS
-  const next = getPrevNextSongs(selectedIndex).nextSong;
+const { nextSong } = getPrevNextSongs(selectedIndex);
 
-  if (vtWave && nextSong) {
-    const vtDuration = vtWave.getDuration();
-    const songDuration = 240; // 🔥 use fixed for now
-    const intro = nextSong.intro || 0;
+if (vtWave && nextSong) {
+  const vtDuration = vtWave.getDuration();
+  const songDuration = 240;
+  const intro = nextSong.intro || 0;
 
-    const secTone = secTones[rowData.cart] ?? secToneTime ?? 0;
+  const secTone = secTones[rowData.cart] ?? secToneTime ?? 0;
 
-    drawBlocks(vtDuration, songDuration, intro, secTone);
-  }
+  drawBlocks(vtDuration, songDuration, intro, secTone);
+}
 
   // 🔥 enable dragging AFTER blocks exist
   setTimeout(() => {
@@ -1183,12 +1183,12 @@ async function toggleRecording() {
     }
 
     if (recordStage === 1) {
-      const next = getPrevNextSongs(selectedIndex).nextSong;
+const { nextSong } = getPrevNextSongs(selectedIndex);
 
-      if (!nextSong) {
-        alert("No next song");
-        return;
-      }
+if (!nextSong) {
+  alert("No next song");
+  return;
+}
 
 if (songAudio) {
   songAudio.currentTime = 0;
@@ -1391,20 +1391,13 @@ async function stopRecording() {
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
   const row = filteredLog[selectedIndex];
-  const next = getPrevNextSongs(selectedIndex).nextSong;
+const { nextSong } = getPrevNextSongs(selectedIndex);
 
-  // 🎯 DETERMINE SEC TONE
-  let secToneSeconds;
-
-  if (secToneTime !== null) {
-    secToneSeconds = secToneTime;
-    console.log("🎯 Using manual Sec Tone:", secToneSeconds);
-  } else {
-    if (nextSong && duration > nextSong.intro) {
-      secToneSeconds = duration - nextSong.intro;
-    } else {
-      secToneSeconds = duration;
-    }
+if (nextSong && duration > nextSong.intro) {
+  secToneSeconds = duration - nextSong.intro;
+} else {
+  secToneSeconds = duration;
+}
     console.log("🤖 Using auto Sec Tone:", secToneSeconds);
   }
 
@@ -1547,10 +1540,11 @@ async function previewBreak() {
 
   if (selectedIndex === null) return;
 
-  const next = getPrevNextSongs(selectedIndex).nextSong;
   const row = filteredLog[selectedIndex];
 
-  if (!nextSong) return alert("Missing next song");
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+
+if (!nextSong) return alert("Missing next song");
 
   const vtBlob = recordings[row.cart];
   if (!vtBlob) return alert("No VT recorded");
