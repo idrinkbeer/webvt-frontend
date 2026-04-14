@@ -693,7 +693,7 @@ function renderTable() {
     const tr = document.createElement("tr");
 
     if (row.type === "VTX") tr.classList.add("vtx");
-    if (i === selectedIndex) tr.classList.add("active");
+    if (i === selectedIndex) tr.classList.add("selected");
 
     tr.innerHTML = `
       <td>${row.time}</td>
@@ -895,17 +895,14 @@ function selectRow(i) {
 
   selectedIndex = i;
 
-  // highlight selection ONLY
-  document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-    tr.classList.remove("selected");
-  });
-
-  const rows = document.querySelectorAll("#logTable tbody tr");
-  if (rows[i]) {
-    rows[i].classList.add("selected");
-  }
-
   renderTable();
+
+  // 🔥 restore ON AIR after re-render
+  setTimeout(() => {
+    if (autoFollowEnabled) {
+      jumpToCurrentTime();
+    }
+  }, 100);
 }
 
   // TRIM SILENCE ON WAV VT
