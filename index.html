@@ -57,17 +57,27 @@ tr:hover {
   /*overflow: hidden;*/
 }
 
-/* countdown overlay */
+/* ON AIR overlay */
 .active::after {
-  content: attr(data-time);
+  content: "ON AIR";
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  font-size: 12px;
+
+  font-size: 14px;
   font-weight: bold;
-  color: #000;
+  color: #ff0000;
+
   pointer-events: none;
+
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  0%   { opacity: 1; }
+  50%  { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 /* VOICE TRACK */
@@ -1593,9 +1603,6 @@ setInterval(() => {
         #0b3d91 ${percent}%
       )
     `;
-
-    // 🔥 THIS IS THE NEW PART (overlay text)
-    activeRow.setAttribute("data-time", timeText);
   }
 
   // 🧼 cleanup other rows
