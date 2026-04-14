@@ -1313,38 +1313,39 @@ const { nextSong } = getPrevNextSongs(selectedIndex);
 // 🎯 CALCULATE DURATION
 const duration = trimmed.length / audioContext.sampleRate;
 
-// 🎯 DETERMINE SEC TONE (manual OR fallback)
+// 🎯 DETERMINE SEC TONE
 let secToneSeconds;
 
 if (secToneTime !== null) {
-  // ✅ USER SET IT MANUALLY
   secToneSeconds = secToneTime;
   console.log("🎯 Using manual Sec Tone:", secToneSeconds);
 } else {
-  // 🔁 FALLBACK AUTO LOGIC
   if (nextSong && duration > nextSong.intro) {
     secToneSeconds = duration - nextSong.intro;
   } else {
     secToneSeconds = duration;
   }
   console.log("🤖 Using auto Sec Tone:", secToneSeconds);
+}
 
+// 🔥 ALWAYS DRAW MARKER
 setTimeout(() => {
-  if (!secToneTime || !vtWave) return;
+  if (secToneSeconds === null || !vtWave) return;
 
   const duration = vtWave.getDuration();
   if (!duration) return;
 
-  const percent = (secToneTime / duration) * 100;
+  const percent = (secToneSeconds / duration) * 100;
 
   const marker = document.getElementById("vtSecMarker");
+  if (!marker) return;
 
   marker.style.left = percent + "%";
   marker.style.display = "block";
 
-  console.log("📍 Sec tone marker at:", percent.toFixed(1) + "%");
+  console.log("📍 Sec marker at:", percent.toFixed(1) + "%");
 
-}, 100);
+}, 150);
 }
 
 // 🎯 CONVERT TO SAMPLES (AIR FORMAT)
