@@ -613,6 +613,7 @@ let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
 let vuActive = false;
+let previewTimer = null;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1581,18 +1582,20 @@ updatePlayhead();
   const btn = document.querySelector("button[onclick='previewBreak()']");
   if (btn) btn.textContent = "Stop Preview";
 
-  setTimeout(() => {
-    if (songAudio) {
-      songAudio.currentTime = 0;
-      songAudio.volume = 0.3;
-      songAudio.play();
+previewTimer = setTimeout(() => {
+  if (!isPreviewPlaying) return; // 🔥 prevents restart
 
-      songAudio.onended = () => {
-        songFinished = true;
-        checkPreviewEnd();
-      };
-    }
-  }, songDelay * 1000);
+  if (songAudio) {
+    songAudio.currentTime = 0;
+    songAudio.volume = 0.3;
+    songAudio.play();
+
+    songAudio.onended = () => {
+      songFinished = true;
+      checkPreviewEnd();
+    };
+  }
+}, songDelay * 1000);
 
   vtWave.once("finish", () => {
     vtFinished = true;
@@ -1602,6 +1605,12 @@ updatePlayhead();
 
 
 function stopPreview() {
+
+  // 🔥 CANCEL delayed song start
+if (previewTimer) {
+  clearTimeout(previewTimer);
+  previewTimer = null;
+}
   if (vtWave) vtWave.stop();
 
   if (songAudio) {
