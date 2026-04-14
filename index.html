@@ -217,6 +217,11 @@ button:hover {
   color: #000 !important;
 }
 
+.air-btn-red {
+  background: #cc0000 !important;
+  color: #fff !important;
+}
+
 
 
 select {
@@ -337,7 +342,9 @@ select + select {
 </div>
 
     <!-- RIGHT -->
+
     <div>
+      <button id="autoFollowBtn" class="air-btn air-btn-green" onclick="toggleAutoFollow()">AUTO ON</button>
       <button onclick="logout()">Logout</button>
     </div>
 
@@ -1632,6 +1639,30 @@ filterByHour(selectedHour);
     }
 
   }, 150);
+}
+
+let autoFollowEnabled = true;
+
+function toggleAutoFollow() {
+  autoFollowEnabled = !autoFollowEnabled;
+
+  const btn = document.getElementById("autoFollowBtn");
+
+  if (autoFollowEnabled) {
+    btn.classList.remove("air-btn-red");
+    btn.classList.add("air-btn-green");
+    btn.textContent = "AUTO ON";
+
+    // 🔥 immediately sync when turned on
+    jumpToCurrentTime();
+
+  } else {
+    btn.classList.remove("air-btn-green");
+    btn.classList.add("air-btn-red");
+    btn.textContent = "AUTO OFF";
+  }
+
+  console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
   
 </script>
