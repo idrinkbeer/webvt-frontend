@@ -1989,32 +1989,30 @@ function drawBlocks(vtDuration, songDuration, intro, secTone) {
   const rowData = filteredLog[selectedIndex];
   const { nextSong } = getPrevNextSongs(selectedIndex);
 
-  // 🎯 sizes
+  // 🎯 VT width (you can tweak this later)
   vt.style.width = (vtDuration * PX_PER_SEC) + "px";
 
-  // 🎯 intro + 5 seconds buffer
-const buffer = 5; // seconds
-const visualLength = intro + buffer;
+  // 🎯 intro + 5 sec buffer
+  const buffer = 5;
+  const visualLength = intro + buffer;
+  const width = visualLength * PX_PER_SEC;
 
-const width = visualLength * PX_PER_SEC;
+  song.style.width = width + "px";
+  introEl.style.width = (intro * PX_PER_SEC) + "px";
 
-song.style.width = width + "px";
-introEl.style.width = (intro * PX_PER_SEC) + "px";
+  song.style.setProperty(
+    "--intro-width",
+    (intro * PX_PER_SEC) + "px"
+  );
 
-song.style.setProperty(
-  "--intro-width",
-  (intro * PX_PER_SEC) + "px"
-);
+  // ✅ ONLY set positions IF not already set (prevents snapping back)
+  if (!vt.style.left) {
+    vt.style.left = "0px";
+  }
 
-
-  // 🎯 positions
- // VT always starts at 0
-vt.style.left = "0px";
-
-// 🎯 SONG starts at SEC TONE position
-const songStart = secTone * PX_PER_SEC;
-
-song.style.left = songStart + "px";
+  if (!song.style.left) {
+    song.style.left = (secTone * PX_PER_SEC) + "px";
+  }
 
   // 🎙 VT LABEL
   vt.innerHTML = `
