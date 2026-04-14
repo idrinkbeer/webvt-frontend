@@ -400,15 +400,6 @@ select + select {
   position: relative;
 }
 
-#editorSecMarker {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: red;
-  pointer-events: none;
-  display: none;
-}
 
 #vtEditor {
   position: relative;
@@ -417,37 +408,35 @@ select + select {
   overflow: hidden;
 }
 
+.block-label {
+  font-size: 12px;
+  color: white;
+  padding: 4px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
 /* VT block */
 #vtBlock {
-  position: absolute;
-  height: 30px;
   background: #00cc33;
-  top: 10px;
-  cursor: grab;
+  color: #000;
+  display: flex;
+  align-items: center;
 }
 
 /* SONG block */
 #songBlock {
-  position: absolute;
-  height: 30px;
   background: #0099ff;
-  top: 45px;
+  color: white;
+  display: flex;
+  align-items: center;
 }
 
-/* INTRO region */
+/* INTRO overlay */
 #introRegion {
-  position: absolute;
-  height: 100%;
-  background: rgba(255,255,0,0.6);
-}
-
-/* SEC marker */
-#secMarker {
-  position: absolute;
-  width: 2px;
-  height: 100%;
-  background: red;
-  z-index: 10;
+  background: rgba(255, 255, 0, 0.5);
 }
     
 </style>
@@ -904,7 +893,6 @@ function renderTable() {
               <div id="songBlock">
                 <div id="introRegion"></div>
               </div>
-              <div id="editorSecMarker"></div>
             </div>
 
             <div class="rec-bottom">
@@ -1003,8 +991,6 @@ if (uploaded[rowData.cart]) {
           // 🎯 DRAW BLOCK UI
           drawBlocks(vtDuration, songDuration, intro, secTone);
 
-          // 🔴 DRAW MARKER
-          drawSecMarker(secTone);
 
           // 🖱 ENABLE DRAGGING
           setTimeout(() => {
@@ -1430,9 +1416,6 @@ if (secToneTime !== null) {
 
       // 🎯 DRAW BLOCKS
       drawBlocks(vtDuration, songDuration, intro, secTone);
-
-      // 🎯 DRAW MARKER (SAFE NOW)
-      drawSecMarker(secTone);
 
       // 🖱 Enable dragging
       setTimeout(() => {
@@ -1995,43 +1978,43 @@ function toggleAutoFollow() {
 }
   
 
-  function drawSecMarker(secToneSeconds) {
-  if (!vtWave) return;
-
-  const duration = vtWave.getDuration();
-  if (!duration) return;
-
-  const percent = (secToneSeconds / duration) * 100;
-
-  const marker = document.getElementById("editorSecMarker");
-  if (!marker) return;
-
-  marker.style.left = percent + "%";
-  marker.style.display = "block";
-
-  console.log("📍 Restored marker at:", percent.toFixed(1) + "%");
-}
-
 function drawBlocks(vtDuration, songDuration, intro, secTone) {
   const vt = document.getElementById("vtBlock");
   const song = document.getElementById("songBlock");
   const introEl = document.getElementById("introRegion");
-  const marker = document.getElementById("editorSecMarker");
 
-  if (!vt || !song || !introEl || !marker) return;
+  if (!vt || !song || !introEl) return;
 
-  // widths
+  const rowData = filteredLog[selectedIndex];
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+
+  // 🎯 sizes
   vt.style.width = (vtDuration * PX_PER_SEC) + "px";
   song.style.width = (songDuration * PX_PER_SEC) + "px";
   introEl.style.width = (intro * PX_PER_SEC) + "px";
 
-  // 🔥 IMPORTANT: positions
+  // 🎯 positions
   vt.style.left = "0px";
   song.style.left = "0px";
 
-  song.dataset.intro = intro;
+  // 🎙 VT LABEL
+  vt.innerHTML = `
+    <div class="block-label">
+      🎙 ${rowData.title || "Voicetrack"}
+    </div>
+  `;
 
-  marker.style.left = (secTone * PX_PER_SEC) + "px";
+  // 🎵 SONG LABEL
+  if (nextSong) {
+    song.innerHTML = `
+      <div class="block-label">
+        🎵 ${nextSong.artist || ""} - ${nextSong.title || ""}
+      </div>
+    `;
+  }
+
+  // store intro
+  song.dataset.intro = intro;
 }
 
 function calculateSecTone() {
