@@ -396,13 +396,18 @@ select + select {
   transition: width 0.05s linear;
 }
 
-#secMarker {
+.waveform-wrap {
+  position: relative;
+}
+
+#vtSecMarker {
   position: absolute;
   top: 0;
   width: 2px;
   height: 100%;
   background: red;
   pointer-events: none;
+  display: none;
 }
     
 </style>
@@ -853,7 +858,10 @@ function renderTable() {
   </div>
 
   <!-- WAVEFORM -->
+  <div class="waveform-wrap">
   <div id="vtWaveform" class="waveform"></div>
+  <div id="vtSecMarker"></div>
+</div>
 
   <!-- PREVIEW + PROGRESS -->
   <div class="rec-bottom">
@@ -1321,13 +1329,21 @@ if (secToneTime !== null) {
   }
   console.log("🤖 Using auto Sec Tone:", secToneSeconds);
 
-  setTimeout(() => {
-  const marker = document.getElementById("secMarker");
-  if (!marker) return;
+setTimeout(() => {
+  if (!secToneTime || !vtWave) return;
+
+  const duration = vtWave.getDuration();
+  if (!duration) return;
 
   const percent = (secToneTime / duration) * 100;
 
+  const marker = document.getElementById("vtSecMarker");
+
   marker.style.left = percent + "%";
+  marker.style.display = "block";
+
+  console.log("📍 Sec tone marker at:", percent.toFixed(1) + "%");
+
 }, 100);
 }
 
