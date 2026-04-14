@@ -982,6 +982,16 @@ if (uploaded[rowData.cart]) {
         const vtContainer = document.getElementById("vtWaveform");
         if (!vtContainer) return;
 
+        // 🔥 DESTROY OLD WAVEFORM
+if (vtWave) {
+  try {
+    vtWave.destroy();
+  } catch (e) {
+    console.warn("Wave destroy error:", e);
+  }
+  vtWave = null;
+}
+
         vtWave = WaveSurfer.create({
           container: "#vtWaveform",
           waveColor: "#facc15",
@@ -1098,6 +1108,21 @@ function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
 
   selectedIndex = i;
+
+  // 🔥 CLEAN UP BEFORE SWITCHING
+if (vtWave) {
+  try { vtWave.destroy(); } catch(e){}
+  vtWave = null;
+}
+
+if (songAudio) {
+  songAudio.pause();
+  songAudio.currentTime = 0;
+}
+
+isPreviewPlaying = false;
+previewTimer && clearTimeout(previewTimer);
+previewTimer = null;
 
   renderTable();
 
@@ -2076,67 +2101,6 @@ function drawBlocks(vtDuration, songDuration, intro, secTone) {
   song.dataset.intro = intro;
 }
 
-function calculateSecTone() {
-  const vtBlock = document.getElementById("vtBlock");
-  const songBlock = document.getElementById("songBlock");
-
-  if (!vtBlock || !songBlock) return;
-
-  const vtLeft = vtBlock.offsetLeft;
-  const markerOffset = secToneTime * PX_PER_SEC;
-
-  const intro = parseFloat(songBlock.dataset.intro || 0);
-
-  const songStart = songBlock.offsetLeft;
-  const introEnd = songStart + (intro * PX_PER_SEC);
-
-  const diff = introEnd - (vtLeft + markerOffset);
-
-  const newSecTone = secToneTime + (diff / PX_PER_SEC);
-
-  return newSecTone;
-}
-
-function setupDragging() {
-  const vtBlock = document.getElementById("vtBlock");
-  const songBlock = document.getElementById("songBlock");
-  const editor = document.getElementById("vtEditor");
-
-  if (!vtBlock || !songBlock || !editor) return;
-
-  makeDraggable(vtBlock);
-  makeDraggable(songBlock);
-
-  function makeDraggable(el) {
-    let isDragging = false;
-
-    el.onmousedown = (e) => {
-      isDragging = true;
-      el.style.cursor = "grabbing";
-      e.preventDefault();
-    };
-
-    document.onmouseup = () => {
-      isDragging = false;
-      el.style.cursor = "grab";
-
-      // 🔥 CALCULATE SEC TONE WHEN RELEASED
-      updateSecToneFromBlocks();
-    };
-
-    document.onmousemove = (e) => {
-      if (!isDragging) return;
-
-      const rect = editor.getBoundingClientRect();
-      let x = e.clientX - rect.left;
-
-      // clamp inside editor
-      x = Math.max(0, Math.min(x, editor.offsetWidth - el.offsetWidth));
-
-      el.style.left = x + "px";
-    };
-  }
-}
 
 function updateSecToneFromBlocks() {
   const vtBlock = document.getElementById("vtBlock");
@@ -2195,6 +2159,79 @@ function updatePlayhead() {
 
   requestAnimationFrame(updatePlayhead);
 }
+
+
+function calculateSecTone() {
+  const vtBlock = document.getElementById("vtBlock");
+  const songBlock = document.getElementById("songBlock");
+
+  if (!vtBlock || !songBlock) return;
+
+  const vtLeft = vtBlock.offsetLeft;
+  const markerOffset = secToneTime * PX_PER_SEC;
+
+  const intro = parseFloat(songBlock.dataset.intro || 0);
+
+  const songStart = songBlock.offsetLeft;
+  const introEnd = songStart + (intro * PX_PER_SEC);
+
+  const diff = introEnd - (vtLeft + markerOffset);
+
+  const newSecTone = secToneTime + (diff / PX_PER_SEC);
+
+  return newSecTone;
+}
+
+function setupDragging() {
+  const vtBlock = document.getElementById("vtBlock");
+  const songBlock = document.getElementById("songBlock");
+  const editor = document.getElementById("vtEditor");
+
+  if (!vtBlock || !songBlock || !editor) return;
+
+  makeDraggable(vtBlock);
+  makeDraggable(songBlock);
+
+function makeDraggable(el) {
+  const editor = document.getElementById("vtEditor");
+  if (!editor) return;
+
+  let isDragging = false;
+
+  function onMouseMove(e) {
+    if (!isDragging) return;
+
+    const rect = editor.getBoundingClientRect();
+    let x = e.clientX - rect.left;
+
+    x = Math.max(0, Math.min(x, editor.offsetWidth - el.offsetWidth));
+    el.style.left = x + "px";
+  }
+
+  function onMouseUp() {
+    if (!isDragging) return;
+
+    isDragging = false;
+    el.style.cursor = "grab";
+
+    updateSecToneFromBlocks();
+
+    window.removeEventListener("mousemove", onMouseMove);
+    window.removeEventListener("mouseup", onMouseUp);
+  }
+
+  el.onmousedown = (e) => {
+    isDragging = true;
+    el.style.cursor = "grabbing";
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    e.preventDefault();
+  };
+}
+
+
 
 </script>
 
