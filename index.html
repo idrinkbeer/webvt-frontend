@@ -1650,6 +1650,15 @@ function getTodayLogName() {
 
 
 function jumpToCurrentTime() {
+
+  if (!autoFollowEnabled) {
+    // 🔥 remove ON AIR highlight when AUTO is OFF
+    document.querySelectorAll("#logTable tbody tr").forEach(tr => {
+      tr.classList.remove("onair");
+    });
+    return;
+  }
+
   if (!currentTitle || !currentArtist) {
     console.log("❌ Missing now playing data");
     return;
