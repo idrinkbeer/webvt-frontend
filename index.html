@@ -2059,35 +2059,86 @@ function calculateSecTone() {
 
 function setupDragging() {
   const vtBlock = document.getElementById("vtBlock");
-  if (!vtBlock) return;
+  const songBlock = document.getElementById("songBlock");
+  const editor = document.getElementById("vtEditor");
 
-  let isDragging = false;
+  if (!vtBlock || !songBlock || !editor) return;
 
-  vtBlock.onmousedown = () => {
-    isDragging = true;
-    vtBlock.style.cursor = "grabbing";
-  };
+  makeDraggable(vtBlock);
+  makeDraggable(songBlock);
 
-  document.onmouseup = () => {
-    isDragging = false;
-    vtBlock.style.cursor = "grab";
-  };
+  function makeDraggable(el) {
+    let isDragging = false;
 
-  document.onmousemove = (e) => {
-    if (!isDragging) return;
+    el.onmousedown = (e) => {
+      isDragging = true;
+      el.style.cursor = "grabbing";
+      e.preventDefault();
+    };
 
-    const editor = document.getElementById("vtEditor");
-    if (!editor) return;
+    document.onmouseup = () => {
+      isDragging = false;
+      el.style.cursor = "grab";
 
-    const rect = editor.getBoundingClientRect();
+      // 🔥 CALCULATE SEC TONE WHEN RELEASED
+      updateSecToneFromBlocks();
+    };
 
-    let x = e.clientX - rect.left;
+    document.onmousemove = (e) => {
+      if (!isDragging) return;
 
-    // 🔒 clamp inside container
-    x = Math.max(0, Math.min(x, editor.offsetWidth - vtBlock.offsetWidth));
+      const rect = editor.getBoundingClientRect();
+      let x = e.clientX - rect.left;
 
-    vtBlock.style.left = x + "px";
-  };
+      // clamp inside editor
+      x = Math.max(0, Math.min(x, editor.offsetWidth - el.offsetWidth));
+
+      el.style.left = x + "px";
+    };
+  }
+}
+
+function updateSecToneFromBlocks() {
+  const vtBlock = document.getElementById("vtBlock");
+  const songBlock = document.getElementById("songBlock");
+
+  if (!vtBlock || !songBlock) return;
+
+  const vtRight = vtBlock.offsetLeft + vtBlock.offsetWidth;
+  const songLeft = songBlock.offsetLeft;
+
+  // 🎯 difference in pixels
+  const diffPx = songLeft - vtRight;
+
+  // convert to seconds
+  const diffSec = diffPx / PX_PER_SEC;
+
+  const rowData = filteredLog[selectedIndex];
+
+  // 🔥 NEW SEC TONE
+  let newSecTone = (secToneTime || 0) + diffSec;
+
+  newSecTone = Math.max(0, newSecTone);
+
+  secToneTime = newSecTone;
+  secTones[rowData.cart] = newSecTone;
+
+  console.log("🎯 New Sec Tone:", newSecTone.toFixed(2));
+
+  // 🔄 redraw blocks with new timing
+  redrawBlocks();
+}
+
+function redrawBlocks() {
+  const rowData = filteredLog[selectedIndex];
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+
+  if (!vtWave || !nextSong) return;
+
+  const vtDuration = vtWave.getDuration();
+  const intro = nextSong.intro || 0;
+
+  drawBlocks(vtDuration, 240, intro, secToneTime);
 }
 
 </script>
