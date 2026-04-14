@@ -552,6 +552,7 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
+let vuActive = false;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1144,6 +1145,8 @@ if (songAudio) {
 
   
 async function startRecording() {
+  vuActive = true;
+  updateVU();
   mediaStream = await navigator.mediaDevices.getUserMedia({
   audio: {
     echoCancellation: false,
@@ -1283,6 +1286,10 @@ function encodeMP3(samples, sampleRate) {
 }
   
 async function stopRecording() {
+  vuActive = false;
+
+const vu = document.getElementById("vuBar");
+if (vu) vu.style.width = "0%";
   await new Promise(r => setTimeout(r, 50));
   // ⏱ STOP TIMER
   if (recordInterval) {
@@ -1403,7 +1410,7 @@ if (songAudio) {
 // VU
 // =====================
 function updateVU() {
-  if (!analyser) return;
+  if (!vuActive || !analyser) return;
 
   const vu = document.getElementById("vuBar");
   if (!vu) return;
@@ -1417,13 +1424,12 @@ function updateVU() {
 
   vu.style.width = percent + "%";
 
-  // 🎯 color zones (AIR style)
   if (percent > 85) {
-    vu.style.background = "#ff0000"; // red
+    vu.style.background = "#ff0000";
   } else if (percent > 60) {
-    vu.style.background = "#ffcc00"; // yellow
+    vu.style.background = "#ffcc00";
   } else {
-    vu.style.background = "#00cc33"; // green
+    vu.style.background = "#00cc33";
   }
 
   requestAnimationFrame(updateVU);
