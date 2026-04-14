@@ -901,6 +901,7 @@ function renderTable() {
   </div>
 
 <div id="vtEditor">
+<div id="vtWaveform" style="display:none;"></div>
   <div id="vtBlock"></div>
   <div id="songBlock">
     <div id="introRegion"></div>
@@ -953,7 +954,7 @@ vtWave = WaveSurfer.create({
   const rowData = filteredLog[selectedIndex];
   if (!rowData) return;
 
-  const { nextSong } = getPrevNextSongs(selectedIndex);
+  const next = getPrevNextSongs(selectedIndex).nextSong;
 
   // 🎙 preload VT
   const saved = recordings[rowData.cart];
@@ -987,7 +988,7 @@ vtWave.once("ready", () => {
   }
 
   // 🔥 DRAW BLOCKS
-  const { nextSong } = getPrevNextSongs(selectedIndex);
+  const next = getPrevNextSongs(selectedIndex).nextSong;
 
   if (vtWave && nextSong) {
     const vtDuration = vtWave.getDuration();
@@ -1182,7 +1183,7 @@ async function toggleRecording() {
     }
 
     if (recordStage === 1) {
-      const { nextSong } = getPrevNextSongs(selectedIndex);
+      const next = getPrevNextSongs(selectedIndex).nextSong;
 
       if (!nextSong) {
         alert("No next song");
@@ -1390,7 +1391,7 @@ async function stopRecording() {
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
   const row = filteredLog[selectedIndex];
-  const { nextSong } = getPrevNextSongs(selectedIndex);
+  const next = getPrevNextSongs(selectedIndex).nextSong;
 
   // 🎯 DETERMINE SEC TONE
   let secToneSeconds;
@@ -1439,7 +1440,7 @@ async function stopRecording() {
       console.log("🎙 VT ready after recording");
       window.isAudioReady = true;
 
-      const { nextSong } = getPrevNextSongs(selectedIndex);
+      const next = getPrevNextSongs(selectedIndex).nextSong;
       const rowData = filteredLog[selectedIndex];
 
       const vtDuration = vtWave.getDuration();
@@ -1546,7 +1547,7 @@ async function previewBreak() {
 
   if (selectedIndex === null) return;
 
-  const { nextSong } = getPrevNextSongs(selectedIndex);
+  const next = getPrevNextSongs(selectedIndex).nextSong;
   const row = filteredLog[selectedIndex];
 
   if (!nextSong) return alert("Missing next song");
@@ -2036,12 +2037,18 @@ function drawBlocks(vtDuration, songDuration, intro, secTone) {
   const introEl = document.getElementById("introRegion");
   const marker = document.getElementById("editorSecMarker");
 
+  if (!vt || !song || !introEl || !marker) return;
+
+  // widths
   vt.style.width = (vtDuration * PX_PER_SEC) + "px";
   song.style.width = (songDuration * PX_PER_SEC) + "px";
-
   introEl.style.width = (intro * PX_PER_SEC) + "px";
 
-  song.dataset.intro = intro; // 🔥 REQUIRED
+  // 🔥 IMPORTANT: positions
+  vt.style.left = "0px";
+  song.style.left = "0px";
+
+  song.dataset.intro = intro;
 
   marker.style.left = (secTone * PX_PER_SEC) + "px";
 }
