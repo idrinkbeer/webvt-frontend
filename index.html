@@ -419,18 +419,23 @@ select + select {
 }
 
 /* VT block */
-#vtBlock,
-#songBlock {
-  position: absolute;
-  height: 30px;
+#vtBlock {
+background: rgba(255, 255, 0, 0.6); /* intro */
 }
 
-#songBlock {
-  top: 35px;
-}
 
 #introRegion {
-  height: 100%;
+  background: rgba(255, 255, 0, 0.6); /* intro */
+}
+
+#songBlock {
+  background: linear-gradient(
+    to right,
+    rgba(255,255,0,0.6) 0%,
+    rgba(255,255,0,0.6) var(--intro-width),
+    #0099ff var(--intro-width),
+    #0099ff 100%
+  );
 }
     
 </style>
@@ -582,6 +587,7 @@ let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
 const PX_PER_SEC = 50; // tweak this
+
 
 // =====================
 // LOGIN SYSTEM 
@@ -1984,8 +1990,21 @@ function drawBlocks(vtDuration, songDuration, intro, secTone) {
 
   // 🎯 sizes
   vt.style.width = (vtDuration * PX_PER_SEC) + "px";
-  song.style.width = (songDuration * PX_PER_SEC) + "px";
-  introEl.style.width = (intro * PX_PER_SEC) + "px";
+
+  // 🎯 intro + 5 seconds buffer
+const buffer = 5; // seconds
+const visualLength = intro + buffer;
+
+const width = visualLength * PX_PER_SEC;
+
+song.style.width = width + "px";
+introEl.style.width = (intro * PX_PER_SEC) + "px";
+
+song.style.setProperty(
+  "--intro-width",
+  (intro * PX_PER_SEC) + "px"
+);
+
 
   // 🎯 positions
  // VT always starts at 0
