@@ -409,6 +409,46 @@ select + select {
   pointer-events: none;
   display: none;
 }
+
+#vtEditor {
+  position: relative;
+  height: 80px;
+  background: #111;
+  overflow: hidden;
+}
+
+/* VT block */
+#vtBlock {
+  position: absolute;
+  height: 30px;
+  background: #00cc33;
+  top: 10px;
+  cursor: grab;
+}
+
+/* SONG block */
+#songBlock {
+  position: absolute;
+  height: 30px;
+  background: #0099ff;
+  top: 45px;
+}
+
+/* INTRO region */
+#introRegion {
+  position: absolute;
+  height: 100%;
+  background: rgba(255,255,0,0.6);
+}
+
+/* SEC marker */
+#secMarker {
+  position: absolute;
+  width: 2px;
+  height: 100%;
+  background: red;
+  z-index: 10;
+}
     
 </style>
 </head>
@@ -558,6 +598,7 @@ let vuActive = false;
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
+const PX_PER_SEC = 50; // tweak this
 
 // =====================
 // LOGIN SYSTEM 
@@ -859,10 +900,12 @@ function renderTable() {
 
   </div>
 
-  <!-- WAVEFORM -->
-  <div class="waveform-wrap">
-  <div id="vtWaveform" class="waveform"></div>
-  <div id="vtSecMarker"></div>
+<div id="vtEditor">
+  <div id="vtBlock"></div>
+  <div id="songBlock">
+    <div id="introRegion"></div>
+  </div>
+  <div id="editorSecMarker"></div>
 </div>
 
   <!-- PREVIEW + PROGRESS -->
@@ -937,10 +980,29 @@ vtWave.once("ready", () => {
   vtReady = true;
   checkReady();
 
-  // 🔥 RESTORE SEC MARKER
+  // 🔥 restore sec tone
   if (secTones[rowData.cart] !== undefined) {
-    drawSecMarker(secTones[rowData.cart]);
+    secToneTime = secTones[rowData.cart];
+    drawSecMarker(secToneTime);
   }
+
+  // 🔥 DRAW BLOCKS
+  const { nextSong } = getPrevNextSongs(selectedIndex);
+
+  if (vtWave && nextSong) {
+    const vtDuration = vtWave.getDuration();
+    const songDuration = 240; // 🔥 use fixed for now
+    const intro = nextSong.intro || 0;
+
+    const secTone = secTones[rowData.cart] ?? secToneTime ?? 0;
+
+    drawBlocks(vtDuration, songDuration, intro, secTone);
+  }
+
+  // 🔥 enable dragging AFTER blocks exist
+  setTimeout(() => {
+    setupDragging();
+  }, 50);
 });
 
 
@@ -1959,6 +2021,76 @@ function toggleAutoFollow() {
   marker.style.display = "block";
 
   console.log("📍 Restored marker at:", percent.toFixed(1) + "%");
+}
+
+function drawBlocks(vtDuration, songDuration, intro, secTone) {
+  const vt = document.getElementById("vtBlock");
+  const song = document.getElementById("songBlock");
+  const introEl = document.getElementById("introRegion");
+  const marker = document.getElementById("editorSecMarker");
+
+  vt.style.width = (vtDuration * PX_PER_SEC) + "px";
+  song.style.width = (songDuration * PX_PER_SEC) + "px";
+
+  introEl.style.width = (intro * PX_PER_SEC) + "px";
+
+  song.dataset.intro = intro; // 🔥 REQUIRED
+
+  marker.style.left = (secTone * PX_PER_SEC) + "px";
+}
+
+function calculateSecTone() {
+  const vtBlock = document.getElementById("vtBlock");
+  const songBlock = document.getElementById("songBlock");
+
+  if (!vtBlock || !songBlock) return;
+
+  const vtLeft = vtBlock.offsetLeft;
+  const markerOffset = secToneTime * PX_PER_SEC;
+
+  const intro = parseFloat(songBlock.dataset.intro || 0);
+
+  const songStart = songBlock.offsetLeft;
+  const introEnd = songStart + (intro * PX_PER_SEC);
+
+  const diff = introEnd - (vtLeft + markerOffset);
+
+  const newSecTone = secToneTime + (diff / PX_PER_SEC);
+
+  return newSecTone;
+}
+
+function setupDragging() {
+  const vtBlock = document.getElementById("vtBlock");
+  if (!vtBlock) return;
+
+  let isDragging = false;
+
+  vtBlock.onmousedown = () => {
+    isDragging = true;
+    vtBlock.style.cursor = "grabbing";
+  };
+
+  document.onmouseup = () => {
+    isDragging = false;
+    vtBlock.style.cursor = "grab";
+  };
+
+  document.onmousemove = (e) => {
+    if (!isDragging) return;
+
+    const editor = document.getElementById("vtEditor");
+    if (!editor) return;
+
+    const rect = editor.getBoundingClientRect();
+
+    let x = e.clientX - rect.left;
+
+    // 🔒 clamp inside container
+    x = Math.max(0, Math.min(x, editor.offsetWidth - vtBlock.offsetWidth));
+
+    vtBlock.style.left = x + "px";
+  };
 }
 
 </script>
