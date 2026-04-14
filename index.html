@@ -1631,44 +1631,29 @@ function jumpToCurrentTime() {
   }
 
   const now = new Date();
-  const currentHourStr = now.getHours().toString(); // 🔥 FIXED (no padding)
 
-  console.log("🕒 Current hour:", currentHourStr);
+  const hourSelect = document.getElementById("hourSelect");
+  const availableHours = Array.from(hourSelect.options).map(o => o.value);
+
+  const nowHour = now.getHours().toString();
+  const startHour = currentSongStart
+    ? currentSongStart.getHours().toString()
+    : nowHour;
+
+  console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
 
-const hourSelect = document.getElementById("hourSelect");
+  // 🎯 STEP 1: pick correct hour
+  let selectedHour = availableHours.includes(startHour)
+    ? startHour
+    : nowHour;
 
-// get available hours from dropdown
-const availableHours = Array.from(hourSelect.options).map(o => o.value);
+  hourSelect.value = selectedHour;
+  currentHour = selectedHour;
 
-let selectedHour = currentHourStr;
+  filterByHour(selectedHour);
 
-// 🎯 if exact hour doesn't exist → find closest
-if (!availableHours.includes(currentHourStr)) {
-  const nowHour = parseInt(currentHourStr);
-
-  let closest = availableHours[0];
-  let smallestDiff = Infinity;
-
-  availableHours.forEach(h => {
-    const diff = Math.abs(parseInt(h) - nowHour);
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
-      closest = h;
-    }
-  });
-
-  selectedHour = closest;
-
-  console.log("⚠️ Hour not found, using closest:", selectedHour);
-}
-
-// 🔁 apply hour
-hourSelect.value = selectedHour;
-currentHour = selectedHour;
-
-filterByHour(selectedHour);
-
+  // 🎯 STEP 2: find song
   setTimeout(() => {
     const rows = document.querySelectorAll("#logTable tbody tr");
 
@@ -1683,8 +1668,6 @@ filterByHour(selectedHour);
         text.includes(currentTitle) &&
         text.includes(currentArtist)
       ) {
-        console.log("✅ MATCH FOUND:", text);
-
         tr.classList.add("active");
 
         tr.scrollIntoView({
@@ -1696,8 +1679,24 @@ filterByHour(selectedHour);
       }
     });
 
+    // 🔥 STEP 3: fallback to other hour if not found
     if (!found) {
-      console.log("⚠️ No match found in current hour");
+      const altHour = selectedHour === startHour ? nowHour : startHour;
+
+      if (availableHours.includes(altHour)) {
+        console.log("🔄 Trying alternate hour:", altHour);
+
+        hourSelect.value = altHour;
+        currentHour = altHour;
+
+        filterByHour(altHour);
+
+        setTimeout(() => {
+          jumpToCurrentTime();
+        }, 150);
+      } else {
+        console.log("⚠️ No match found in any hour");
+      }
     }
 
   }, 150);
