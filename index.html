@@ -884,15 +884,6 @@ vtWave = WaveSurfer.create({
   height: 60
 });
 
-// 🔥 ONLY create songWave if you actually have it
-if (document.getElementById("songWaveform")) {
-  songWave = WaveSurfer.create({
-    container: "#songWaveform",
-    waveColor: "#334155",
-    progressColor: "#22c55e",
-    height: 60
-  });
-}
 
   const rowData = filteredLog[selectedIndex];
   if (!rowData) return;
@@ -921,14 +912,10 @@ if (nextSong) {
     checkReady();
   });
 
-  songWave.once("ready", () => {
-    songReady = true;
-    checkReady();
-  });
 
 function checkReady() {
-  if (vtReady && (!songWave || songReady)) {
-    console.log("🔥 Waveforms ready");
+  if (vtReady) {
+    console.log("🔥 VT ready");
     window.isAudioReady = true;
   }
 }
@@ -1428,7 +1415,6 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
-  // 🔁 toggle
   if (isPreviewPlaying) {
     stopPreview();
     return;
@@ -1439,49 +1425,28 @@ async function previewBreak() {
   const { nextSong } = getPrevNextSongs(selectedIndex);
   const row = filteredLog[selectedIndex];
 
-  if (!nextSong) {
-    alert("Missing next song");
-    return;
-  }
+  if (!nextSong) return alert("Missing next song");
 
   const vtBlob = recordings[row.cart];
-  if (!vtBlob) {
-    alert("No VT recorded");
-    return;
-  }
+  if (!vtBlob) return alert("No VT recorded");
 
-  // 🧼 reset state
   vtFinished = false;
   songFinished = false;
 
-  // 🛑 stop anything already playing
   if (vtWave) vtWave.stop();
-  if (songWave) songWave.stop();
-
-const vtDuration = vtWave.getDuration();
-
-// 🎯 USE MANUAL SEC TONE IF AVAILABLE
-let songDelay = 0;
-
-if (secToneTime !== null) {
-  songDelay = secToneTime;
-  console.log("🎯 Preview using manual Sec Tone:", songDelay);
-} else {
-  // 🔁 fallback to old logic
-  const intro = nextSong.intro || 0;
-
-  if (vtDuration > intro) {
-    songDelay = vtDuration - intro;
-  } else {
-    songDelay = vtDuration;
+  if (songAudio) {
+    songAudio.pause();
+    songAudio.currentTime = 0;
   }
 
-  console.log("🤖 Preview using auto timing:", songDelay);
-}
+  const vtDuration = vtWave.getDuration();
 
-  //console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
+  let songDelay = secToneTime !== null
+    ? secToneTime
+    : Math.max(0, vtDuration - (nextSong.intro || 0));
 
-  // ▶ start VT immediately
+  console.log("🎯 Preview delay:", songDelay);
+
   vtWave.play();
 
   isPreviewPlaying = true;
@@ -1489,25 +1454,21 @@ if (secToneTime !== null) {
   const btn = document.querySelector("button[onclick='previewBreak()']");
   if (btn) btn.textContent = "Stop Preview";
 
-  // ▶ start song
-setTimeout(() => {
-  if (songAudio) {
-    songAudio.currentTime = 0;
-    songAudio.volume = 0.3;
-    songAudio.play();
-  }
-}, songDelay * 1000);
+  setTimeout(() => {
+    if (songAudio) {
+      songAudio.currentTime = 0;
+      songAudio.volume = 0.3;
+      songAudio.play();
 
-  // 🎙 VT finished
+      songAudio.onended = () => {
+        songFinished = true;
+        checkPreviewEnd();
+      };
+    }
+  }, songDelay * 1000);
+
   vtWave.once("finish", () => {
     vtFinished = true;
-    songWave.setVolume(1);
-    checkPreviewEnd();
-  });
-
-  // 🎵 SONG finished
-  songWave.once("finish", () => {
-    songFinished = true;
     checkPreviewEnd();
   });
 }
@@ -1515,7 +1476,11 @@ setTimeout(() => {
 
 function stopPreview() {
   if (vtWave) vtWave.stop();
-  if (songWave) songWave.stop();
+
+  if (songAudio) {
+    songAudio.pause();
+    songAudio.currentTime = 0;
+  }
 
   vtFinished = false;
   songFinished = false;
@@ -1543,7 +1508,6 @@ function checkPreviewEnd() {
 
 
 function previewVT() {
-  // 🔁 toggle behavior (same as previewBreak)
   if (isPreviewPlaying) {
     stopPreview();
     return;
@@ -1554,32 +1518,25 @@ function previewVT() {
   const row = filteredLog[selectedIndex];
   const vtBlob = recordings[row.cart];
 
-  if (!vtBlob) {
-    alert("No VT recorded");
-    return;
+  if (!vtBlob) return alert("No VT recorded");
+
+  if (songAudio) {
+    songAudio.pause();
+    songAudio.currentTime = 0;
   }
 
-  // 🛑 stop anything else
-  if (songWave) songWave.stop();
   if (vtWave) vtWave.stop();
 
-  vtFinished = false;
-  songFinished = false;
-
-  // ▶ play VT only
   vtWave.play();
 
   isPreviewPlaying = true;
 
-  // 🎛 update button text
-  const vtBtn = document.querySelector("button[onclick='previewVT()']");
-  if (vtBtn) vtBtn.textContent = "Stop VT";
+  const btn = document.querySelector("button[onclick='previewVT()']");
+  if (btn) btn.textContent = "Stop VT";
 
-  // reset when done
   vtWave.once("finish", () => {
     isPreviewPlaying = false;
-
-    if (vtBtn) vtBtn.textContent = "Preview VT";
+    if (btn) btn.textContent = "Preview VT";
   });
 }
 
