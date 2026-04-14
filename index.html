@@ -932,6 +932,30 @@ function renderTable() {
 
       tableBody.appendChild(recorderRow);
 
+      const rowData = filteredLog[selectedIndex];
+
+// 🔁 Restore previous recording
+const saved = recordings[rowData.cart];
+if (saved) {
+  const player = document.getElementById("player");
+
+  setupPlayer(player, saved);
+
+  recordedBlob = saved;
+  document.getElementById("uploadBtn").disabled = false;
+  document.getElementById("status").textContent = "VT Previously recorded";
+}
+
+// 🔁 Restore upload state
+if (uploaded[rowData.cart]) {
+  const btn = document.getElementById("uploadBtn");
+  const status = document.getElementById("status");
+
+  btn.textContent = "VT Uploaded ✓";
+  btn.disabled = true;
+  status.textContent = "✅ Already uploaded";
+}
+
       // 🎧 INIT EVERYTHING AFTER DOM EXISTS
       setTimeout(() => {
         const vtContainer = document.getElementById("vtWaveform");
@@ -995,40 +1019,10 @@ function renderTable() {
 
 
 function checkReady() {
-  if (vtReady) {
-    console.log("🔥 VT ready");
-    window.isAudioReady = true;
-  }
+  console.log("🔥 VT ready");
+  window.isAudioReady = true;
 }
 
-}, 50);
-
-      // 🔁 Restore previous recording if exists
-      const rowData = filteredLog[selectedIndex];
-      const saved = recordings[rowData.cart];
-
-      if (saved) {
-        const player = document.getElementById("player");
-
-        setupPlayer(player, saved);
-
-        recordedBlob = saved;
-        document.getElementById("uploadBtn").disabled = false;
-        document.getElementById("status").textContent = "VT Previously recorded";
-      }
-
-      // 🔁 Restore upload state
-      if (uploaded[rowData.cart]) {
-        const btn = document.getElementById("uploadBtn");
-        const status = document.getElementById("status");
-
-        btn.textContent = "VT Uploaded ✓";
-        btn.disabled = true;
-        status.textContent = "✅ Already uploaded";
-      }
-    }
-  });
-}
 
 
 let previewAudio = null;
