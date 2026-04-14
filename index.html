@@ -990,7 +990,7 @@ vtWave.once("ready", () => {
   const { nextSong } = getPrevNextSongs(selectedIndex);
 
   if (vtWave && nextSong) {
-    const vtDuration = vtWave.getDuration();
+    const vtDuration = recordedBlobDuration || 0;
     const songDuration = 240; // 🔥 use fixed for now
     const intro = nextSong.intro || 0;
 
@@ -1419,7 +1419,7 @@ setTimeout(() => {
 
   const percent = (secToneSeconds / waveDuration) * 100;
 
-  const marker = document.getElementById("vtSecMarker");
+  const marker = document.getElementById("editorSecMarker");
   if (!marker) return;
 
   marker.style.left = percent + "%";
@@ -1561,7 +1561,12 @@ async function previewBreak() {
     songAudio.currentTime = 0;
   }
 
-  const vtDuration = vtWave.getDuration();
+  if (!vtWave) {
+  alert("VT not loaded yet");
+  return;
+}
+
+const vtDuration = vtWave.getDuration();
 
   let songDelay = secToneTime !== null
     ? secToneTime
@@ -2014,7 +2019,7 @@ function toggleAutoFollow() {
 
   const percent = (secToneSeconds / duration) * 100;
 
-  const marker = document.getElementById("vtSecMarker");
+  const marker = document.getElementById("editorSecMarker");
   if (!marker) return;
 
   marker.style.left = percent + "%";
