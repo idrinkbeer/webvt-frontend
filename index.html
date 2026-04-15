@@ -1620,7 +1620,6 @@ function findClosestRowByTime(hour) {
   if (!rows.length) return -1;
 
   let bestIndex = -1;
-  let smallestDiff = Infinity;
 
   rows.forEach((row, i) => {
     const [h, m, s] = row.time.split(":").map(Number);
@@ -1628,10 +1627,8 @@ function findClosestRowByTime(hour) {
     const rowSeconds = m * 60 + s;
     const nowSeconds = currentMinute * 60 + currentSecond;
 
-    const diff = Math.abs(rowSeconds - nowSeconds);
-
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
+    // ✅ pick last row BEFORE current time
+    if (rowSeconds <= nowSeconds) {
       bestIndex = i;
     }
   });
