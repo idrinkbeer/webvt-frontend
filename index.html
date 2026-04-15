@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -758,36 +758,9 @@ vtWave = WaveSurfer.create({
   barWidth: 2,
   barGap: 1,
   barRadius: 2,
-  height: 50,
+  height: 60,
   normalize: true
 });
-
-  // =========================
-// 🎯 FAKE PLAYHEAD CURSOR
-// =========================
-vtContainer.style.position = "relative";
-
-// remove old cursor (important when switching rows)
-const oldCursor = vtContainer.querySelector(".vt-cursor");
-if (oldCursor) oldCursor.remove();
-
-// create cursor
-const cursor = document.createElement("div");
-cursor.className = "vt-cursor";
-
-cursor.style.position = "absolute";
-cursor.style.right = "0";
-cursor.style.top = "0";
-cursor.style.width = "2px";
-cursor.style.height = "100%";
-cursor.style.background = "#ffffff";
-cursor.style.pointerEvents = "none";
-cursor.style.zIndex = "10";
-
-// 🔥 glow (optional but looks great)
-cursor.style.boxShadow = "0 0 6px #ffffff";
-
-vtContainer.appendChild(cursor);
 
 songWave = WaveSurfer.create({
   container: "#songWaveform",
@@ -797,7 +770,7 @@ songWave = WaveSurfer.create({
   barWidth: 2,
   barGap: 1,
   barRadius: 2,
-  height: 50,
+  height: 60,
   normalize: true
 });
 
@@ -1062,12 +1035,6 @@ async function startRecording() {
     }
   });
 
-  const cursor = document.querySelector(".vt-cursor");
-if (cursor) {
-  cursor.style.background = "#ff0000";
-  cursor.style.boxShadow = "0 0 8px #ff0000";
-}
-
   audioContext = new AudioContext();
 
   const source = audioContext.createMediaStreamSource(mediaStream);
@@ -1213,12 +1180,6 @@ async function stopRecording() {
 
   isDrawingLive = false;
   isRecording = false;
-
-  const cursor = document.querySelector(".vt-cursor");
-if (cursor) {
-  cursor.style.background = "#ffffff";
-  cursor.style.boxShadow = "0 0 6px #ffffff";
-}
 
   const { samples, processor } = window._recorder;
 
