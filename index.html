@@ -431,7 +431,8 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
-let isDrawingLive = false;
+let previewTimeout = null;
+let isVUActive = false;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1078,8 +1079,8 @@ async function startRecording() {
 
   // ✅ START RECORDING STATE BEFORE DRAW
   isRecording = true;
-
-  updateVU();
+isVUActive = true;
+updateVU();
 
   document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
@@ -1232,25 +1233,32 @@ async function stopRecording() {
     songWave.setVolume(1);
     songWave.stop();
   }
+
+  isVUActive = false;
+
+// reset meter visually
+const bar = document.getElementById("vuBar");
+if (bar) bar.style.width = "0%";
+
 }
 
 // =====================
 // VU
 // =====================
 function updateVU() {
-  if (!analyser) return;
+  if (!analyser || !isVUActive) return;
 
   analyser.getByteFrequencyData(dataArray);
 
   let sum = dataArray.reduce((a,b)=>a+b,0);
   let avg = sum / dataArray.length;
 
-  let level = avg / 255;
+  let level = Math.pow(avg / 255, 0.6);
 
-// 🔥 boost + curve (feels more like real console)
-level = Math.pow(level, 0.6);
-
-document.getElementById("vuBar").style.width = (level * 100) + "%";
+  const bar = document.getElementById("vuBar");
+  if (bar) {
+    bar.style.width = (level * 100) + "%";
+  }
 
   requestAnimationFrame(updateVU);
 }
@@ -1279,6 +1287,12 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
+
+  if (previewTimeout) {
+  clearTimeout(previewTimeout);
+  previewTimeout = null;
+}
+
   // 🔁 toggle
   if (isPreviewPlaying) {
     stopPreview();
@@ -1341,10 +1355,13 @@ if (secToneTime !== null) {
   if (btn) btn.textContent = "Stop Preview";
 
   // ▶ start song
-  setTimeout(() => {
-    songWave.play();
-    songWave.setVolume(0.3);
-  }, songDelay * 1000);
+previewTimeout = setTimeout(() => {
+  // 🛑 don't run if preview was stopped
+  if (!isPreviewPlaying) return;
+
+  songWave.play();
+  songWave.setVolume(0.3);
+}, songDelay * 1000);
 
   // 🎙 VT finished
   vtWave.once("finish", () => {
