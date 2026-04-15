@@ -228,7 +228,7 @@ button:hover {
   text-transform: uppercase;
 
   padding: 10px 18px;
-  min-width: 130px;
+  min-width: 100px;
 
   cursor: pointer;
 
@@ -431,6 +431,7 @@ let lastArtist = "";
 let currentCart = "";
 let autoFollowEnabled = true;
 let activeRowIndex = -1;
+let lastStartTime = 0;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1585,20 +1586,17 @@ async function loadNowPlaying() {
     document.getElementById("nowPlaying").textContent =
       `${title} - ${artist}`;
 
-    // 🔥 detect song change
-    if (
-      currentTitle !== lastTitle ||
-      currentArtist !== lastArtist
-    ) {
-      console.log("🎵 Song changed → updating highlight");
+const startTimeKey = currentSongStart.getTime();
 
-      lastTitle = currentTitle;
-      lastArtist = currentArtist;
+if (startTimeKey !== lastStartTime) {
+  console.log("🎵 Song changed → updating highlight");
 
-      if (autoFollowEnabled) {
-        jumpToCurrentTime();
-      }
-    }
+  lastStartTime = startTimeKey;
+
+  if (autoFollowEnabled) {
+    jumpToCurrentTime();
+  }
+}
 
   } catch (err) {
     console.error("❌ loadNowPlaying error:", err);
