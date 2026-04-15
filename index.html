@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -694,20 +694,29 @@ function filterByHour(hour) {
 function connectWaveToVU(wave) {
   if (!wave) return;
 
-  const backend = wave.backend;
-  const ac = backend.getAudioContext();
-  const source = backend.getSource();
+  try {
+    const media = wave.getMediaElement();
+    if (!media) return;
 
-  const analyserNode = ac.createAnalyser();
-  analyserNode.fftSize = 256;
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
 
-  source.connect(analyserNode);
+    const source = ac.createMediaElementSource(media);
+    const analyserNode = ac.createAnalyser();
 
-  analyser = analyserNode;
-  dataArray = new Uint8Array(analyser.frequencyBinCount);
+    analyserNode.fftSize = 256;
 
-  isVUActive = true;
-  updateVU();
+    source.connect(analyserNode);
+    analyserNode.connect(ac.destination);
+
+    analyser = analyserNode;
+    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    isVUActive = true;
+    updateVU();
+
+  } catch (err) {
+    console.warn("VU connect failed:", err);
+  }
 }
 
 
@@ -1487,14 +1496,6 @@ function previewVT() {
 
     if (vtBtn) vtBtn.textContent = "Preview VT";
   });
-
-  isVUActive = false;
-
-const left = document.getElementById("vuLeft");
-const right = document.getElementById("vuRight");
-
-if (left) left.style.width = "0%";
-if (right) right.style.width = "0%";
 
 }
 
