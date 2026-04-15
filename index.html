@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -97,19 +97,15 @@ button:hover {
 }
 
 /* VU METER */
-
-.vu-container.stereo {
+.vu-container {
   width: 180px;
-  height: 22px;
+  height: 18px;              /* 🔥 thicker */
   background: #111;
   border: 2px solid #000;
-  display: flex;
-  gap: 2px;
-  padding: 2px;
+  position: relative;
 }
 
-.vu-bar {
-  flex: 1;
+#vuBar {
   height: 100%;
   width: 0%;
   background: linear-gradient(
@@ -120,7 +116,6 @@ button:hover {
     #cc0000 100%
   );
 }
-
 
 /* AUDIO PLAYER (KEEP FUNCTIONAL, JUST RESTYLE) */
 .audio-player {
@@ -436,9 +431,7 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
-let previewTimeout = null;
-let isVUActive = false;
-let vuAudioContext = null;
+let isDrawingLive = false;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -692,57 +685,6 @@ function filterByHour(hour) {
   renderTable();
 }
 
-
-const vuConnections = new WeakMap();
-
-function connectWaveToVU(wave) {
-  if (!wave) return;
-
-  try {
-    const media = wave.getMediaElement();
-    if (!media) return;
-
-    if (!vuAudioContext) {
-      vuAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    const ac = vuAudioContext;
-
-    if (ac.state === "suspended") {
-      ac.resume();
-    }
-
-    // 🔥 IMPORTANT: reuse source safely
-    let source;
-
-    if (vuConnections.has(media)) {
-      source = vuConnections.get(media).source;
-    } else {
-      source = ac.createMediaElementSource(media);
-      vuConnections.set(media, { source });
-    }
-
-    // 🔥 gain stage (prevents full bars)
-    const gain = ac.createGain();
-    gain.gain.value = 0.35;
-
-    const analyserNode = ac.createAnalyser();
-    analyserNode.fftSize = 2048;
-
-    source.connect(gain);
-    gain.connect(analyserNode);
-
-    analyser = analyserNode;
-
-    isVUActive = true;
-    updateVU();
-
-  } catch (err) {
-    console.warn("VU connect failed:", err);
-  }
-}
-
-
 function renderTable() {
   tableBody.innerHTML = "";
 
@@ -785,16 +727,14 @@ function renderTable() {
     Upload to AIR
   </button>
 
-<div class="vu-container stereo">
-  <div class="vu-bar" id="vuLeft"></div>
-  <div class="vu-bar" id="vuRight"></div>
-</div>
+  <div class="vu-container">
+    <div id="vuBar"></div>
+  </div>
 
 </div>
 
             <div id="status"></div>
             <div id="recordTime">0:00</div>
-            <div id="vtWaveform" style="margin-top:5px;"></div>
             <div id="songWaveform" style="margin-top:10px;"></div>
             <div class="audio-player">
 <div style="margin-top:10px;">
@@ -1110,10 +1050,10 @@ async function startRecording() {
   const source = audioContext.createMediaStreamSource(mediaStream);
 
   const gainNode = audioContext.createGain();
-  gainNode.gain.value = 1.0;
+  gainNode.gain.value = 1.2;
 
   analyser = audioContext.createAnalyser();
-  analyser.fftSize = 2048;
+  analyser.fftSize = 256;
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
@@ -1137,8 +1077,8 @@ async function startRecording() {
 
   // ✅ START RECORDING STATE BEFORE DRAW
   isRecording = true;
-isVUActive = true;
-updateVU();
+
+  updateVU();
 
   document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
@@ -1291,56 +1231,25 @@ async function stopRecording() {
     songWave.setVolume(1);
     songWave.stop();
   }
-
-
-isVUActive = false;
-
-const left = document.getElementById("vuLeft");
-const right = document.getElementById("vuRight");
-
-if (left) left.style.width = "0%";
-if (right) right.style.width = "0%";
 }
 
 // =====================
 // VU
 // =====================
-let vuLeftLevel = 0;
-let vuRightLevel = 0;
-
 function updateVU() {
-  if (!analyser || !isVUActive) return;
+  if (!analyser) return;
 
-  const bufferLength = analyser.fftSize;
-  const data = new Float32Array(bufferLength);
+  analyser.getByteFrequencyData(dataArray);
 
-  analyser.getFloatTimeDomainData(data);
+  let sum = dataArray.reduce((a,b)=>a+b,0);
+  let avg = sum / dataArray.length;
 
-  // 🔊 RMS
-  let sum = 0;
-  for (let i = 0; i < bufferLength; i++) {
-    sum += data[i] * data[i];
-  }
+  let level = avg / 255;
 
-  let rms = Math.sqrt(sum / bufferLength);
+// 🔥 boost + curve (feels more like real console)
+level = Math.pow(level, 0.6);
 
-  let db = 20 * Math.log10(rms || 0.00001);
-
-  // clamp range (typical radio feel)
-  db = Math.max(-60, Math.min(0, db));
-
-  // 🎛 map dB → 0–1
-  let level = (db + 50) / 50;
-
-  // smooth fall
-  vuLeftLevel = Math.max(level, vuLeftLevel * 0.92);
-  vuRightLevel = Math.max(level * 0.95, vuRightLevel * 0.92);
-
-  const left = document.getElementById("vuLeft");
-  const right = document.getElementById("vuRight");
-
-  if (left) left.style.width = (vuLeftLevel * 100) + "%";
-  if (right) right.style.width = (vuRightLevel * 100) + "%";
+document.getElementById("vuBar").style.width = (level * 100) + "%";
 
   requestAnimationFrame(updateVU);
 }
@@ -1369,12 +1278,6 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
-
-  if (previewTimeout) {
-  clearTimeout(previewTimeout);
-  previewTimeout = null;
-}
-
   // 🔁 toggle
   if (isPreviewPlaying) {
     stopPreview();
@@ -1430,7 +1333,6 @@ if (secToneTime !== null) {
 
   // ▶ start VT immediately
   vtWave.play();
-  connectWaveToVU(vtWave);
 
   isPreviewPlaying = true;
 
@@ -1438,15 +1340,10 @@ if (secToneTime !== null) {
   if (btn) btn.textContent = "Stop Preview";
 
   // ▶ start song
-previewTimeout = setTimeout(() => {
-  // 🛑 don't run if preview was stopped
-  if (!isPreviewPlaying) return;
-
-  songWave.play();
-  songWave.setVolume(0.3);
-    connectWaveToVU(songWave); // 🔥 switch VU to song
-
-}, songDelay * 1000);
+  setTimeout(() => {
+    songWave.play();
+    songWave.setVolume(0.3);
+  }, songDelay * 1000);
 
   // 🎙 VT finished
   vtWave.once("finish", () => {
@@ -1501,8 +1398,6 @@ function previewVT() {
 
   if (selectedIndex === null) return;
 
-  connectWaveToVU(vtWave);
-
   const row = filteredLog[selectedIndex];
   const vtBlob = recordings[row.cart];
 
@@ -1533,7 +1428,6 @@ function previewVT() {
 
     if (vtBtn) vtBtn.textContent = "Preview VT";
   });
-
 }
 
 async function addID3Tags(blob, row, nextSong, duration, secTone) {
