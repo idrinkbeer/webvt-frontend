@@ -1658,18 +1658,28 @@ function normalizeFilename(name) {
   return (name || "")
     .toLowerCase()
     .replace(".mp3", "")
+    .replace(/&/g, "and")
+    .replace(/feat\.?/g, "")
+    .replace(/\(.*?\)/g, "")        // remove (feat. ...)
+    .replace(/[^a-z0-9\s]/g, " ")   // remove punctuation
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function isSongMatch(row) {
   if (!row || row.type !== "SONG") return false;
 
-  // ✅ PRIMARY: filename match (FAST + EXACT)
-  if (currentFilename) {
-    const rowFile = normalizeFilename(row.filename);
-    const nowFile = normalizeFilename(currentFilename);
+  const rowFile = normalizeFilename(row.filename);
+  const nowFile = normalizeFilename(currentFilename);
 
-    if (rowFile && nowFile && rowFile === nowFile) {
+  // ✅ PRIMARY: strong filename match (contains BOTH ways)
+  if (rowFile && nowFile) {
+    if (
+      rowFile === nowFile ||
+      rowFile.includes(nowFile) ||
+      nowFile.includes(rowFile)
+    ) {
+      console.log("✅ Filename match:", row.filename);
       return true;
     }
   }
@@ -1680,11 +1690,22 @@ function isSongMatch(row) {
   const nowTitle = normalizeText(currentTitle);
   const nowArtist = normalizeText(currentArtist);
 
-  return (
+  if (
     rowTitle.includes(nowTitle) &&
     rowArtist.includes(nowArtist)
-  );
+  ) {
+    console.log("🔁 Fallback match:", row.title);
+    return true;
+  }
+
+  return false;
 }
+
+console.log("🔍 Comparing:",
+  normalizeFilename(row.filename),
+  "vs",
+  normalizeFilename(currentFilename)
+);
 
 function jumpToCurrentTime() {
   if (!currentTitle && !currentFilename) {
