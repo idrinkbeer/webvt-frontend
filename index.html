@@ -1938,10 +1938,17 @@ function getTodayLogName() {
   
 
 
-function jumpToCurrentTime() {
+function normalize(str) {
+  return (str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
+function jumpToCurrentTime() {
+  // 🔴 AUTO OFF → clear highlight
   if (!autoFollowEnabled) {
-    // 🔥 remove ON AIR highlight when AUTO is OFF
     document.querySelectorAll("#logTable tbody tr").forEach(tr => {
       tr.classList.remove("onair");
     });
@@ -1954,7 +1961,6 @@ function jumpToCurrentTime() {
   }
 
   const now = new Date();
-
   const hourSelect = document.getElementById("hourSelect");
   const availableHours = Array.from(hourSelect.options).map(o => o.value);
 
@@ -1966,7 +1972,7 @@ function jumpToCurrentTime() {
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
 
-  // 🎯 STEP 1: pick correct hour
+  // 🎯 Pick hour
   let selectedHour = availableHours.includes(startHour)
     ? startHour
     : nowHour;
@@ -1976,60 +1982,71 @@ function jumpToCurrentTime() {
 
   filterByHour(selectedHour);
 
-  // 🎯 STEP 2: find song
+  // 🎯 Find match
   setTimeout(() => {
-    const rows = document.querySelectorAll("#logTable tbody tr");
-
     let found = false;
 
-    rows.forEach(tr => {
-      tr.classList.remove("onair");
+    const title = normalize(currentTitle);
+    const artist = normalize(currentArtist);
 
-      function normalize(str) {
-  return (str || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "") // remove junk
-    .replace(/\s+/g, " ")
-    .trim();
-}
+    for (let i = 0; i < filteredLog.length; i++) {
+      const row = filteredLog[i];
+      if (row.type !== "SONG") continue;
 
-const rowText = normalize(tr.textContent);
-const title = normalize(currentTitle);
-const artist = normalize(currentArtist);
+      const rowTitle = normalize(row.title);
+      const rowArtist = normalize(row.artist);
 
-if (
-  rowText.includes(title) ||
-  rowText.includes(artist)
-) {
-        tr.classList.add("onair");
+      const titleMatch =
+        rowTitle.includes(title) || title.includes(rowTitle);
 
-        tr.scrollIntoView({
-          behavior: "smooth",
-          block: "center"
-        });
+      const artistMatch =
+        rowArtist.includes(artist) || artist.includes(rowArtist);
 
+      if (titleMatch && artistMatch) {
+        selectedIndex = i;
         found = true;
+        break;
       }
-    });
+    }
 
-    // 🔥 STEP 3: fallback to other hour if not found
-    if (!found) {
-      const altHour = selectedHour === startHour ? nowHour : startHour;
+    // 🎯 Apply highlight if found
+    if (found) {
+      renderTable();
 
-      if (availableHours.includes(altHour)) {
-        console.log("🔄 Trying alternate hour:", altHour);
+      setTimeout(() => {
+        const rows = document.querySelectorAll("#logTable tbody tr");
 
-        hourSelect.value = altHour;
-        currentHour = altHour;
+        rows.forEach(tr => tr.classList.remove("onair"));
 
-        filterByHour(altHour);
+        if (rows[selectedIndex]) {
+          rows[selectedIndex].classList.add("onair");
 
-        setTimeout(() => {
-          jumpToCurrentTime();
-        }, 150);
-      } else {
-        console.log("⚠️ No match found in any hour");
-      }
+          rows[selectedIndex].scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
+        }
+      }, 50);
+
+      return;
+    }
+
+    // 🔄 Try alternate hour
+    const altHour = selectedHour === startHour ? nowHour : startHour;
+
+    if (availableHours.includes(altHour)) {
+      console.log("🔄 Trying alternate hour:", altHour);
+
+      hourSelect.value = altHour;
+      currentHour = altHour;
+
+      filterByHour(altHour);
+
+      setTimeout(() => {
+        jumpToCurrentTime();
+      }, 150);
+    } else {
+      console.log("⚠️ No match found in any hour");
     }
 
   }, 150);
