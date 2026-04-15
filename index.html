@@ -937,6 +937,43 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
   return samples.slice(start, end);
 }
 
+
+function setupPlayer(player, blob) {
+  player.src = URL.createObjectURL(blob);
+
+  setTimeout(() => {
+    const playBtn = document.getElementById("playBtn");
+    const progressBar = document.getElementById("progressBar");
+    const timeLabel = document.getElementById("time");
+    const progressContainer = document.querySelector(".progress");
+
+    if (!progressBar || !timeLabel) return;
+
+    player.ontimeupdate = () => {
+      if (!player.duration) return;
+
+      const percent = (player.currentTime / player.duration) * 100;
+      progressBar.style.width = percent + "%";
+
+      const minutes = Math.floor(player.currentTime / 60);
+      const seconds = Math.floor(player.currentTime % 60)
+        .toString()
+        .padStart(2, "0");
+
+      timeLabel.textContent = `${minutes}:${seconds}`;
+    };
+
+    if (progressContainer) {
+      progressContainer.onclick = (e) => {
+        const rect = progressContainer.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        player.currentTime = percent * player.duration;
+      };
+    }
+
+  }, 50);
+}
+
   
 // =====================
 // RECORDING
