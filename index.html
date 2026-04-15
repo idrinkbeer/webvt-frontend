@@ -200,7 +200,7 @@ button:hover {
   text-transform: uppercase;
 
   padding: 10px 18px;
-  min-width: 160px;
+  min-width: 100px;
 
   cursor: pointer;
 
@@ -222,7 +222,30 @@ button:hover {
   color: #fff !important;
 }
 
+.on-air {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
 
+  background: #cc0000;
+  color: #fff;
+  padding: 2px 8px;
+  font-size: 11px;
+
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* make row relative so ON AIR can position */
+tr.active {
+  position: relative;
+}
 
 select {
   background: #0033cc;
@@ -1632,6 +1655,10 @@ filterByHour(selectedHour);
     rows.forEach(tr => {
       tr.classList.remove("active");
 
+// remove old ON AIR badges
+const old = tr.querySelector(".on-air");
+if (old) old.remove();
+
       const text = tr.textContent.toLowerCase();
 
       if (
@@ -1641,6 +1668,17 @@ filterByHour(selectedHour);
         console.log("✅ MATCH FOUND:", text);
 
         tr.classList.add("active");
+
+// remove any existing ON AIR first
+const existing = tr.querySelector(".on-air");
+if (existing) existing.remove();
+
+// add ON AIR badge
+const badge = document.createElement("div");
+badge.className = "on-air";
+badge.textContent = "ON AIR";
+
+tr.appendChild(badge);
 
         tr.scrollIntoView({
           behavior: "smooth",
