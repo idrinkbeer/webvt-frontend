@@ -1674,11 +1674,17 @@ function jumpToCurrentTime() {
 
   // highlight
   setTimeout(() => {
-    const rows = document.querySelectorAll("#logTable tbody tr");
+const rows = document.querySelectorAll("#logTable tbody tr");
 
-    rows.forEach(tr => tr.classList.remove("active"));
+// 🔥 remove all active
+rows.forEach(tr => tr.classList.remove("active"));
 
-    const targetRow = rows[index];
+// 🔥 ONLY target real data rows (skip recorder rows)
+const dataRows = Array.from(rows).filter(tr => {
+  return !tr.querySelector(".recorder");
+});
+
+const targetRow = dataRows[index];
 
     if (targetRow) {
       targetRow.classList.add("active");
