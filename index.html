@@ -1678,10 +1678,6 @@ function isSongMatch(row) {
     }
   }
 
-  // 🔁 fallback: filename
-  const rowFile = normalizeFilename(row.filename);
-  const nowFile = normalizeFilename(currentFilename);
-
   if (rowFile && nowFile && rowFile === nowFile) {
     return true;
   }
@@ -1700,7 +1696,7 @@ function isSongMatch(row) {
 
 
 function jumpToCurrentTime() {
-  if (!currentTitle && !currentFilename) {
+  if (!currentTitle && !currentCart) {
     console.log("❌ Missing now playing data");
     return;
   }
@@ -1717,7 +1713,7 @@ function jumpToCurrentTime() {
 
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
-  console.log("📁 Filename:", currentFilename);
+  console.log("CART:", currentCart);
 
   const candidateHours = [];
 
