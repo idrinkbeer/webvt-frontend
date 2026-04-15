@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -991,27 +991,31 @@ async function toggleRecording() {
   
 async function startRecording() {
   mediaStream = await navigator.mediaDevices.getUserMedia({
-  audio: {
-    echoCancellation: false,
-    noiseSuppression: false,
-    autoGainControl: false
-  }
-});
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false
+    }
+  });
 
   isDrawingLive = true;
 
+  // 🎤 SHOW CANVAS
   const canvas = document.getElementById("vtLiveCanvas");
-if (canvas) {
+  if (!canvas) return;
+
   canvas.style.display = "block";
-}
+
+  const ctx = canvas.getContext("2d");
+  canvas.width = canvas.offsetWidth;
+  canvas.height = 60;
 
   audioContext = new AudioContext();
 
   const source = audioContext.createMediaStreamSource(mediaStream);
 
-  // 👉 ADD THIS
   const gainNode = audioContext.createGain();
-  gainNode.gain.value = 1.2; // adjust as needed
+  gainNode.gain.value = 1.2;
 
   analyser = audioContext.createAnalyser();
   analyser.fftSize = 256;
@@ -1027,115 +1031,79 @@ if (canvas) {
     samples.push(new Float32Array(input));
   };
 
+  // 🔊 connect audio chain
   source.connect(gainNode);
+  gainNode.connect(analyser);
+  analyser.connect(processor);
+  processor.connect(audioContext.destination);
 
-  // 🎤 LIVE WAVEFORM (mic input)
-if (vtWave) {
-  vtWave.loadDecodedBuffer(new Float32Array(1024)); // clear it
-}
+  // 🎤 LIVE WAVEFORM (CANVAS)
+  const liveAnalyser = audioContext.createAnalyser();
+  liveAnalyser.fftSize = 1024;
 
-// 🎤 LIVE CANVAS WAVEFORM (REAL-TIME)
-const canvas = document.getElementById("vtLiveCanvas");
-const ctx = canvas.getContext("2d");
+  source.connect(liveAnalyser);
 
-canvas.width = canvas.offsetWidth;
-canvas.height = 60;
+  const bufferLength = liveAnalyser.fftSize;
+  const dataArrayLive = new Float32Array(bufferLength);
 
-const liveAnalyser = audioContext.createAnalyser();
-liveAnalyser.fftSize = 1024;
+  function drawLiveWave() {
+    if (!isRecording || !isDrawingLive) return;
 
-source.connect(liveAnalyser);
+    liveAnalyser.getFloatTimeDomainData(dataArrayLive);
 
-const bufferLength = liveAnalyser.fftSize;
-const dataArrayLive = new Float32Array(bufferLength);
+    // clear canvas
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-function drawLiveWave() {
-  if (!isRecording || !isDrawingLive) return;
+    // draw waveform
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#00ff88";
+    ctx.beginPath();
 
-  liveAnalyser.getFloatTimeDomainData(dataArrayLive);
+    const sliceWidth = canvas.width / bufferLength;
+    let x = 0;
 
-  // clear
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < bufferLength; i++) {
+      const v = dataArrayLive[i];
+      const y = (v * canvas.height) / 2 + canvas.height / 2;
 
-  // waveform style (match your theme)
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#00ff88"; // same as songWave
-  ctx.beginPath();
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
 
-  const sliceWidth = canvas.width / bufferLength;
-  let x = 0;
-
-  for (let i = 0; i < bufferLength; i++) {
-    const v = dataArrayLive[i];
-    const y = (v * canvas.height) / 2 + canvas.height / 2;
-
-    if (i === 0) {
-      ctx.moveTo(x, y);
-    } else {
-      ctx.lineTo(x, y);
+      x += sliceWidth;
     }
 
-    x += sliceWidth;
+    ctx.stroke();
+
+    requestAnimationFrame(drawLiveWave);
   }
 
-  ctx.stroke();
+  drawLiveWave();
 
-  requestAnimationFrame(drawLiveWave);
+  // 🎙 store recorder
+  window._recorder = { samples, processor };
+
+  updateVU();
+
+  isRecording = true;
+
+  document.getElementById("recordBtn").textContent = "Stop";
+  document.getElementById("status").textContent = "Recording...";
+
+  // ⏱ timer
+  recordSeconds = 0;
+
+  recordInterval = setInterval(() => {
+    recordSeconds++;
+
+    const mins = Math.floor(recordSeconds / 60);
+    const secs = (recordSeconds % 60).toString().padStart(2, "0");
+
+    const el = document.getElementById("recordTime");
+    if (el) el.textContent = `⏱ ${mins}:${secs}`;
+  }, 1000);
 }
 
-drawLiveWave();
-
-function setupPlayer(player, blob) {
-  player.src = URL.createObjectURL(blob);
-
-  setTimeout(() => {
-    const playBtn = document.getElementById("playBtn");
-    const progressBar = document.getElementById("progressBar");
-    const timeLabel = document.getElementById("time");
-    const progressContainer = document.querySelector(".progress");
-
-    if (!playBtn || !progressBar || !timeLabel) return;
-
-playBtn.onclick = () => {
-  if (vtWave) {
-    vtWave.playPause();
-    playBtn.textContent = vtWave.isPlaying() ? "⏸" : "▶";
-  } else {
-    if (player.paused) {
-      player.play();
-      playBtn.textContent = "⏸";
-    } else {
-      player.pause();
-      playBtn.textContent = "▶";
-    }
-  }
-};
-
-    player.ontimeupdate = () => {
-      if (!player.duration) return;
-
-      const percent = (player.currentTime / player.duration) * 100;
-      progressBar.style.width = percent + "%";
-
-      const minutes = Math.floor(player.currentTime / 60);
-      const seconds = Math.floor(player.currentTime % 60)
-        .toString()
-        .padStart(2, "0");
-
-      timeLabel.textContent = `${minutes}:${seconds}`;
-    };
-
-    if (progressContainer) {
-      progressContainer.onclick = (e) => {
-        const rect = progressContainer.getBoundingClientRect();
-        const percent = (e.clientX - rect.left) / rect.width;
-        player.currentTime = percent * player.duration;
-      };
-    }
-
-  }, 50);
-}
 
 function encodeMP3(samples, sampleRate) {
   const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // mono, 128 kbps
