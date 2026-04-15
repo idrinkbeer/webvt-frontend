@@ -431,7 +431,7 @@ let lastArtist = "";
 let currentCart = "";
 let autoFollowEnabled = true;
 let activeRowIndex = -1;
-let lastStartTime = 0;
+let lastStartTime = "";
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1588,10 +1588,12 @@ async function loadNowPlaying() {
 
 const startTimeKey = currentSongStart.getTime();
 
-if (startTimeKey !== lastStartTime) {
+const songKey = `${startTimeKey}_${currentTitle}`;
+
+if (songKey !== lastStartTime) {
   console.log("🎵 Song changed → updating highlight");
 
-  lastStartTime = startTimeKey;
+  lastStartTime = songKey;
 
   if (autoFollowEnabled) {
     jumpToCurrentTime();
@@ -1771,6 +1773,12 @@ function toggleAutoFollow() {
   });
 
 }, 1000);
+
+  setInterval(() => {
+  if (autoFollowEnabled) {
+    jumpToCurrentTime();
+  }
+}, 10000);
 
 </script>
 
