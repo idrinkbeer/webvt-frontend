@@ -98,15 +98,23 @@ button:hover {
 
 /* VU METER */
 .vu-container {
-  height: 10px;
-  background: #222;
-  margin-top: 10px;
+  width: 180px;
+  height: 18px;              /* 🔥 thicker */
+  background: #111;
+  border: 2px solid #000;
+  position: relative;
 }
 
 #vuBar {
-  height: 10px;
+  height: 100%;
   width: 0%;
-  background: #00cc33;
+  background: linear-gradient(
+    to right,
+    #00cc33 0%,
+    #00cc33 60%,
+    #ffcc00 80%,
+    #cc0000 100%
+  );
 }
 
 /* AUDIO PLAYER (KEEP FUNCTIONAL, JUST RESTYLE) */
@@ -424,7 +432,6 @@ let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
 let isDrawingLive = false;
-let livePeaks = [];
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -710,21 +717,24 @@ function renderTable() {
       recorderRow.innerHTML = `
         <td colspan="6">
           <div class="recorder">
-            🎙️ Recording for Cart: ${row.cart}<br><br>
+            Recording VT Cart: ${row.cart}<br><br>
 
-            <button id="recordBtn" onclick="toggleRecording()">Start</button>
+<div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
 
-            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-              Upload to AIR
-            </button>
+  <button id="recordBtn" onclick="toggleRecording()">Start</button>
 
-            <div class="vu-container">
-              <div id="vuBar"></div>
-            </div>
+  <button id="uploadBtn" onclick="uploadToAIR()" disabled>
+    Upload to AIR
+  </button>
+
+  <div class="vu-container">
+    <div id="vuBar"></div>
+  </div>
+
+</div>
 
             <div id="status"></div>
-            <div id="recordTime">⏱ 0:00</div>
-<div id="vtWaveform" style="margin-top:5px;"></div>
+            <div id="recordTime">0:00</div>
             <div id="songWaveform" style="margin-top:10px;"></div>
             <div class="audio-player">
 <div style="margin-top:10px;">
@@ -1067,59 +1077,6 @@ async function startRecording() {
 
   // ✅ START RECORDING STATE BEFORE DRAW
   isRecording = true;
-  livePeaks = [];
-
-  // =========================
-  // 🔥 LIVE VT WAVEFORM (WAVESURFER)
-  // =========================
-  const liveAnalyser = audioContext.createAnalyser();
-  liveAnalyser.fftSize = 1024;
-
-  source.connect(liveAnalyser);
-
-  const bufferLength = liveAnalyser.fftSize;
-  const dataArrayLive = new Float32Array(bufferLength);
-
-  // 🎨 make it red while recording (optional but 🔥)
-  if (vtWave) {
-    vtWave.empty();
-
-    vtWave.setOptions({
-      waveColor: "#ff0000",
-      progressColor: "#ff4444"
-    });
-  }
-
-function drawLiveWaveform() {
-  if (!isRecording) return;
-
-  liveAnalyser.getFloatTimeDomainData(dataArrayLive);
-
-  const step = Math.floor(bufferLength / 120);
-
-  // 🎯 build new chunk of peaks
-  const newPeaks = [];
-  for (let i = 0; i < bufferLength; i += step) {
-    newPeaks.push(Math.abs(dataArrayLive[i]));
-  }
-
-  // 🔁 append + trim (this creates scrolling effect)
-  livePeaks.push(...newPeaks);
-
-  const maxPeaks = 200; // controls visible width
-  if (livePeaks.length > maxPeaks) {
-    livePeaks.splice(0, livePeaks.length - maxPeaks);
-  }
-
-  // 🎨 draw into WaveSurfer
-  if (vtWave) {
-    vtWave.load("", livePeaks);
-  }
-
-  requestAnimationFrame(drawLiveWaveform);
-}
-
-  drawLiveWaveform();
 
   updateVU();
 
@@ -1287,7 +1244,12 @@ function updateVU() {
   let sum = dataArray.reduce((a,b)=>a+b,0);
   let avg = sum / dataArray.length;
 
-  document.getElementById("vuBar").style.width = (avg/255*100) + "%";
+  let level = avg / 255;
+
+// 🔥 boost + curve (feels more like real console)
+level = Math.pow(level, 0.6);
+
+document.getElementById("vuBar").style.width = (level * 100) + "%";
 
   requestAnimationFrame(updateVU);
 }
