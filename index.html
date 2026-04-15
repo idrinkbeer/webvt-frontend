@@ -438,6 +438,7 @@ let lastTitle = "";
 let lastArtist = "";
 let previewTimeout = null;
 let isVUActive = false;
+let vuAudioContext = null;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -691,6 +692,7 @@ function filterByHour(hour) {
   renderTable();
 }
 
+
 const vuConnections = new WeakMap();
 
 function connectWaveToVU(wave) {
@@ -700,7 +702,7 @@ function connectWaveToVU(wave) {
     const media = wave.getMediaElement();
     if (!media) return;
 
-    // 🔁 reuse existing connection
+    // reuse existing connection
     if (vuConnections.has(media)) {
       const existing = vuConnections.get(media);
       analyser = existing.analyser;
@@ -711,8 +713,15 @@ function connectWaveToVU(wave) {
       return;
     }
 
-    // 🔥 create ONCE
-    const ac = new (window.AudioContext || window.webkitAudioContext)();
+if (!vuAudioContext) {
+  vuAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+const ac = vuAudioContext;
+
+if (ac.state === "suspended") {
+  ac.resume();
+}
 
     const source = ac.createMediaElementSource(media);
     const analyserNode = ac.createAnalyser();
@@ -724,7 +733,6 @@ function connectWaveToVU(wave) {
 
     const data = new Uint8Array(analyserNode.frequencyBinCount);
 
-    // 💾 store it
     vuConnections.set(media, {
       analyser: analyserNode,
       dataArray: data
