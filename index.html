@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1711,11 +1711,21 @@ function toggleAutoFollow() {
     // 🔥 immediately sync when turned on
     jumpToCurrentTime();
 
-  } else {
-    btn.classList.remove("air-btn-green");
-    btn.classList.add("air-btn-red");
-    btn.textContent = "AUTO OFF";
-  }
+else {
+  btn.classList.remove("air-btn-green");
+  btn.classList.add("air-btn-red");
+  btn.textContent = "AUTO OFF";
+
+  // 🧼 CLEAR ACTIVE ROW + ON AIR
+  const rows = document.querySelectorAll("#logTable tbody tr");
+
+  rows.forEach(tr => {
+    tr.classList.remove("active");
+
+    const badge = tr.querySelector(".on-air");
+    if (badge) badge.remove();
+  });
+}
 
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
