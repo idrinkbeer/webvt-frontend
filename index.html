@@ -1544,7 +1544,7 @@ const startTimeStr = lines[0];
 currentArtist = (lines[2] || "").toLowerCase();
 currentTitle = (lines[3] || "").toLowerCase();
 
-currentCart = (lines[4] || "").trim();
+currentCart = (lines[5] || "").trim();
 
 const artist = lines[2];
 const title = lines[3];
@@ -1655,34 +1655,25 @@ function normalizeText(str) {
     .trim();
 }
 
-function normalizeFilename(name) {
-  return (name || "")
-    .toLowerCase()
-    .replace(".mp3", "")
-    .replace(/&/g, "and")
-    .replace(/feat\.?/g, "")
-    .replace(/\(.*?\)/g, "")        // remove (feat. ...)
-    .replace(/[^a-z0-9\s]/g, " ")   // remove punctuation
-    .replace(/\s+/g, " ")
-    .trim();
+function normalizeCart(cart) {
+  return (cart || "").toString().padStart(6, "0");
 }
 
 function isSongMatch(row) {
   if (!row || row.type !== "SONG") return false;
 
-  // ✅ PRIMARY: CART MATCH (BEST RIGHT NOW)
-  if (currentCart && row.cart) {
-    if (row.cart === currentCart) {
-      console.log("✅ Cart match:", row.cart);
-      return true;
-    }
-  }
+  const rowCart = normalizeCart(row.cart);
+  const nowCart = normalizeCart(currentCart);
 
-  if (rowFile && nowFile && rowFile === nowFile) {
+  console.log("🔍 CART compare:", rowCart, "vs", nowCart);
+
+  // ✅ PRIMARY MATCH
+  if (rowCart && nowCart && rowCart === nowCart) {
+    console.log("✅ Cart match:", rowCart);
     return true;
   }
 
-  // 🔁 fallback: title/artist
+  // 🔁 fallback (just in case)
   const rowTitle = normalizeText(row.title);
   const rowArtist = normalizeText(row.artist);
   const nowTitle = normalizeText(currentTitle);
@@ -1713,7 +1704,7 @@ function jumpToCurrentTime() {
 
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
-  console.log("CART:", currentCart);
+  console.log("🆔 Cart:", currentCart);
 
   const candidateHours = [];
 
