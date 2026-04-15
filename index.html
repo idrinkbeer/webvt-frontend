@@ -50,16 +50,16 @@ tr:hover {
   cursor: pointer;
 }
 
-
-/* ON AIR row */
-.onair {
-  position: relative;
+/* CURRENT PLAYING */
+.active {
   color: #000;
+  position: relative;
+  /*overflow: hidden;*/
 }
 
-/* ON AIR blinking text */
-.onair::after {
-  content: "● ON AIR";
+/* ON AIR overlay */
+.active::after {
+  content: "ON AIR";
   position: absolute;
   left: 50%;
   top: 50%;
@@ -69,18 +69,9 @@ tr:hover {
   font-weight: bold;
   color: #ff0000;
 
-  animation: blink 1s steps(2, start) infinite;
   pointer-events: none;
-}
 
-/* selected (voicetrack) row */
-.selected {
-  outline: 2px solid #ffff00;
-}
-
-/* allow gradient to show through cells */
-#logTable tbody tr.onair td {
-  background: transparent !important;
+  animation: blink 1s steps(2, start) infinite;
 }
 
 @keyframes blink {
@@ -166,16 +157,6 @@ button:hover {
 #time {
   font-size: 12px;
   color: #ccc;
-}
-
-#playhead {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: red;
-  z-index: 10;
-  pointer-events: none;
 }
 
 /* LOGIN SCREEN (AIR STYLE) */
@@ -266,6 +247,7 @@ button:hover {
 }
 
 
+
 select {
   background: #0033cc;
   color: #fff;
@@ -299,175 +281,6 @@ select {
 select + select {
   margin-left: 5px;
 }
-
-/* ===== RECORDER AIR LAYOUT ===== */
-
-.recorder {
-  background: #001a66;
-  border: 2px solid #000;
-  padding: 10px;
-}
-
-/* TOP BAR */
-.recorder-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.rec-title {
-  font-size: 14px;
-  color: #fff;
-}
-
-.rec-controls {
-  display: flex;
-  gap: 8px;
-}
-
-.rec-time {
-  font-size: 14px;
-  color: #fff;
-}
-
-/* WAVEFORM */
-.waveform {
-  height: 70px;
-  margin: 8px 0;
-  background: #001a66;
-}
-
-/* BOTTOM SECTION */
-.rec-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.rec-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.rec-progress {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 40%;
-}
-
-/* tighten buttons */
-.recorder .air-btn {
-  min-width: 130px;
-  padding: 6px 10px;
-}
-
-/* progress bar matches AIR */
-.recorder .progress {
-  flex: 1;
-  height: 6px;
-  background: #222;
-  border: 1px solid #000;
-}
-
-.recorder #progressBar {
-  height: 100%;
-  background: #00cc33;
-}
-
-/* status text */
-#status {
-  margin-top: 6px;
-  font-size: 12px;
-}
-
-/* VU + TIMER WRAP */
-.rec-time-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* SMALL AIR VU METER */
-.vu-inline {
-  width: 100px;
-  height: 10px;
-  background: #111;
-  border: 1px solid #000;
-  position: relative;
-}
-
-/* LEVEL BAR */
-#vuBar {
-  height: 100%;
-  width: 0%;
-  background: #00cc33;
-  transition: width 0.05s linear;
-}
-
-.waveform-wrap {
-  position: relative;
-}
-
-
-#vtEditor {
-  position: relative;
-  height: 80px;
-  background: #111;
-  overflow: hidden;
-}
-
-.block-label {
-  font-size: 12px;
-  color: white;
-  padding: 4px 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  pointer-events: none;
-}
-
-/* VT block */
-#vtBlock {
-  position: absolute;
-  top: 10px;
-  height: 30px;
-  background: #00cc33;
-  color: #000;
-  display: flex;
-  align-items: center;
-  cursor: grab;
-  z-index: 2; /* 🔥 important so it sits above */
-}
-
-
-#introRegion {
-  background: rgba(255, 255, 0, 0.6); /* intro */
-}
-
-#songBlock {
-  background: linear-gradient(
-    to right,
-    rgba(255,255,0,0.6) 0%,
-    rgba(255,255,0,0.6) var(--intro-width),
-    #0099ff var(--intro-width),
-    #0099ff 100%
-  );
-}
-
-#vtBlock,
-#songBlock {
-  position: absolute;
-  top: 10px;
-  height: 30px;
-  cursor: grab;
-}
-
-#songBlock {
-  top: 45px; /* below VT */
-}
-
     
 </style>
 </head>
@@ -600,9 +413,8 @@ let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
 let uploaded = {};
-let secTones = {};
 let vtWave;
-let songAudio = null;
+let songWave;
 let isPreviewPlaying = false;
 let vtFinished = false;
 let songFinished = false;
@@ -612,14 +424,10 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
-let vuActive = false;
-let previewTimer = null;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
-const PX_PER_SEC = 50; // tweak this
-
 
 // =====================
 // LOGIN SYSTEM 
@@ -876,7 +684,7 @@ function renderTable() {
     const tr = document.createElement("tr");
 
     if (row.type === "VTX") tr.classList.add("vtx");
-    if (i === selectedIndex) tr.classList.add("selected");
+    if (i === selectedIndex) tr.classList.add("active");
 
     tr.innerHTML = `
       <td>${row.time}</td>
@@ -895,163 +703,132 @@ function renderTable() {
     tr.onclick = () => selectRow(i);
     tableBody.appendChild(tr);
 
-    // 🎙 SHOW RECORDER FOR SELECTED VTX
     if (i === selectedIndex && row.type === "VTX") {
       const recorderRow = document.createElement("tr");
 
       recorderRow.innerHTML = `
         <td colspan="6">
           <div class="recorder">
+            🎙️ Recording for Cart: ${row.cart}<br><br>
 
-            <div class="recorder-top">
-              <div class="rec-title">🎙 Recording for Cart: ${row.cart}</div>
+            <button id="recordBtn" onclick="toggleRecording()">Start</button>
 
-              <div class="rec-controls">
-                <button id="recordBtn" class="air-btn" onclick="toggleRecording()">START</button>
-                <button id="uploadBtn" class="air-btn" onclick="uploadToAIR()" disabled>UPLOAD TO AIR</button>
-              </div>
+            <button id="uploadBtn" onclick="uploadToAIR()" disabled>
+              Upload to AIR
+            </button>
 
-              <div class="rec-time-wrap">
-                <div class="rec-time" id="recordTime">⏱ 0:00</div>
-                <div class="vu-inline">
-                  <div id="vuBar"></div>
-                </div>
-              </div>
-            </div>
-
-            <div id="vtEditor">
-            <div id="playhead"></div>
-              <div id="vtWaveform" style="display:none;"></div>
-              <div id="vtBlock"></div>
-              <div id="songBlock">
-                <div id="introRegion"></div>
-              </div>
-            </div>
-
-            <div class="rec-bottom">
-              <div class="rec-buttons">
-                <button class="air-btn air-btn-green" onclick="previewVT()">PREVIEW VT</button>
-                <button class="air-btn air-btn-green" onclick="previewBreak()">PREVIEW BREAK</button>
-              </div>
-
-              <div class="rec-progress">
-                <div class="progress" style="position:relative;">
-                  <div id="progressBar"></div>
-                  <div id="secMarker"></div>
-                </div>
-                <span id="time">0:00</span>
-              </div>
+            <div class="vu-container">
+              <div id="vuBar"></div>
             </div>
 
             <div id="status"></div>
+            <div id="recordTime">⏱ 0:00</div>
+            <div id="vtWaveform" style="margin-top:10px;"></div>
+            <div id="songWaveform" style="margin-top:10px;"></div>
+            <div class="audio-player">
+<div style="margin-top:10px;">
+  <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
+  <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
+</div>
+  <div class="progress">
+    <div id="progressBar"></div>
+  </div>
+  <span id="time">0:00</span>
+</div>
 
+<audio id="player"></audio>
           </div>
-
-          <audio id="player"></audio>
         </td>
       `;
 
       tableBody.appendChild(recorderRow);
+      // 🎧 Init waveform
+setTimeout(() => {
+  const vtContainer = document.getElementById("vtWaveform");
+  const songContainer = document.getElementById("songWaveform");
 
-      const rowData = filteredLog[selectedIndex];
+  if (!vtContainer || !songContainer) return;
 
-// 🔁 Restore previous recording
-const saved = recordings[rowData.cart];
-if (saved) {
-  const player = document.getElementById("player");
+  vtWave = WaveSurfer.create({
+    container: "#vtWaveform",
+    waveColor: "#facc15",
+    progressColor: "#eab308",
+    height: 60
+  });
 
-  setupPlayer(player, saved);
+  songWave = WaveSurfer.create({
+    container: "#songWaveform",
+    waveColor: "#334155",
+    progressColor: "#22c55e",
+    height: 60
+  });
 
-  recordedBlob = saved;
-  document.getElementById("uploadBtn").disabled = false;
-  document.getElementById("status").textContent = "VT Previously recorded";
-}
+  const rowData = filteredLog[selectedIndex];
+  if (!rowData) return;
 
-// 🔁 Restore upload state
-if (uploaded[rowData.cart]) {
-  const btn = document.getElementById("uploadBtn");
-  const status = document.getElementById("status");
+  const { nextSong } = getPrevNextSongs(selectedIndex);
 
-  btn.textContent = "VT Uploaded ✓";
-  btn.disabled = true;
-  status.textContent = "✅ Already uploaded";
-}
-
-      // 🎧 INIT EVERYTHING AFTER DOM EXISTS
-      setTimeout(() => {
-        const vtContainer = document.getElementById("vtWaveform");
-        if (!vtContainer) return;
-
-        // 🔥 DESTROY OLD WAVEFORM
-if (vtWave) {
-  try {
-    vtWave.destroy();
-  } catch (e) {
-    console.warn("Wave destroy error:", e);
+  // 🎙 preload VT
+  const saved = recordings[rowData.cart];
+  if (saved) {
+    vtWave.load(URL.createObjectURL(saved));
   }
-  vtWave = null;
-}
 
-        vtWave = WaveSurfer.create({
-          container: "#vtWaveform",
-          waveColor: "#facc15",
-          progressColor: "#eab308",
-          height: 60
-        });
+  // 🎵 preload next song
+  if (nextSong) {
+    const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+    songWave.load(songUrl);
+  }
 
-        const rowData = filteredLog[selectedIndex];
-        if (!rowData) return;
+  // ✅ Track readiness
+  let vtReady = false;
+  let songReady = false;
 
-        const { nextSong } = getPrevNextSongs(selectedIndex);
+  vtWave.once("ready", () => {
+    vtReady = true;
+    checkReady();
+  });
 
-        // 🎙 Load VT
-        const saved = recordings[rowData.cart];
-        if (saved) {
-          vtWave.load(URL.createObjectURL(saved));
-        }
+  songWave.once("ready", () => {
+    songReady = true;
+    checkReady();
+  });
 
-        // restore sec tone
-        if (secTones[rowData.cart] !== undefined) {
-          secToneTime = secTones[rowData.cart];
-        }
+  function checkReady() {
+    if (vtReady && songReady) {
+      console.log("🔥 Both waveforms ready");
+      window.isAudioReady = true;
+    }
+  }
 
-        // 🎵 preload next song
-        if (nextSong) {
-          const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
-          songAudio = new Audio(songUrl);
-          songAudio.preload = "auto";
-        }
+}, 50);
 
-        vtWave.once("ready", () => {
-          console.log("🔥 VT ready");
-          window.isAudioReady = true;
+      // 🔁 Restore previous recording if exists
+      const rowData = filteredLog[selectedIndex];
+      const saved = recordings[rowData.cart];
 
-          const vtDuration = vtWave.getDuration();
-          const songDuration = 240;
-          const intro = nextSong?.intro || 0;
-          const secTone = secTones[rowData.cart] ?? 0;
+      if (saved) {
+        const player = document.getElementById("player");
 
-          // 🎯 DRAW BLOCK UI
-          drawBlocks(vtDuration, songDuration, intro, secTone);
+        setupPlayer(player, saved);
 
+        recordedBlob = saved;
+        document.getElementById("uploadBtn").disabled = false;
+        document.getElementById("status").textContent = "VT Previously recorded";
+      }
 
-          // 🖱 ENABLE DRAGGING
-          setTimeout(() => {
-            setupDragging();
-          }, 50);
-        });
+      // 🔁 Restore upload state
+      if (uploaded[rowData.cart]) {
+        const btn = document.getElementById("uploadBtn");
+        const status = document.getElementById("status");
 
-      }, 50);
+        btn.textContent = "VT Uploaded ✓";
+        btn.disabled = true;
+        status.textContent = "✅ Already uploaded";
+      }
     }
   });
 }
-
-
-function checkReady() {
-  console.log("🔥 VT ready");
-  window.isAudioReady = true;
-}
-
 
 
 let previewAudio = null;
@@ -1106,59 +883,8 @@ function playSong(filename, btn) {
 
 function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
-
   selectedIndex = i;
-
-  // 🔥 CLEAN UP BEFORE SWITCHING
-if (vtWave) {
-  try { vtWave.destroy(); } catch(e){}
-  vtWave = null;
-}
-
-if (songAudio) {
-  songAudio.pause();
-  songAudio.currentTime = 0;
-}
-
-isPreviewPlaying = false;
-previewTimer && clearTimeout(previewTimer);
-previewTimer = null;
-
   renderTable();
-
-  // 🔥 ONLY restore ON AIR visually (no re-filtering!)
-  setTimeout(() => {
-    if (autoFollowEnabled) {
-      applyOnAirHighlight(); // 👈 new function
-    }
-  }, 100);
-}
-
-function applyOnAirHighlight() {
-  const rows = document.querySelectorAll("#logTable tbody tr");
-
-  rows.forEach(tr => {
-    tr.classList.remove("onair");
-
-function normalize(str) {
-  return (str || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "") // remove junk
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-const rowText = normalize(tr.textContent);
-const title = normalize(currentTitle);
-const artist = normalize(currentArtist);
-
-if (
-  rowText.includes(title) ||
-  rowText.includes(artist)
-){
-      tr.classList.add("onair");
-    }
-  });
 }
 
   // TRIM SILENCE ON WAV VT
@@ -1205,56 +931,54 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
 // RECORDING
 // =====================
 async function toggleRecording() {
-  try {
+  // 1️⃣ START RECORDING
+  if (recordStage === 0) {
+    await startRecording();
 
-    if (recordStage === 0) {
-      await startRecording();
+    recordStage = 1;
+    secToneTime = null;
 
-      recordStage = 1;
-      secToneTime = null;
+    document.getElementById("recordBtn").textContent = "Fire Song";
+    return;
+  }
 
-      document.getElementById("recordBtn").textContent = "Fire Song";
+  // 2️⃣ FIRE SONG (SET MARKER)
+  if (recordStage === 1) {
+    const { nextSong } = getPrevNextSongs(selectedIndex);
+
+    if (!nextSong) {
+      alert("No next song");
       return;
     }
 
-    if (recordStage === 1) {
-const { nextSong } = getPrevNextSongs(selectedIndex);
-
-if (!nextSong) {
-  alert("No next song");
-  return;
-}
-
-if (songAudio) {
-  songAudio.currentTime = 0;
-  songAudio.volume = 0.3;
-  songAudio.play();
-}
-
-      secToneTime = recordSeconds;
-
-      recordStage = 2;
-      document.getElementById("recordBtn").textContent = "Stop & Save";
-      return;
+    // play song immediately
+    if (songWave) {
+      songWave.stop();
+      songWave.play();
+      songWave.setVolume(0.3);
     }
 
-    if (recordStage === 2) {
-      await stopRecording();
+    // 🎯 MARK THE MOMENT
+    secToneTime = recordSeconds;
 
-      recordStage = 0;
-      document.getElementById("recordBtn").textContent = "Start";
-    }
+    console.log("🎯 SecTone marked at:", secToneTime);
 
-  } catch (err) {
-    console.error("🔥 RECORD ERROR:", err);
-    alert("Recording failed — check console");
+    recordStage = 2;
+    document.getElementById("recordBtn").textContent = "Stop & Save";
+    return;
+  }
+
+  // 3️⃣ STOP + SAVE
+  if (recordStage === 2) {
+    await stopRecording();
+
+    recordStage = 0;
+    document.getElementById("recordBtn").textContent = "Start";
   }
 }
 
   
 async function startRecording() {
-  vuActive = true;
-  updateVU();
   mediaStream = await navigator.mediaDevices.getUserMedia({
   audio: {
     echoCancellation: false,
@@ -1394,13 +1118,7 @@ function encodeMP3(samples, sampleRate) {
 }
   
 async function stopRecording() {
-  vuActive = false;
-
-  const vu = document.getElementById("vuBar");
-  if (vu) vu.style.width = "0%";
-
   await new Promise(r => setTimeout(r, 50));
-
   // ⏱ STOP TIMER
   if (recordInterval) {
     clearInterval(recordInterval);
@@ -1408,9 +1126,9 @@ async function stopRecording() {
   }
 
   const { samples, processor } = window._recorder;
+
   processor.disconnect();
 
-  // 🎧 Flatten audio
   let length = samples.reduce((sum, s) => sum + s.length, 0);
   let flat = new Float32Array(length);
 
@@ -1421,19 +1139,24 @@ async function stopRecording() {
   }
 
   const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
-  const duration = trimmed.length / audioContext.sampleRate;
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
-
-  let secToneSeconds;
 
 const row = filteredLog[selectedIndex];
 const { nextSong } = getPrevNextSongs(selectedIndex);
 
+// 🎯 CALCULATE DURATION
+const duration = trimmed.length / audioContext.sampleRate;
+
+// 🎯 DETERMINE SEC TONE (manual OR fallback)
+let secToneSeconds;
+
 if (secToneTime !== null) {
+  // ✅ USER SET IT MANUALLY
   secToneSeconds = secToneTime;
   console.log("🎯 Using manual Sec Tone:", secToneSeconds);
 } else {
+  // 🔁 FALLBACK AUTO LOGIC
   if (nextSong && duration > nextSong.intro) {
     secToneSeconds = duration - nextSong.intro;
   } else {
@@ -1442,57 +1165,34 @@ if (secToneTime !== null) {
   console.log("🤖 Using auto Sec Tone:", secToneSeconds);
 }
 
-  // 💾 Save sec tone
-  secTones[row.cart] = secToneSeconds;
-
-  // 🎯 Convert for AIR (remaining time)
-  const remaining = duration - secToneSeconds;
-  const secTone = Math.floor(remaining * 1000);
-
-  // 🏷 Tag MP3
-  recordedBlob = await addID3Tags(
-    rawBlob,
-    row,
-    nextSong,
-    duration,
-    secTone
-  );
+// 🎯 CONVERT TO SAMPLES (AIR FORMAT)
+const remaining = duration - secToneSeconds;
+const secTone = Math.floor(remaining * 1000);
+  
+// 🎯 PASS TO TAGGING
+recordedBlob = await addID3Tags(
+  rawBlob,
+  row,
+  nextSong,
+  duration,
+  secTone
+);
 
   recordings[row.cart] = recordedBlob;
 
-  // 🎧 Player preview
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
+     if (vtWave) {
+      window.isAudioReady = false;
 
-  // 🔥 Reload waveform + UI
-  if (vtWave) {
-    window.isAudioReady = false;
+      vtWave.load(URL.createObjectURL(recordedBlob));
 
-    vtWave.load(URL.createObjectURL(recordedBlob));
+      vtWave.once("ready", () => {
+        console.log("🎙 VT ready after recording");
+        window.isAudioReady = true;
+      });
+    }
 
-    vtWave.once("ready", () => {
-      console.log("🎙 VT ready after recording");
-      window.isAudioReady = true;
-
-      const { nextSong } = getPrevNextSongs(selectedIndex);
-      const rowData = filteredLog[selectedIndex];
-
-      const vtDuration = vtWave.getDuration();
-      const songDuration = 240; // temp fallback
-      const intro = nextSong?.intro || 0;
-      const secTone = secTones[rowData.cart] ?? 0;
-
-      // 🎯 DRAW BLOCKS
-      drawBlocks(vtDuration, songDuration, intro, secTone);
-
-      // 🖱 Enable dragging
-      setTimeout(() => {
-        setupDragging();
-      }, 50);
-    });
-  }
-
-  // ✅ UI updates
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
 
@@ -1506,39 +1206,27 @@ if (secToneTime !== null) {
   isRecording = false;
   document.getElementById("recordBtn").textContent = "Start";
 
-  // 🔊 Stop song
-  if (songAudio) {
-    songAudio.pause();
-    songAudio.currentTime = 0;
-    songAudio.volume = 1;
+  // 🔊 stop song + restore volume
+  if (songWave) {
+    songWave.setVolume(1);
+    songWave.stop();
   }
+
+
 }
 
 // =====================
 // VU
 // =====================
 function updateVU() {
-  if (!vuActive || !analyser) return;
-
-  const vu = document.getElementById("vuBar");
-  if (!vu) return;
+  if (!analyser) return;
 
   analyser.getByteFrequencyData(dataArray);
 
-  let sum = dataArray.reduce((a, b) => a + b, 0);
+  let sum = dataArray.reduce((a,b)=>a+b,0);
   let avg = sum / dataArray.length;
 
-  let percent = (avg / 255) * 100;
-
-  vu.style.width = percent + "%";
-
-  if (percent > 85) {
-    vu.style.background = "#ff0000";
-  } else if (percent > 60) {
-    vu.style.background = "#ffcc00";
-  } else {
-    vu.style.background = "#00cc33";
-  }
+  document.getElementById("vuBar").style.width = (avg/255*100) + "%";
 
   requestAnimationFrame(updateVU);
 }
@@ -1567,10 +1255,7 @@ function getPrevNextSongs(index) {
 
 
 async function previewBreak() {
-  if (!vtWave || !window.isAudioReady) {
-  alert("VT still loading...");
-  return;
-}
+  // 🔁 toggle
   if (isPreviewPlaying) {
     stopPreview();
     return;
@@ -1578,80 +1263,83 @@ async function previewBreak() {
 
   if (selectedIndex === null) return;
 
+  const { nextSong } = getPrevNextSongs(selectedIndex);
   const row = filteredLog[selectedIndex];
 
-  const { nextSong } = getPrevNextSongs(selectedIndex);
-
-if (!nextSong) return alert("Missing next song");
+  if (!nextSong) {
+    alert("Missing next song");
+    return;
+  }
 
   const vtBlob = recordings[row.cart];
-  if (!vtBlob) return alert("No VT recorded");
+  if (!vtBlob) {
+    alert("No VT recorded");
+    return;
+  }
 
+  // 🧼 reset state
   vtFinished = false;
   songFinished = false;
 
+  // 🛑 stop anything already playing
   if (vtWave) vtWave.stop();
-  if (songAudio) {
-    songAudio.pause();
-    songAudio.currentTime = 0;
-  }
-
-  if (!vtWave) {
-  alert("VT not loaded yet");
-  return;
-}
+  if (songWave) songWave.stop();
 
 const vtDuration = vtWave.getDuration();
 
-  let songDelay = secToneTime !== null
-    ? secToneTime
-    : Math.max(0, vtDuration - (nextSong.intro || 0));
+// 🎯 USE MANUAL SEC TONE IF AVAILABLE
+let songDelay = 0;
 
-  console.log("🎯 Preview delay:", songDelay);
+if (secToneTime !== null) {
+  songDelay = secToneTime;
+  console.log("🎯 Preview using manual Sec Tone:", songDelay);
+} else {
+  // 🔁 fallback to old logic
+  const intro = nextSong.intro || 0;
 
-vtWave.play();
-updatePlayhead();
+  if (vtDuration > intro) {
+    songDelay = vtDuration - intro;
+  } else {
+    songDelay = vtDuration;
+  }
+
+  console.log("🤖 Preview using auto timing:", songDelay);
+}
+
+  //console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
+
+  // ▶ start VT immediately
+  vtWave.play();
 
   isPreviewPlaying = true;
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
   if (btn) btn.textContent = "Stop Preview";
 
-previewTimer = setTimeout(() => {
-  if (!isPreviewPlaying) return; // 🔥 prevents restart
+  // ▶ start song
+  setTimeout(() => {
+    songWave.play();
+    songWave.setVolume(0.3);
+  }, songDelay * 1000);
 
-  if (songAudio) {
-    songAudio.currentTime = 0;
-    songAudio.volume = 0.3;
-    songAudio.play();
-
-    songAudio.onended = () => {
-      songFinished = true;
-      checkPreviewEnd();
-    };
-  }
-}, songDelay * 1000);
-
+  // 🎙 VT finished
   vtWave.once("finish", () => {
     vtFinished = true;
+    songWave.setVolume(1);
+    checkPreviewEnd();
+  });
+
+  // 🎵 SONG finished
+  songWave.once("finish", () => {
+    songFinished = true;
     checkPreviewEnd();
   });
 }
 
 
 function stopPreview() {
-
-  // 🔥 CANCEL delayed song start
-if (previewTimer) {
-  clearTimeout(previewTimer);
-  previewTimer = null;
-}
   if (vtWave) vtWave.stop();
-
-  if (songAudio) {
-    songAudio.pause();
-    songAudio.currentTime = 0;
-  }
+  if (songWave) songWave.stop();
 
   vtFinished = false;
   songFinished = false;
@@ -1679,6 +1367,7 @@ function checkPreviewEnd() {
 
 
 function previewVT() {
+  // 🔁 toggle behavior (same as previewBreak)
   if (isPreviewPlaying) {
     stopPreview();
     return;
@@ -1689,26 +1378,32 @@ function previewVT() {
   const row = filteredLog[selectedIndex];
   const vtBlob = recordings[row.cart];
 
-  if (!vtBlob) return alert("No VT recorded");
-
-  if (songAudio) {
-    songAudio.pause();
-    songAudio.currentTime = 0;
+  if (!vtBlob) {
+    alert("No VT recorded");
+    return;
   }
 
+  // 🛑 stop anything else
+  if (songWave) songWave.stop();
   if (vtWave) vtWave.stop();
 
+  vtFinished = false;
+  songFinished = false;
+
+  // ▶ play VT only
   vtWave.play();
-updatePlayhead();
 
   isPreviewPlaying = true;
 
-  const btn = document.querySelector("button[onclick='previewVT()']");
-  if (btn) btn.textContent = "Stop VT";
+  // 🎛 update button text
+  const vtBtn = document.querySelector("button[onclick='previewVT()']");
+  if (vtBtn) vtBtn.textContent = "Stop VT";
 
+  // reset when done
   vtWave.once("finish", () => {
     isPreviewPlaying = false;
-    if (btn) btn.textContent = "Preview VT";
+
+    if (vtBtn) vtBtn.textContent = "Preview VT";
   });
 }
 
@@ -1819,8 +1514,6 @@ setInterval(() => {
 
 let currentSongStart = null;
 let currentSongDuration = 0;
-let currentFilename = "";
-let lastFilename = "";
 
 async function loadNowPlaying() {
   try {
@@ -1835,58 +1528,96 @@ async function loadNowPlaying() {
     const text = await res.text();
     const lines = text.trim().split("\n").map(l => l.trim());
 
-    if (lines.length < 4) return;
-
-    // 🎯 PARSE DATA (adjust indexes if needed)
+    // 🎯 parse data
     const startTimeStr = lines[0];
-    const filenameRaw = lines[12] || "";   // 🔥 filename (NEW)
-    const artistRaw = lines[2] || "";
-    const titleRaw = lines[3] || "";
+currentArtist = (lines[2] || "").toLowerCase();
+currentTitle = (lines[3] || "").toLowerCase();
+
+const artist = lines[2];
+const title = lines[3];
     const duration = parseInt(lines[6]) || 0;
 
-    // 🎯 NORMALIZED VALUES (for matching)
-    currentArtist = artistRaw.toLowerCase();
-    currentTitle = titleRaw.toLowerCase();
-    currentFilename = normalizeFile(filenameRaw); // 🔥 KEY ADD
-
-    // 🎯 STORE ORIGINAL FOR DISPLAY
-    const artist = artistRaw;
-    const title = titleRaw;
-
-    // 🎯 TIME
+    // convert start time
     currentSongStart = new Date(startTimeStr);
     currentSongDuration = duration;
 
-    // 🎯 UI
     document.getElementById("nowPlaying").textContent =
-      `${title} - ${artist}`;
+  `${title} - ${artist}`;
 
-    // 🧪 DEBUG (leave this for now)
-    console.log("🎧 NOW:", title, "|", artist);
-    console.log("📁 FILE:", currentFilename);
+// 🔥 detect song change
+if (
+  currentTitle !== lastTitle ||
+  currentArtist !== lastArtist
+) {
+  console.log("🎵 Song changed → updating highlight");
 
-    // 🔥 DETECT SONG CHANGE (USE FILENAME FIRST)
-    const songChanged =
-      currentFilename !== lastFilename ||
-      currentTitle !== lastTitle ||
-      currentArtist !== lastArtist;
+  lastTitle = currentTitle;
+  lastArtist = currentArtist;
 
-    if (songChanged) {
-      console.log("🎵 Song changed → updating highlight");
-
-      lastFilename = currentFilename;
-      lastTitle = currentTitle;
-      lastArtist = currentArtist;
-
-      if (autoFollowEnabled) {
-        jumpToCurrentTime();
-      }
-    }
-
-  } catch (err) {
-    console.error("❌ NowPlaying Error:", err);
+  if (autoFollowEnabled) {
+    jumpToCurrentTime();
   }
 }
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+setInterval(loadNowPlaying, 3000);
+loadNowPlaying();
+
+setInterval(() => {
+  if (!currentSongStart || !currentSongDuration) return;
+
+  const now = new Date();
+  const elapsed = (now - currentSongStart) / 1000;
+
+  let percent = (elapsed / currentSongDuration) * 100;
+  percent = Math.max(0, Math.min(100, percent));
+
+  // 🎯 top progress bar
+  document.getElementById("playBar").style.width = percent + "%";
+
+  // 🎯 time calculations
+  const mins = Math.floor(elapsed / 60);
+  const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
+
+  const remaining = currentSongDuration - elapsed;
+  const rmins = Math.floor(remaining / 60);
+  const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
+
+  // 🔥 choose display style
+  const timeText = `-${rmins}:${rsecs}`; 
+  // OR:
+  // const timeText = `${mins}:${secs} / -${rmins}:${rsecs}`;
+
+  // 🎯 row fill + overlay
+  const activeRow = document.querySelector("#logTable tbody tr.active");
+
+  if (activeRow) {
+    activeRow.style.background = `
+      linear-gradient(
+        to right,
+        #00cc33 ${percent}%,
+        #0b3d91 ${percent}%
+      )
+    `;
+  }
+
+  // 🧼 cleanup other rows
+  document.querySelectorAll("#logTable tbody tr").forEach(tr => {
+    if (!tr.classList.contains("active")) {
+      tr.style.background = "";
+      tr.removeAttribute("data-time"); // 🔥 important
+    }
+  });
+
+  // 🎯 top time display
+  document.getElementById("elapsed").textContent = `${mins}:${secs}`;
+  document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
+
+}, 1000);
 
 function getTodayLogName() {
   const now = new Date();
@@ -1900,38 +1631,14 @@ function getTodayLogName() {
   
 
 
-function normalize(str) {
-  return (str || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeFile(str) {
-  return (str || "")
-    .toLowerCase()
-    .replace(/\\/g, "/")        // windows paths → unix
-    .split("/")                // remove path
-    .pop()
-    .replace(/\.[^/.]+$/, "")  // remove extension
-    .trim();
-}
-
 function jumpToCurrentTime() {
-  if (!autoFollowEnabled) {
-    document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-      tr.classList.remove("onair");
-    });
-    return;
-  }
-
   if (!currentTitle || !currentArtist) {
     console.log("❌ Missing now playing data");
     return;
   }
 
   const now = new Date();
+
   const hourSelect = document.getElementById("hourSelect");
   const availableHours = Array.from(hourSelect.options).map(o => o.value);
 
@@ -1943,6 +1650,7 @@ function jumpToCurrentTime() {
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
 
+  // 🎯 STEP 1: pick correct hour
   let selectedHour = availableHours.includes(startHour)
     ? startHour
     : nowHour;
@@ -1952,74 +1660,50 @@ function jumpToCurrentTime() {
 
   filterByHour(selectedHour);
 
+  // 🎯 STEP 2: find song
   setTimeout(() => {
+    const rows = document.querySelectorAll("#logTable tbody tr");
+
     let found = false;
 
-    const title = normalize(currentTitle);
-    const artist = normalize(currentArtist);
+    rows.forEach(tr => {
+      tr.classList.remove("active");
 
-    // 🎯 MATCH USING TITLE/ARTIST → THEN USE FILENAME FROM LOG
-    for (let i = 0; i < filteredLog.length; i++) {
-      const row = filteredLog[i];
-      if (row.type !== "SONG") continue;
+      const text = tr.textContent.toLowerCase();
 
-      const rowTitle = normalize(row.title);
-      const rowArtist = normalize(row.artist);
+      if (
+        text.includes(currentTitle) &&
+        text.includes(currentArtist)
+      ) {
+        tr.classList.add("active");
 
-      const titleMatch =
-        rowTitle.includes(title) || title.includes(rowTitle);
+        tr.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
 
-      const artistMatch =
-        rowArtist.includes(artist) || artist.includes(rowArtist);
-
-      if (titleMatch && artistMatch) {
-        selectedIndex = i;
         found = true;
-
-        // 🔥 HERE'S YOUR FILENAME (from ASC)
-        console.log("✅ Matched:", row.filename);
-
-        break;
       }
-    }
+    });
 
-    if (found) {
-      renderTable();
+    // 🔥 STEP 3: fallback to other hour if not found
+    if (!found) {
+      const altHour = selectedHour === startHour ? nowHour : startHour;
 
-      setTimeout(() => {
-        const rows = document.querySelectorAll("#logTable tbody tr");
+      if (availableHours.includes(altHour)) {
+        console.log("🔄 Trying alternate hour:", altHour);
 
-        rows.forEach(tr => tr.classList.remove("onair"));
+        hourSelect.value = altHour;
+        currentHour = altHour;
 
-        if (rows[selectedIndex]) {
-          rows[selectedIndex].classList.add("onair");
+        filterByHour(altHour);
 
-          rows[selectedIndex].scrollIntoView({
-            behavior: "smooth",
-            block: "center"
-          });
-        }
-      }, 50);
-
-      return;
-    }
-
-    // 🔄 fallback hour
-    const altHour = selectedHour === startHour ? nowHour : startHour;
-
-    if (availableHours.includes(altHour)) {
-      console.log("🔄 Trying alternate hour:", altHour);
-
-      hourSelect.value = altHour;
-      currentHour = altHour;
-
-      filterByHour(altHour);
-
-      setTimeout(() => {
-        jumpToCurrentTime();
-      }, 150);
-    } else {
-      console.log("⚠️ No match found in any hour");
+        setTimeout(() => {
+          jumpToCurrentTime();
+        }, 150);
+      } else {
+        console.log("⚠️ No match found in any hour");
+      }
     }
 
   }, 150);
@@ -2044,207 +1728,11 @@ function toggleAutoFollow() {
     btn.classList.remove("air-btn-green");
     btn.classList.add("air-btn-red");
     btn.textContent = "AUTO OFF";
-
-    // 🔥 CLEAR ON AIR + progress visuals
-    document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-      tr.classList.remove("onair");
-      tr.style.background = "";
-    });
   }
 
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
   
-
-function drawBlocks(vtDuration, songDuration, intro, secTone) {
-  const vt = document.getElementById("vtBlock");
-  const song = document.getElementById("songBlock");
-  const introEl = document.getElementById("introRegion");
-
-  if (!vt || !song || !introEl) return;
-
-  const rowData = filteredLog[selectedIndex];
-  const { nextSong } = getPrevNextSongs(selectedIndex);
-
-  // 🎯 VT width (you can tweak this later)
-  vt.style.width = (vtDuration * PX_PER_SEC) + "px";
-
-  // 🎯 intro + 5 sec buffer
-  const buffer = 5;
-  const visualLength = intro + buffer;
-  const width = visualLength * PX_PER_SEC;
-
-  song.style.width = width + "px";
-  introEl.style.width = (intro * PX_PER_SEC) + "px";
-
-  song.style.setProperty(
-    "--intro-width",
-    (intro * PX_PER_SEC) + "px"
-  );
-
-  // ✅ ONLY set positions IF not already set (prevents snapping back)
-  if (!vt.style.left) {
-    vt.style.left = "0px";
-  }
-
-  if (!song.style.left) {
-    song.style.left = (secTone * PX_PER_SEC) + "px";
-  }
-
-  // 🎙 VT LABEL
-  vt.innerHTML = `
-    <div class="block-label">
-      🎙 ${rowData.title || "Voicetrack"}
-    </div>
-  `;
-
-  // 🎵 SONG LABEL
-  if (nextSong) {
-    song.innerHTML = `
-      <div class="block-label">
-        🎵 ${nextSong.artist || ""} - ${nextSong.title || ""}
-      </div>
-    `;
-  }
-
-  // store intro
-  song.dataset.intro = intro;
-}
-
-
-function updateSecToneFromBlocks() {
-  const vtBlock = document.getElementById("vtBlock");
-  const songBlock = document.getElementById("songBlock");
-
-  if (!vtBlock || !songBlock) return;
-
-  const vtRight = vtBlock.offsetLeft + vtBlock.offsetWidth;
-  const songLeft = songBlock.offsetLeft;
-
-  // 🎯 absolute sec tone (NOT incremental)
-  let newSecTone = (songLeft - vtBlock.offsetLeft) / PX_PER_SEC;
-
-  newSecTone = Math.max(0, newSecTone);
-
-  const rowData = filteredLog[selectedIndex];
-
-  secToneTime = newSecTone;
-  secTones[rowData.cart] = newSecTone;
-
-  console.log("🎯 NEW ABSOLUTE Sec Tone:", newSecTone.toFixed(2));
-
-  redrawBlocks();
-}
-
-function redrawBlocks() {
-  const rowData = filteredLog[selectedIndex];
-  const { nextSong } = getPrevNextSongs(selectedIndex);
-
-  if (!vtWave || !nextSong) return;
-
-  const vtDuration = vtWave.getDuration();
-  const intro = nextSong.intro || 0;
-
-  drawBlocks(vtDuration, 240, intro, secToneTime);
-}
-
-function updatePlayhead() {
-  const playhead = document.getElementById("playhead");
-  if (!playhead) return;
-
-  let time = 0;
-
-  // 🎙 VT playing
-  if (vtWave && vtWave.isPlaying()) {
-    time = vtWave.getCurrentTime();
-  }
-
-  // 🎵 SONG playing AFTER VT
-  else if (songAudio && !songAudio.paused) {
-    time = (secToneTime || 0) + songAudio.currentTime;
-  }
-
-  const x = time * PX_PER_SEC;
-  playhead.style.left = x + "px";
-
-  requestAnimationFrame(updatePlayhead);
-}
-
-
-function calculateSecTone() {
-  const vtBlock = document.getElementById("vtBlock");
-  const songBlock = document.getElementById("songBlock");
-
-  if (!vtBlock || !songBlock) return;
-
-  const vtLeft = vtBlock.offsetLeft;
-  const markerOffset = secToneTime * PX_PER_SEC;
-
-  const intro = parseFloat(songBlock.dataset.intro || 0);
-
-  const songStart = songBlock.offsetLeft;
-  const introEnd = songStart + (intro * PX_PER_SEC);
-
-  const diff = introEnd - (vtLeft + markerOffset);
-
-  const newSecTone = secToneTime + (diff / PX_PER_SEC);
-
-  return newSecTone;
-}
-
-function setupDragging() {
-  const vtBlock = document.getElementById("vtBlock");
-  const songBlock = document.getElementById("songBlock");
-  const editor = document.getElementById("vtEditor");
-
-  if (!vtBlock || !songBlock || !editor) return;
-
-  makeDraggable(vtBlock);
-  makeDraggable(songBlock);
-
-  function makeDraggable(el) {
-    const editor = document.getElementById("vtEditor");
-    if (!editor) return;
-
-    let isDragging = false;
-
-    function onMouseMove(e) {
-      if (!isDragging) return;
-
-      const rect = editor.getBoundingClientRect();
-      let x = e.clientX - rect.left;
-
-      x = Math.max(0, Math.min(x, editor.offsetWidth - el.offsetWidth));
-      el.style.left = x + "px";
-    }
-
-    function onMouseUp() {
-      if (!isDragging) return;
-
-      isDragging = false;
-      el.style.cursor = "grab";
-
-      updateSecToneFromBlocks();
-
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    }
-
-    el.onmousedown = (e) => {
-      isDragging = true;
-      el.style.cursor = "grabbing";
-
-      window.addEventListener("mousemove", onMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
-
-      e.preventDefault();
-    };
-  }
-
-} // ✅ THIS WAS MISSING
-
-
-
 </script>
 
 </body>
