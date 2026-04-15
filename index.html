@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -722,7 +722,8 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <div id="vtWaveform" style="margin-top:10px;"></div>
+            <canvas id="vtLiveCanvas" style="width:100%; height:60px; background:#000;"></canvas>
+<div id="vtWaveform" style="margin-top:5px;"></div>
             <div id="songWaveform" style="margin-top:10px;"></div>
             <div class="audio-player">
 <div style="margin-top:10px;">
@@ -756,7 +757,7 @@ vtWave = WaveSurfer.create({
   barWidth: 2,
   barGap: 1,
   barRadius: 2,
-  height: 60,
+  height: 50,
   normalize: true
 });
 
