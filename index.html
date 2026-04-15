@@ -428,7 +428,8 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
-let currentFilename = "";
+let currentCart = "";
+let autoFollowEnabled = true;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -623,6 +624,7 @@ function processASC(text) {
         return {
           type: "SONG",
           time: parts[0],
+          cart: parts[4],
           title: parts[5],
           artist: parts[6],
           filename: parts[12]?.trim(),
@@ -1542,8 +1544,7 @@ const startTimeStr = lines[0];
 currentArtist = (lines[2] || "").toLowerCase();
 currentTitle = (lines[3] || "").toLowerCase();
 
-// ✅ NEW: filename (adjust index if needed)
-currentFilename = (lines[13] || "").toLowerCase().trim();
+currentCart = (lines[4] || "").trim();
 
 const artist = lines[2];
 const title = lines[3];
@@ -1669,43 +1670,34 @@ function normalizeFilename(name) {
 function isSongMatch(row) {
   if (!row || row.type !== "SONG") return false;
 
-  const rowFile = normalizeFilename(row.filename);
-  const nowFile = normalizeFilename(currentFilename);
-
-  // ✅ PRIMARY: strong filename match (contains BOTH ways)
-  if (rowFile && nowFile) {
-    if (
-      rowFile === nowFile ||
-      rowFile.includes(nowFile) ||
-      nowFile.includes(rowFile)
-    ) {
-      console.log("✅ Filename match:", row.filename);
+  // ✅ PRIMARY: CART MATCH (BEST RIGHT NOW)
+  if (currentCart && row.cart) {
+    if (row.cart === currentCart) {
+      console.log("✅ Cart match:", row.cart);
       return true;
     }
   }
 
-  // 🔁 FALLBACK: title + artist
+  // 🔁 fallback: filename
+  const rowFile = normalizeFilename(row.filename);
+  const nowFile = normalizeFilename(currentFilename);
+
+  if (rowFile && nowFile && rowFile === nowFile) {
+    return true;
+  }
+
+  // 🔁 fallback: title/artist
   const rowTitle = normalizeText(row.title);
   const rowArtist = normalizeText(row.artist);
   const nowTitle = normalizeText(currentTitle);
   const nowArtist = normalizeText(currentArtist);
 
-  if (
+  return (
     rowTitle.includes(nowTitle) &&
     rowArtist.includes(nowArtist)
-  ) {
-    console.log("🔁 Fallback match:", row.title);
-    return true;
-  }
-
-  return false;
+  );
 }
 
-console.log("🔍 Comparing:",
-  normalizeFilename(row.filename),
-  "vs",
-  normalizeFilename(currentFilename)
-);
 
 function jumpToCurrentTime() {
   if (!currentTitle && !currentFilename) {
@@ -1786,7 +1778,7 @@ function jumpToCurrentTime() {
 }
 
 
-let autoFollowEnabled = true;
+
 
 function toggleAutoFollow() {
   autoFollowEnabled = !autoFollowEnabled;
