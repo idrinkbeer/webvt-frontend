@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -52,36 +52,8 @@ tr:hover {
 
 /* CURRENT PLAYING */
 .active {
+  background: #00cc33 !important;
   color: #000;
-  position: relative;
-  /*overflow: hidden;*/
-}
-
-/* ON AIR overlay */
-.active::after {
-  content: "ON AIR";
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-
-  font-size: 18px;
-  font-weight: bold;
-  color: #ff0000;
-
-  pointer-events: none;
-
-  animation: blink 1s steps(2, start) infinite;
-}
-
-.selected {
-  outline: 3px solid #ffcc00;
-}
-
-@keyframes blink {
-  0%   { opacity: 1; }
-  50%  { opacity: 0; }
-  100% { opacity: 1; }
 }
 
 /* VOICE TRACK */
@@ -228,7 +200,7 @@ button:hover {
   text-transform: uppercase;
 
   padding: 10px 18px;
-  min-width: 100px;
+  min-width: 160px;
 
   cursor: pointer;
 
@@ -373,7 +345,7 @@ select + select {
 
     <div>
       <button id="autoFollowBtn" class="air-btn air-btn-green" onclick="toggleAutoFollow()">AUTO ON</button>
-      <button class="air-btn" onclick="logout()">Logout</button>
+      <button onclick="logout()">Logout</button>
     </div>
 
   </div>
@@ -428,10 +400,6 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
-let currentCart = "";
-let autoFollowEnabled = true;
-let activeRowIndex = -1;
-let lastStartTime = "";
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -626,7 +594,6 @@ function processASC(text) {
         return {
           type: "SONG",
           time: parts[0],
-          cart: parts[4],
           title: parts[5],
           artist: parts[6],
           filename: parts[12]?.trim(),
@@ -693,9 +660,7 @@ function renderTable() {
     const tr = document.createElement("tr");
 
     if (row.type === "VTX") tr.classList.add("vtx");
-    if (i === selectedIndex && row.type === "VTX") {
-  tr.classList.add("selected");
-}
+    if (i === selectedIndex) tr.classList.add("active");
 
     tr.innerHTML = `
       <td>${row.time}</td>
@@ -1534,66 +1499,36 @@ async function loadNowPlaying() {
       }
     });
 
-    if (!res.ok) {
-      console.log("❌ /played request failed");
-      return;
-    }
+    if (!res.ok) return;
 
     const text = await res.text();
-    if (!text || !text.trim()) {
-      console.log("❌ Empty /played response");
-      return;
-    }
-
     const lines = text.trim().split("\n").map(l => l.trim());
 
-    console.log("🎯 PLAYED RAW:", lines);
+    // 🎯 parse data
+    const startTimeStr = lines[0];
+currentArtist = (lines[2] || "").toLowerCase();
+currentTitle = (lines[3] || "").toLowerCase();
 
-    // ✅ SAFE PARSING
-    const startTimeStr = lines[0] || "";
-    const artist = lines[2] || "";
-    const title = lines[3] || "";
+const artist = lines[2];
+const title = lines[3];
     const duration = parseInt(lines[6]) || 0;
 
-    // 🔥 normalize (used for comparison)
-    currentArtist = artist.toLowerCase();
-    currentTitle = title.toLowerCase();
-
-    // ✅ SAFE DATE PARSE (important)
-    const parsedDate = new Date(startTimeStr);
-
-    if (isNaN(parsedDate.getTime())) {
-      console.log("❌ Invalid date:", startTimeStr);
-      return;
-    }
-
-    currentSongStart = parsedDate;
+    // convert start time
+    currentSongStart = new Date(startTimeStr);
     currentSongDuration = duration;
 
-    // ✅ extract time parts (for your time-based matching)
-    currentHourNum = parsedDate.getHours();
-    currentMinute = parsedDate.getMinutes();
-    currentSecond = parsedDate.getSeconds();
-
-    console.log(
-      "🕒 Parsed time:",
-      currentHourNum,
-      currentMinute,
-      currentSecond
-    );
-
-    // 🎯 UI update
     document.getElementById("nowPlaying").textContent =
-      `${title} - ${artist}`;
+  `${title} - ${artist}`;
 
-const startTimeKey = currentSongStart.getTime();
-
-const songKey = `${startTimeKey}_${currentTitle}`;
-
-if (songKey !== lastStartTime) {
+// 🔥 detect song change
+if (
+  currentTitle !== lastTitle ||
+  currentArtist !== lastArtist
+) {
   console.log("🎵 Song changed → updating highlight");
 
-  lastStartTime = songKey;
+  lastTitle = currentTitle;
+  lastArtist = currentArtist;
 
   if (autoFollowEnabled) {
     jumpToCurrentTime();
@@ -1601,9 +1536,36 @@ if (songKey !== lastStartTime) {
 }
 
   } catch (err) {
-    console.error("❌ loadNowPlaying error:", err);
+    console.error(err);
   }
 }
+
+setInterval(loadNowPlaying, 3000);
+loadNowPlaying();
+
+setInterval(() => {
+if (!currentSongStart || !currentSongDuration) return;
+
+const now = new Date();
+const elapsed = (now - currentSongStart) / 1000;
+
+let percent = (elapsed / currentSongDuration) * 100;
+percent = Math.max(0, Math.min(100, percent));
+
+document.getElementById("playBar").style.width = percent + "%";
+
+// 🎯 time display
+const mins = Math.floor(elapsed / 60);
+const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
+
+const remaining = currentSongDuration - elapsed;
+const rmins = Math.floor(remaining / 60);
+const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
+
+document.getElementById("elapsed").textContent = `${mins}:${secs}`;
+document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
+
+}, 1000);
 
 function getTodayLogName() {
   const now = new Date();
@@ -1615,94 +1577,88 @@ function getTodayLogName() {
   return `${yyyy}${mm}${dd}.ASC`;
 }
   
-function findClosestRowByTime() {
-  if (!filteredLog.length) return -1;
-
-  let bestIndex = -1;
-  let smallestDiff = Infinity;
-
-  const nowSeconds = currentMinute * 60 + currentSecond;
-
-  filteredLog.forEach((row, i) => {
-    const [h, m, s] = row.time.split(":").map(Number);
-
-    const rowSeconds = m * 60 + s;
-
-    const diff = Math.abs(rowSeconds - nowSeconds);
-
-    if (diff < smallestDiff) {
-      smallestDiff = diff;
-      bestIndex = i;
-    }
-  });
-
-  return bestIndex;
-}
 
 
 function jumpToCurrentTime() {
-  if (!currentSongStart) {
-    console.log("❌ No time data");
+  if (!currentTitle || !currentArtist) {
+    console.log("❌ Missing now playing data");
     return;
   }
 
-  const hour = currentSongStart.getHours().toString().padStart(2, "0");
+  const now = new Date();
+  const currentHourStr = now.getHours().toString(); // 🔥 FIXED (no padding)
 
-  console.log("🕒 Matching hour:", hour);
+  console.log("🕒 Current hour:", currentHourStr);
+  console.log("🎵 Looking for:", currentTitle, currentArtist);
 
-  const hourSelect = document.getElementById("hourSelect");
+const hourSelect = document.getElementById("hourSelect");
 
-  if (!Array.from(hourSelect.options).some(o => o.value === hour)) {
-    console.log("⚠️ Hour not found in log");
-    return;
-  }
+// get available hours from dropdown
+const availableHours = Array.from(hourSelect.options).map(o => o.value);
 
-  // set hour
-  hourSelect.value = hour;
-  currentHour = hour;
+let selectedHour = currentHourStr;
 
-  filteredLog = log.filter(row => row.time.startsWith(hour));
-  renderTable();
+// 🎯 if exact hour doesn't exist → find closest
+if (!availableHours.includes(currentHourStr)) {
+  const nowHour = parseInt(currentHourStr);
 
-  // find closest row
-  const index = findClosestRowByTime();
+  let closest = availableHours[0];
+  let smallestDiff = Infinity;
 
-  if (index === -1) {
-    console.log("⚠️ No matching row");
-    return;
-  }
-
-setTimeout(() => {
-  const allRows = document.querySelectorAll("#logTable tbody tr");
-
-  // remove active
-  allRows.forEach(tr => tr.classList.remove("active"));
-
-  // 🔥 only rows that match filteredLog
-  const dataRows = Array.from(allRows).filter(tr => {
-    return !tr.querySelector(".recorder");
+  availableHours.forEach(h => {
+    const diff = Math.abs(parseInt(h) - nowHour);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      closest = h;
+    }
   });
 
-const targetRow = dataRows[index];
+  selectedHour = closest;
 
-if (targetRow) {
-  activeRowIndex = index; // ✅ THIS WAS MISSING
-
-  targetRow.classList.add("active");
-
-  targetRow.scrollIntoView({
-    behavior: "smooth",
-    block: "center"
-  });
-
-  console.log("✅ Highlighted:", targetRow.textContent);
+  console.log("⚠️ Hour not found, using closest:", selectedHour);
 }
 
-}, 50);
+// 🔁 apply hour
+hourSelect.value = selectedHour;
+currentHour = selectedHour;
+
+filterByHour(selectedHour);
+
+  setTimeout(() => {
+    const rows = document.querySelectorAll("#logTable tbody tr");
+
+    let found = false;
+
+    rows.forEach(tr => {
+      tr.classList.remove("active");
+
+      const text = tr.textContent.toLowerCase();
+
+      if (
+        text.includes(currentTitle) &&
+        text.includes(currentArtist)
+      ) {
+        console.log("✅ MATCH FOUND:", text);
+
+        tr.classList.add("active");
+
+        tr.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+
+        found = true;
+      }
+    });
+
+    if (!found) {
+      console.log("⚠️ No match found in current hour");
+    }
+
+  }, 150);
 }
 
-
-
+let autoFollowEnabled = true;
 
 function toggleAutoFollow() {
   autoFollowEnabled = !autoFollowEnabled;
@@ -1726,58 +1682,6 @@ function toggleAutoFollow() {
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
   
-
-  setInterval(() => {
-  if (!currentSongStart || !currentSongDuration) return;
-
-  const now = new Date();
-  const elapsed = (now - currentSongStart) / 1000;
-
-  let percent = (elapsed / currentSongDuration) * 100;
-  percent = Math.max(0, Math.min(100, percent));
-
-  // 🎯 top progress bar
-  document.getElementById("playBar").style.width = percent + "%";
-
-  // 🎯 time display
-  const mins = Math.floor(elapsed / 60);
-  const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
-
-  const remaining = currentSongDuration - elapsed;
-  const rmins = Math.floor(remaining / 60);
-  const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
-
-  document.getElementById("elapsed").textContent = `${mins}:${secs}`;
-  document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
-
-  // 🔥 highlight fill
-  const allRows = document.querySelectorAll("#logTable tbody tr");
-
-  const dataRows = Array.from(allRows).filter(tr => {
-    return !tr.querySelector(".recorder");
-  });
-
-  const activeRow = document.querySelector("#logTable tbody tr.active");
-
-  if (activeRow) {
-    activeRow.style.background = `
-      linear-gradient(
-        to right,
-        #00cc33 ${percent}%,
-        #0b3d91 ${percent}%
-      )
-    `;
-  }
-
-  // 🧼 clear others
-  dataRows.forEach(tr => {
-    if (!tr.classList.contains("active")) {
-      tr.style.background = "";
-    }
-  });
-
-}, 1000);
-
 </script>
 
 </body>
