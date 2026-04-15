@@ -97,15 +97,19 @@ button:hover {
 }
 
 /* VU METER */
-.vu-container {
+
+.vu-container.stereo {
   width: 180px;
-  height: 18px;              /* 🔥 thicker */
+  height: 22px;
   background: #111;
   border: 2px solid #000;
-  position: relative;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
 }
 
-#vuBar {
+.vu-bar {
+  flex: 1;
   height: 100%;
   width: 0%;
   background: linear-gradient(
@@ -116,6 +120,7 @@ button:hover {
     #cc0000 100%
   );
 }
+
 
 /* AUDIO PLAYER (KEEP FUNCTIONAL, JUST RESTYLE) */
 .audio-player {
@@ -686,6 +691,26 @@ function filterByHour(hour) {
   renderTable();
 }
 
+function connectWaveToVU(wave) {
+  if (!wave) return;
+
+  const backend = wave.backend;
+  const ac = backend.getAudioContext();
+  const source = backend.getSource();
+
+  const analyserNode = ac.createAnalyser();
+  analyserNode.fftSize = 256;
+
+  source.connect(analyserNode);
+
+  analyser = analyserNode;
+  dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  isVUActive = true;
+  updateVU();
+}
+
+
 function renderTable() {
   tableBody.innerHTML = "";
 
@@ -728,9 +753,10 @@ function renderTable() {
     Upload to AIR
   </button>
 
-  <div class="vu-container">
-    <div id="vuBar"></div>
-  </div>
+<div class="vu-container stereo">
+  <div class="vu-bar" id="vuLeft"></div>
+  <div class="vu-bar" id="vuRight"></div>
+</div>
 
 </div>
 
@@ -1234,17 +1260,22 @@ async function stopRecording() {
     songWave.stop();
   }
 
-  isVUActive = false;
 
-// reset meter visually
-const bar = document.getElementById("vuBar");
-if (bar) bar.style.width = "0%";
+isVUActive = false;
 
+const left = document.getElementById("vuLeft");
+const right = document.getElementById("vuRight");
+
+if (left) left.style.width = "0%";
+if (right) right.style.width = "0%";
 }
 
 // =====================
 // VU
 // =====================
+let vuLeftLevel = 0;
+let vuRightLevel = 0;
+
 function updateVU() {
   if (!analyser || !isVUActive) return;
 
@@ -1255,10 +1286,15 @@ function updateVU() {
 
   let level = Math.pow(avg / 255, 0.6);
 
-  const bar = document.getElementById("vuBar");
-  if (bar) {
-    bar.style.width = (level * 100) + "%";
-  }
+  // fake stereo split (for mic input)
+  vuLeftLevel = Math.max(level, vuLeftLevel * 0.9);
+  vuRightLevel = Math.max(level * 0.95, vuRightLevel * 0.9);
+
+  const left = document.getElementById("vuLeft");
+  const right = document.getElementById("vuRight");
+
+  if (left) left.style.width = (vuLeftLevel * 100) + "%";
+  if (right) right.style.width = (vuRightLevel * 100) + "%";
 
   requestAnimationFrame(updateVU);
 }
@@ -1348,6 +1384,7 @@ if (secToneTime !== null) {
 
   // ▶ start VT immediately
   vtWave.play();
+  connectWaveToVU(vtWave);
 
   isPreviewPlaying = true;
 
@@ -1361,6 +1398,8 @@ previewTimeout = setTimeout(() => {
 
   songWave.play();
   songWave.setVolume(0.3);
+    connectWaveToVU(songWave); // 🔥 switch VU to song
+
 }, songDelay * 1000);
 
   // 🎙 VT finished
@@ -1416,6 +1455,8 @@ function previewVT() {
 
   if (selectedIndex === null) return;
 
+  connectWaveToVU(vtWave);
+
   const row = filteredLog[selectedIndex];
   const vtBlob = recordings[row.cart];
 
@@ -1446,6 +1487,15 @@ function previewVT() {
 
     if (vtBtn) vtBtn.textContent = "Preview VT";
   });
+
+  isVUActive = false;
+
+const left = document.getElementById("vuLeft");
+const right = document.getElementById("vuRight");
+
+if (left) left.style.width = "0%";
+if (right) right.style.width = "0%";
+
 }
 
 async function addID3Tags(blob, row, nextSong, duration, secTone) {
