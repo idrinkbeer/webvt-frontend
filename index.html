@@ -748,12 +748,17 @@ setTimeout(() => {
 
   if (!vtContainer || !songContainer) return;
 
-  vtWave = WaveSurfer.create({
-    container: "#vtWaveform",
-    waveColor: "#facc15",
-    progressColor: "#eab308",
-    height: 100
-  });
+vtWave = WaveSurfer.create({
+  container: "#vtWaveform",
+  waveColor: "#1e3a8a",       // same as songWave
+  progressColor: "#00ff88",   // same green
+  cursorColor: "#ffffff",
+  barWidth: 2,
+  barGap: 1,
+  barRadius: 2,
+  height: 60,
+  normalize: true
+});
 
 songWave = WaveSurfer.create({
   container: "#songWaveform",
@@ -763,7 +768,7 @@ songWave = WaveSurfer.create({
   barWidth: 2,
   barGap: 1,
   barRadius: 2,
-  height: 100,
+  height: 50,
   normalize: true
 });
 
@@ -1014,6 +1019,34 @@ async function startRecording() {
   };
 
   source.connect(gainNode);
+
+  // 🎤 LIVE WAVEFORM (mic input)
+if (vtWave) {
+  vtWave.loadDecodedBuffer(new Float32Array(1024)); // clear it
+}
+
+// create a second analyser just for waveform drawing
+const liveAnalyser = audioContext.createAnalyser();
+liveAnalyser.fftSize = 1024;
+
+source.connect(liveAnalyser);
+
+const bufferLength = liveAnalyser.fftSize;
+const liveData = new Float32Array(bufferLength);
+
+function drawLiveWave() {
+  if (!isRecording || !vtWave) return;
+
+  liveAnalyser.getFloatTimeDomainData(liveData);
+
+  // feed waveform into WaveSurfer
+  vtWave.loadDecodedBuffer(liveData);
+
+  requestAnimationFrame(drawLiveWave);
+}
+
+drawLiveWave();
+
   gainNode.connect(analyser);
   analyser.connect(processor);
   processor.connect(audioContext.destination);
