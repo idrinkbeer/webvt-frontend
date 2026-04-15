@@ -726,7 +726,7 @@ if (ac.state === "suspended") {
     const source = ac.createMediaElementSource(media);
     const analyserNode = ac.createAnalyser();
 
-    analyserNode.fftSize = 256;
+    analyserNode.fftSize = 2048;
 
     source.connect(analyserNode);
     analyserNode.connect(ac.destination);
@@ -1117,10 +1117,10 @@ async function startRecording() {
   const source = audioContext.createMediaStreamSource(mediaStream);
 
   const gainNode = audioContext.createGain();
-  gainNode.gain.value = 1.2;
+  gainNode.gain.value = 1.0;
 
   analyser = audioContext.createAnalyser();
-  analyser.fftSize = 256;
+  analyser.fftSize = 2048;
 
   dataArray = new Uint8Array(analyser.frequencyBinCount);
 
