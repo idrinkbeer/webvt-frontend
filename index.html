@@ -1946,6 +1946,16 @@ function normalize(str) {
     .trim();
 }
 
+function normalizeFile(str) {
+  return (str || "")
+    .toLowerCase()
+    .replace(/\\/g, "/")        // windows paths → unix
+    .split("/")                // remove path
+    .pop()
+    .replace(/\.[^/.]+$/, "")  // remove extension
+    .trim();
+}
+
 function jumpToCurrentTime() {
   // 🔴 AUTO OFF → clear highlight
   if (!autoFollowEnabled) {
@@ -1955,7 +1965,7 @@ function jumpToCurrentTime() {
     return;
   }
 
-  if (!currentTitle || !currentArtist) {
+  if (!currentTitle && !currentFilename) {
     console.log("❌ Missing now playing data");
     return;
   }
@@ -1970,7 +1980,7 @@ function jumpToCurrentTime() {
     : nowHour;
 
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
-  console.log("🎵 Looking for:", currentTitle, currentArtist);
+  console.log("🎵 Looking for:", currentTitle, currentArtist, "| FILE:", currentFilename);
 
   // 🎯 Pick hour
   let selectedHour = availableHours.includes(startHour)
@@ -1986,30 +1996,55 @@ function jumpToCurrentTime() {
   setTimeout(() => {
     let found = false;
 
-    const title = normalize(currentTitle);
-    const artist = normalize(currentArtist);
+    const currentFile = normalizeFile(currentFilename);
 
-    for (let i = 0; i < filteredLog.length; i++) {
-      const row = filteredLog[i];
-      if (row.type !== "SONG") continue;
+    // 🔥 STEP 1 — FILENAME MATCH (PRIMARY)
+    if (currentFile) {
+      for (let i = 0; i < filteredLog.length; i++) {
+        const row = filteredLog[i];
+        if (row.type !== "SONG") continue;
 
-      const rowTitle = normalize(row.title);
-      const rowArtist = normalize(row.artist);
+        const rowFile = normalizeFile(row.filename);
 
-      const titleMatch =
-        rowTitle.includes(title) || title.includes(rowTitle);
-
-      const artistMatch =
-        rowArtist.includes(artist) || artist.includes(rowArtist);
-
-      if (titleMatch && artistMatch) {
-        selectedIndex = i;
-        found = true;
-        break;
+        if (rowFile && rowFile === currentFile) {
+          selectedIndex = i;
+          found = true;
+          console.log("✅ Matched by filename:", rowFile);
+          break;
+        }
       }
     }
 
-    // 🎯 Apply highlight if found
+    // 🔥 STEP 2 — FALLBACK TO TITLE/ARTIST
+    if (!found) {
+      console.log("⚠️ Filename match failed, using fallback");
+
+      const title = normalize(currentTitle);
+      const artist = normalize(currentArtist);
+
+      for (let i = 0; i < filteredLog.length; i++) {
+        const row = filteredLog[i];
+        if (row.type !== "SONG") continue;
+
+        const rowTitle = normalize(row.title);
+        const rowArtist = normalize(row.artist);
+
+        const titleMatch =
+          rowTitle.includes(title) || title.includes(rowTitle);
+
+        const artistMatch =
+          rowArtist.includes(artist) || artist.includes(rowArtist);
+
+        if (titleMatch && artistMatch) {
+          selectedIndex = i;
+          found = true;
+          console.log("✅ Matched by fallback:", rowTitle);
+          break;
+        }
+      }
+    }
+
+    // 🎯 APPLY HIGHLIGHT
     if (found) {
       renderTable();
 
@@ -2031,7 +2066,7 @@ function jumpToCurrentTime() {
       return;
     }
 
-    // 🔄 Try alternate hour
+    // 🔄 TRY ALTERNATE HOUR
     const altHour = selectedHour === startHour ? nowHour : startHour;
 
     if (availableHours.includes(altHour)) {
