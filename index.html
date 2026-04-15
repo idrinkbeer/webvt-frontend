@@ -691,6 +691,8 @@ function filterByHour(hour) {
   renderTable();
 }
 
+const vuConnections = new WeakMap();
+
 function connectWaveToVU(wave) {
   if (!wave) return;
 
@@ -698,6 +700,18 @@ function connectWaveToVU(wave) {
     const media = wave.getMediaElement();
     if (!media) return;
 
+    // 🔁 reuse existing connection
+    if (vuConnections.has(media)) {
+      const existing = vuConnections.get(media);
+      analyser = existing.analyser;
+      dataArray = existing.dataArray;
+
+      isVUActive = true;
+      updateVU();
+      return;
+    }
+
+    // 🔥 create ONCE
     const ac = new (window.AudioContext || window.webkitAudioContext)();
 
     const source = ac.createMediaElementSource(media);
@@ -708,8 +722,16 @@ function connectWaveToVU(wave) {
     source.connect(analyserNode);
     analyserNode.connect(ac.destination);
 
+    const data = new Uint8Array(analyserNode.frequencyBinCount);
+
+    // 💾 store it
+    vuConnections.set(media, {
+      analyser: analyserNode,
+      dataArray: data
+    });
+
     analyser = analyserNode;
-    dataArray = new Uint8Array(analyser.frequencyBinCount);
+    dataArray = data;
 
     isVUActive = true;
     updateVU();
