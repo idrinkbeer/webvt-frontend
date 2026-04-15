@@ -1619,15 +1619,19 @@ function findClosestRowByTime() {
   if (!filteredLog.length) return -1;
 
   let bestIndex = -1;
+  let smallestDiff = Infinity;
+
+  const nowSeconds = currentMinute * 60 + currentSecond;
 
   filteredLog.forEach((row, i) => {
     const [h, m, s] = row.time.split(":").map(Number);
 
     const rowSeconds = m * 60 + s;
-    const nowSeconds = currentMinute * 60 + currentSecond;
 
-    // ✅ pick last row BEFORE current time (radio-accurate)
-    if (rowSeconds <= nowSeconds) {
+    const diff = Math.abs(rowSeconds - nowSeconds);
+
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
       bestIndex = i;
     }
   });
@@ -1773,12 +1777,6 @@ function toggleAutoFollow() {
   });
 
 }, 1000);
-
-  setInterval(() => {
-  if (autoFollowEnabled) {
-    jumpToCurrentTime();
-  }
-}, 10000);
 
 </script>
 
