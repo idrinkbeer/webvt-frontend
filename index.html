@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -702,43 +702,37 @@ function connectWaveToVU(wave) {
     const media = wave.getMediaElement();
     if (!media) return;
 
-    // reuse existing connection
-    if (vuConnections.has(media)) {
-      const existing = vuConnections.get(media);
-      analyser = existing.analyser;
-      dataArray = existing.dataArray;
-
-      isVUActive = true;
-      updateVU();
-      return;
+    if (!vuAudioContext) {
+      vuAudioContext = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-if (!vuAudioContext) {
-  vuAudioContext = new (window.AudioContext || window.webkitAudioContext)();
-}
+    const ac = vuAudioContext;
 
-const ac = vuAudioContext;
+    if (ac.state === "suspended") {
+      ac.resume();
+    }
 
-if (ac.state === "suspended") {
-  ac.resume();
-}
+    // 🔥 IMPORTANT: reuse source safely
+    let source;
 
-    const source = ac.createMediaElementSource(media);
+    if (vuConnections.has(media)) {
+      source = vuConnections.get(media).source;
+    } else {
+      source = ac.createMediaElementSource(media);
+      vuConnections.set(media, { source });
+    }
+
+    // 🔥 gain stage (prevents full bars)
+    const gain = ac.createGain();
+    gain.gain.value = 0.35;
+
     const analyserNode = ac.createAnalyser();
-
     analyserNode.fftSize = 2048;
 
-    source.connect(analyserNode);
-
-    const data = new Float32Array(analyserNode.fftSize);
-
-    vuConnections.set(media, {
-      analyser: analyserNode,
-      dataArray: data
-    });
+    source.connect(gain);
+    gain.connect(analyserNode);
 
     analyser = analyserNode;
-    dataArray = data;
 
     isVUActive = true;
     updateVU();
@@ -1336,7 +1330,7 @@ function updateVU() {
   db = Math.max(-60, Math.min(0, db));
 
   // 🎛 map dB → 0–1
-  let level = (db + 60) / 60;
+  let level = (db + 50) / 50;
 
   // smooth fall
   vuLeftLevel = Math.max(level, vuLeftLevel * 0.92);
