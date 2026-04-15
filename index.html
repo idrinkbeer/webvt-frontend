@@ -430,6 +430,7 @@ let lastTitle = "";
 let lastArtist = "";
 let currentCart = "";
 let autoFollowEnabled = true;
+let activeRowIndex = -1;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1678,20 +1679,20 @@ setTimeout(() => {
     return !tr.querySelector(".recorder");
   });
 
-  const targetRow = dataRows[index];
+const targetRow = dataRows[index];
 
-  if (targetRow) {
-    targetRow.classList.add("active");
+if (targetRow) {
+  activeRowIndex = index; // ✅ THIS WAS MISSING
 
-    targetRow.scrollIntoView({
-      behavior: "smooth",
-      block: "center"
-    });
+  targetRow.classList.add("active");
 
-    console.log("✅ Highlighted:", targetRow.textContent);
-  } else {
-    console.log("❌ No DOM row match for index:", index);
-  }
+  targetRow.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+
+  console.log("✅ Highlighted:", targetRow.textContent);
+}
 
 }, 50);
 }
