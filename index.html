@@ -1614,20 +1614,18 @@ function getTodayLogName() {
   return `${yyyy}${mm}${dd}.ASC`;
 }
   
-function findClosestRowByTime(hour) {
-  const rows = log.filter(r => r.time.startsWith(hour.padStart(2, "0")));
-
-  if (!rows.length) return -1;
+function findClosestRowByTime() {
+  if (!filteredLog.length) return -1;
 
   let bestIndex = -1;
 
-  rows.forEach((row, i) => {
+  filteredLog.forEach((row, i) => {
     const [h, m, s] = row.time.split(":").map(Number);
 
     const rowSeconds = m * 60 + s;
     const nowSeconds = currentMinute * 60 + currentSecond;
 
-    // ✅ pick last row BEFORE current time
+    // ✅ pick last row BEFORE current time (radio-accurate)
     if (rowSeconds <= nowSeconds) {
       bestIndex = i;
     }
@@ -1662,38 +1660,40 @@ function jumpToCurrentTime() {
   renderTable();
 
   // find closest row
-  const index = findClosestRowByTime(hour);
+  const index = findClosestRowByTime();
 
   if (index === -1) {
     console.log("⚠️ No matching row");
     return;
   }
 
-  // highlight
-  setTimeout(() => {
-const rows = document.querySelectorAll("#logTable tbody tr");
+setTimeout(() => {
+  const allRows = document.querySelectorAll("#logTable tbody tr");
 
-// 🔥 remove all active
-rows.forEach(tr => tr.classList.remove("active"));
+  // remove active
+  allRows.forEach(tr => tr.classList.remove("active"));
 
-// 🔥 ONLY target real data rows (skip recorder rows)
-const dataRows = Array.from(rows).filter(tr => {
-  return !tr.querySelector(".recorder");
-});
+  // 🔥 only rows that match filteredLog
+  const dataRows = Array.from(allRows).filter(tr => {
+    return !tr.querySelector(".recorder");
+  });
 
-const targetRow = dataRows[index];
+  const targetRow = dataRows[index];
 
-    if (targetRow) {
-      targetRow.classList.add("active");
+  if (targetRow) {
+    targetRow.classList.add("active");
 
-      targetRow.scrollIntoView({
-        behavior: "smooth",
-        block: "center"
-      });
+    targetRow.scrollIntoView({
+      behavior: "smooth",
+      block: "center"
+    });
 
-      console.log("✅ Time match:", targetRow.textContent);
-    }
-  }, 50);
+    console.log("✅ Highlighted:", targetRow.textContent);
+  } else {
+    console.log("❌ No DOM row match for index:", index);
+  }
+
+}, 50);
 }
 
 
