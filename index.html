@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -423,6 +423,7 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
+let isDrawingLive = false;
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -997,6 +998,13 @@ async function startRecording() {
   }
 });
 
+  isDrawingLive = true;
+
+  const canvas = document.getElementById("vtLiveCanvas");
+if (canvas) {
+  canvas.style.display = "block";
+}
+
   audioContext = new AudioContext();
 
   const source = audioContext.createMediaStreamSource(mediaStream);
@@ -1026,54 +1034,57 @@ if (vtWave) {
   vtWave.loadDecodedBuffer(new Float32Array(1024)); // clear it
 }
 
-// create a second analyser just for waveform drawing
+// 🎤 LIVE CANVAS WAVEFORM (REAL-TIME)
+const canvas = document.getElementById("vtLiveCanvas");
+const ctx = canvas.getContext("2d");
+
+canvas.width = canvas.offsetWidth;
+canvas.height = 60;
+
 const liveAnalyser = audioContext.createAnalyser();
 liveAnalyser.fftSize = 1024;
 
 source.connect(liveAnalyser);
 
 const bufferLength = liveAnalyser.fftSize;
-const liveData = new Float32Array(bufferLength);
+const dataArrayLive = new Float32Array(bufferLength);
 
 function drawLiveWave() {
-  if (!isRecording || !vtWave) return;
+  if (!isRecording || !isDrawingLive) return;
 
-  liveAnalyser.getFloatTimeDomainData(liveData);
+  liveAnalyser.getFloatTimeDomainData(dataArrayLive);
 
-  // feed waveform into WaveSurfer
-  vtWave.loadDecodedBuffer(liveData);
+  // clear
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // waveform style (match your theme)
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "#00ff88"; // same as songWave
+  ctx.beginPath();
+
+  const sliceWidth = canvas.width / bufferLength;
+  let x = 0;
+
+  for (let i = 0; i < bufferLength; i++) {
+    const v = dataArrayLive[i];
+    const y = (v * canvas.height) / 2 + canvas.height / 2;
+
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+
+    x += sliceWidth;
+  }
+
+  ctx.stroke();
 
   requestAnimationFrame(drawLiveWave);
 }
 
 drawLiveWave();
-
-  gainNode.connect(analyser);
-  analyser.connect(processor);
-  processor.connect(audioContext.destination);
-
-  window._recorder = { samples, processor };
-
-  updateVU();
-
-  isRecording = true;
-
-  document.getElementById("recordBtn").textContent = "Stop";
-  document.getElementById("status").textContent = "Recording...";
-
-  // ⏱ START TIMER
-  recordSeconds = 0;
-
-  recordInterval = setInterval(() => {
-  recordSeconds++;
-
-    const mins = Math.floor(recordSeconds / 60);
-    const secs = (recordSeconds % 60).toString().padStart(2, "0");
-
-    const el = document.getElementById("recordTime");
-    if (el) el.textContent = `⏱ ${mins}:${secs}`;
-  }, 1000);
-}
 
 function setupPlayer(player, blob) {
   player.src = URL.createObjectURL(blob);
@@ -1163,6 +1174,8 @@ async function stopRecording() {
     recordInterval = null;
   }
 
+  isDrawingLive = false;
+
   const { samples, processor } = window._recorder;
 
   processor.disconnect();
@@ -1249,6 +1262,15 @@ recordedBlob = await addID3Tags(
     songWave.setVolume(1);
     songWave.stop();
   }
+
+const canvas = document.getElementById("vtLiveCanvas");
+if (canvas) {
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 👇 hide it after recording
+  canvas.style.display = "none";
+}
 
 
 }
