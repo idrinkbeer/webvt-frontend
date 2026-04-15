@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1062,6 +1062,12 @@ async function startRecording() {
     }
   });
 
+  const cursor = document.querySelector(".vt-cursor");
+if (cursor) {
+  cursor.style.background = "#ff0000";
+  cursor.style.boxShadow = "0 0 8px #ff0000";
+}
+
   audioContext = new AudioContext();
 
   const source = audioContext.createMediaStreamSource(mediaStream);
@@ -1207,6 +1213,12 @@ async function stopRecording() {
 
   isDrawingLive = false;
   isRecording = false;
+
+  const cursor = document.querySelector(".vt-cursor");
+if (cursor) {
+  cursor.style.background = "#ffffff";
+  cursor.style.boxShadow = "0 0 6px #ffffff";
+}
 
   const { samples, processor } = window._recorder;
 
