@@ -74,6 +74,10 @@ tr:hover {
   animation: blink 1s steps(2, start) infinite;
 }
 
+.selected {
+  outline: 3px solid #ffcc00;
+}
+
 @keyframes blink {
   0%   { opacity: 1; }
   50%  { opacity: 0; }
@@ -424,6 +428,7 @@ let currentTitle = "";
 let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
+let currentFilename = "";
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -684,7 +689,9 @@ function renderTable() {
     const tr = document.createElement("tr");
 
     if (row.type === "VTX") tr.classList.add("vtx");
-    if (i === selectedIndex) tr.classList.add("active");
+    if (i === selectedIndex && row.type === "VTX") {
+  tr.classList.add("selected");
+}
 
     tr.innerHTML = `
       <td>${row.time}</td>
@@ -1526,16 +1533,22 @@ async function loadNowPlaying() {
     if (!res.ok) return;
 
     const text = await res.text();
-    const lines = text.trim().split("\n").map(l => l.trim());
+const lines = text.trim().split("\n").map(l => l.trim());
 
-    // 🎯 parse data
-    const startTimeStr = lines[0];
+// 🎯 parse data
+const startTimeStr = lines[0];
+
+// 🔥 normalize everything
 currentArtist = (lines[2] || "").toLowerCase();
 currentTitle = (lines[3] || "").toLowerCase();
 
+// ✅ NEW: filename (adjust index if needed)
+currentFilename = (lines[13] || "").toLowerCase().trim();
+
 const artist = lines[2];
 const title = lines[3];
-    const duration = parseInt(lines[6]) || 0;
+
+const duration = parseInt(lines[6]) || 0;
 
     // convert start time
     currentSongStart = new Date(startTimeStr);
@@ -1630,9 +1643,51 @@ function getTodayLogName() {
 }
   
 
+function normalizeText(str) {
+  return (str || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeFilename(name) {
+  return (name || "")
+    .toLowerCase()
+    .replace(".mp3", "")
+    .trim();
+}
+
+function isSongMatch(row) {
+  if (!row || row.type !== "SONG") return false;
+
+  // ✅ PRIMARY: filename match (FAST + EXACT)
+  if (currentFilename) {
+    const rowFile = normalizeFilename(row.filename);
+    const nowFile = normalizeFilename(currentFilename);
+
+    if (rowFile && nowFile && rowFile === nowFile) {
+      return true;
+    }
+  }
+
+  // 🔁 FALLBACK: title + artist
+  const rowTitle = normalizeText(row.title);
+  const rowArtist = normalizeText(row.artist);
+  const nowTitle = normalizeText(currentTitle);
+  const nowArtist = normalizeText(currentArtist);
+
+  return (
+    rowTitle.includes(nowTitle) &&
+    rowArtist.includes(nowArtist)
+  );
+}
 
 function jumpToCurrentTime() {
-  if (!currentTitle || !currentArtist) {
+  if (!currentTitle && !currentFilename) {
     console.log("❌ Missing now playing data");
     return;
   }
@@ -1649,65 +1704,66 @@ function jumpToCurrentTime() {
 
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
+  console.log("📁 Filename:", currentFilename);
 
-  // 🎯 STEP 1: pick correct hour
-  let selectedHour = availableHours.includes(startHour)
-    ? startHour
-    : nowHour;
+  const candidateHours = [];
 
-  hourSelect.value = selectedHour;
-  currentHour = selectedHour;
+  if (availableHours.includes(startHour)) candidateHours.push(startHour);
+  if (availableHours.includes(nowHour) && nowHour !== startHour) {
+    candidateHours.push(nowHour);
+  }
 
-  filterByHour(selectedHour);
+  let foundHour = null;
+  let foundIndex = -1;
 
-  // 🎯 STEP 2: find song
+  // ✅ SEARCH USING LOG DATA (NOT DOM)
+  for (const hour of candidateHours) {
+    const hourRows = log.filter(row => row.time.startsWith(hour));
+
+    const idx = hourRows.findIndex(row => isSongMatch(row));
+
+    if (idx !== -1) {
+      foundHour = hour;
+      foundIndex = idx;
+      break;
+    }
+  }
+
+  if (foundHour === null) {
+    console.log("⚠️ No match found in any hour");
+    return;
+  }
+
+  // 🎯 set hour + rebuild table
+  hourSelect.value = foundHour;
+  currentHour = foundHour;
+  filteredLog = log.filter(row => row.time.startsWith(foundHour));
+
+  selectedIndex = null; // 🔥 IMPORTANT (don't clash with VTX)
+  renderTable();
+
+  // 🎯 highlight correct row
   setTimeout(() => {
     const rows = document.querySelectorAll("#logTable tbody tr");
 
-    let found = false;
+    rows.forEach(tr => tr.classList.remove("active"));
 
-    rows.forEach(tr => {
-      tr.classList.remove("active");
+    const targetRow = rows[foundIndex];
 
-      const text = tr.textContent.toLowerCase();
+    if (targetRow) {
+      targetRow.classList.add("active");
 
-      if (
-        text.includes(currentTitle) &&
-        text.includes(currentArtist)
-      ) {
-        tr.classList.add("active");
+      targetRow.scrollIntoView({
+        behavior: "smooth",
+        block: "center"
+      });
 
-        tr.scrollIntoView({
-          behavior: "smooth",
-          block: "center"
-        });
-
-        found = true;
-      }
-    });
-
-    // 🔥 STEP 3: fallback to other hour if not found
-    if (!found) {
-      const altHour = selectedHour === startHour ? nowHour : startHour;
-
-      if (availableHours.includes(altHour)) {
-        console.log("🔄 Trying alternate hour:", altHour);
-
-        hourSelect.value = altHour;
-        currentHour = altHour;
-
-        filterByHour(altHour);
-
-        setTimeout(() => {
-          jumpToCurrentTime();
-        }, 150);
-      } else {
-        console.log("⚠️ No match found in any hour");
-      }
+      console.log("✅ Highlighted row:", targetRow.textContent);
     }
 
-  }, 150);
+  }, 50);
 }
+
 
 let autoFollowEnabled = true;
 
