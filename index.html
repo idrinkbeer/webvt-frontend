@@ -1957,7 +1957,6 @@ function normalizeFile(str) {
 }
 
 function jumpToCurrentTime() {
-  // 🔴 AUTO OFF → clear highlight
   if (!autoFollowEnabled) {
     document.querySelectorAll("#logTable tbody tr").forEach(tr => {
       tr.classList.remove("onair");
@@ -1965,7 +1964,7 @@ function jumpToCurrentTime() {
     return;
   }
 
-  if (!currentTitle && !currentFilename) {
+  if (!currentTitle || !currentArtist) {
     console.log("❌ Missing now playing data");
     return;
   }
@@ -1980,9 +1979,8 @@ function jumpToCurrentTime() {
     : nowHour;
 
   console.log("🕒 Start hour:", startHour, "| Now hour:", nowHour);
-  console.log("🎵 Looking for:", currentTitle, currentArtist, "| FILE:", currentFilename);
+  console.log("🎵 Looking for:", currentTitle, currentArtist);
 
-  // 🎯 Pick hour
   let selectedHour = availableHours.includes(startHour)
     ? startHour
     : nowHour;
@@ -1992,59 +1990,37 @@ function jumpToCurrentTime() {
 
   filterByHour(selectedHour);
 
-  // 🎯 Find match
   setTimeout(() => {
     let found = false;
 
-    const currentFile = normalizeFile(currentFilename);
+    const title = normalize(currentTitle);
+    const artist = normalize(currentArtist);
 
-    // 🔥 STEP 1 — FILENAME MATCH (PRIMARY)
-    if (currentFile) {
-      for (let i = 0; i < filteredLog.length; i++) {
-        const row = filteredLog[i];
-        if (row.type !== "SONG") continue;
+    // 🎯 MATCH USING TITLE/ARTIST → THEN USE FILENAME FROM LOG
+    for (let i = 0; i < filteredLog.length; i++) {
+      const row = filteredLog[i];
+      if (row.type !== "SONG") continue;
 
-        const rowFile = normalizeFile(row.filename);
+      const rowTitle = normalize(row.title);
+      const rowArtist = normalize(row.artist);
 
-        if (rowFile && rowFile === currentFile) {
-          selectedIndex = i;
-          found = true;
-          console.log("✅ Matched by filename:", rowFile);
-          break;
-        }
+      const titleMatch =
+        rowTitle.includes(title) || title.includes(rowTitle);
+
+      const artistMatch =
+        rowArtist.includes(artist) || artist.includes(rowArtist);
+
+      if (titleMatch && artistMatch) {
+        selectedIndex = i;
+        found = true;
+
+        // 🔥 HERE'S YOUR FILENAME (from ASC)
+        console.log("✅ Matched:", row.filename);
+
+        break;
       }
     }
 
-    // 🔥 STEP 2 — FALLBACK TO TITLE/ARTIST
-    if (!found) {
-      console.log("⚠️ Filename match failed, using fallback");
-
-      const title = normalize(currentTitle);
-      const artist = normalize(currentArtist);
-
-      for (let i = 0; i < filteredLog.length; i++) {
-        const row = filteredLog[i];
-        if (row.type !== "SONG") continue;
-
-        const rowTitle = normalize(row.title);
-        const rowArtist = normalize(row.artist);
-
-        const titleMatch =
-          rowTitle.includes(title) || title.includes(rowTitle);
-
-        const artistMatch =
-          rowArtist.includes(artist) || artist.includes(rowArtist);
-
-        if (titleMatch && artistMatch) {
-          selectedIndex = i;
-          found = true;
-          console.log("✅ Matched by fallback:", rowTitle);
-          break;
-        }
-      }
-    }
-
-    // 🎯 APPLY HIGHLIGHT
     if (found) {
       renderTable();
 
@@ -2066,7 +2042,7 @@ function jumpToCurrentTime() {
       return;
     }
 
-    // 🔄 TRY ALTERNATE HOUR
+    // 🔄 fallback hour
     const altHour = selectedHour === startHour ? nowHour : startHour;
 
     if (availableHours.includes(altHour)) {
