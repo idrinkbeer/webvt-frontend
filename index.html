@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -424,6 +424,7 @@ let currentArtist = "";
 let lastTitle = "";
 let lastArtist = "";
 let isDrawingLive = false;
+let livePeaks = [];
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -761,6 +762,33 @@ vtWave = WaveSurfer.create({
   normalize: true
 });
 
+  // =========================
+// 🎯 FAKE PLAYHEAD CURSOR
+// =========================
+vtContainer.style.position = "relative";
+
+// remove old cursor (important when switching rows)
+const oldCursor = vtContainer.querySelector(".vt-cursor");
+if (oldCursor) oldCursor.remove();
+
+// create cursor
+const cursor = document.createElement("div");
+cursor.className = "vt-cursor";
+
+cursor.style.position = "absolute";
+cursor.style.right = "0";
+cursor.style.top = "0";
+cursor.style.width = "2px";
+cursor.style.height = "100%";
+cursor.style.background = "#ffffff";
+cursor.style.pointerEvents = "none";
+cursor.style.zIndex = "10";
+
+// 🔥 glow (optional but looks great)
+cursor.style.boxShadow = "0 0 6px #ffffff";
+
+vtContainer.appendChild(cursor);
+
 songWave = WaveSurfer.create({
   container: "#songWaveform",
   waveColor: "#1e3a8a",       // deep blue base
@@ -1066,6 +1094,7 @@ async function startRecording() {
 
   // ✅ START RECORDING STATE BEFORE DRAW
   isRecording = true;
+  livePeaks = [];
 
   // =========================
   // 🔥 LIVE VT WAVEFORM (WAVESURFER)
@@ -1088,26 +1117,34 @@ async function startRecording() {
     });
   }
 
-  function drawLiveWaveform() {
-    if (!isRecording) return;
+function drawLiveWaveform() {
+  if (!isRecording) return;
 
-    liveAnalyser.getFloatTimeDomainData(dataArrayLive);
+  liveAnalyser.getFloatTimeDomainData(dataArrayLive);
 
-    // convert mic data → peaks
-    const peaks = [];
-    const step = Math.floor(bufferLength / 120);
+  const step = Math.floor(bufferLength / 120);
 
-    for (let i = 0; i < bufferLength; i += step) {
-      peaks.push(Math.abs(dataArrayLive[i]));
-    }
-
-    // 🔥 render into WaveSurfer (this is the key)
-    if (vtWave) {
-      vtWave.load("", peaks);
-    }
-
-    requestAnimationFrame(drawLiveWaveform);
+  // 🎯 build new chunk of peaks
+  const newPeaks = [];
+  for (let i = 0; i < bufferLength; i += step) {
+    newPeaks.push(Math.abs(dataArrayLive[i]));
   }
+
+  // 🔁 append + trim (this creates scrolling effect)
+  livePeaks.push(...newPeaks);
+
+  const maxPeaks = 200; // controls visible width
+  if (livePeaks.length > maxPeaks) {
+    livePeaks.splice(0, livePeaks.length - maxPeaks);
+  }
+
+  // 🎨 draw into WaveSurfer
+  if (vtWave) {
+    vtWave.load("", livePeaks);
+  }
+
+  requestAnimationFrame(drawLiveWaveform);
+}
 
   drawLiveWaveform();
 
