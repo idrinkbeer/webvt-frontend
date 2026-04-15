@@ -1819,6 +1819,8 @@ setInterval(() => {
 
 let currentSongStart = null;
 let currentSongDuration = 0;
+let currentFilename = "";
+let lastFilename = "";
 
 async function loadNowPlaying() {
   try {
@@ -1833,98 +1835,58 @@ async function loadNowPlaying() {
     const text = await res.text();
     const lines = text.trim().split("\n").map(l => l.trim());
 
-    // 🎯 parse data
-    const startTimeStr = lines[0];
-currentArtist = (lines[2] || "").toLowerCase();
-currentTitle = (lines[3] || "").toLowerCase();
+    if (lines.length < 4) return;
 
-const artist = lines[2];
-const title = lines[3];
+    // 🎯 PARSE DATA (adjust indexes if needed)
+    const startTimeStr = lines[0];
+    const filenameRaw = lines[1] || "";   // 🔥 filename (NEW)
+    const artistRaw = lines[2] || "";
+    const titleRaw = lines[3] || "";
     const duration = parseInt(lines[6]) || 0;
 
-    // convert start time
+    // 🎯 NORMALIZED VALUES (for matching)
+    currentArtist = artistRaw.toLowerCase();
+    currentTitle = titleRaw.toLowerCase();
+    currentFilename = normalizeFile(filenameRaw); // 🔥 KEY ADD
+
+    // 🎯 STORE ORIGINAL FOR DISPLAY
+    const artist = artistRaw;
+    const title = titleRaw;
+
+    // 🎯 TIME
     currentSongStart = new Date(startTimeStr);
     currentSongDuration = duration;
 
+    // 🎯 UI
     document.getElementById("nowPlaying").textContent =
-  `${title} - ${artist}`;
+      `${title} - ${artist}`;
 
-// 🔥 detect song change
-if (
-  currentTitle !== lastTitle ||
-  currentArtist !== lastArtist
-) {
-  console.log("🎵 Song changed → updating highlight");
+    // 🧪 DEBUG (leave this for now)
+    console.log("🎧 NOW:", title, "|", artist);
+    console.log("📁 FILE:", currentFilename);
 
-  lastTitle = currentTitle;
-  lastArtist = currentArtist;
+    // 🔥 DETECT SONG CHANGE (USE FILENAME FIRST)
+    const songChanged =
+      currentFilename !== lastFilename ||
+      currentTitle !== lastTitle ||
+      currentArtist !== lastArtist;
 
-  if (autoFollowEnabled) {
-    jumpToCurrentTime();
-  }
-}
+    if (songChanged) {
+      console.log("🎵 Song changed → updating highlight");
+
+      lastFilename = currentFilename;
+      lastTitle = currentTitle;
+      lastArtist = currentArtist;
+
+      if (autoFollowEnabled) {
+        jumpToCurrentTime();
+      }
+    }
 
   } catch (err) {
-    console.error(err);
+    console.error("❌ NowPlaying Error:", err);
   }
 }
-
-setInterval(loadNowPlaying, 3000);
-loadNowPlaying();
-
-setInterval(() => {
-  if (!currentSongStart || !currentSongDuration) return;
-
-  const now = new Date();
-  const elapsed = (now - currentSongStart) / 1000;
-
-  let percent = (elapsed / currentSongDuration) * 100;
-  percent = Math.max(0, Math.min(100, percent));
-
-  // 🎯 top progress bar
-  document.getElementById("playBar").style.width = percent + "%";
-
-  // 🎯 time calculations
-  const mins = Math.floor(elapsed / 60);
-  const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
-
-  const remaining = currentSongDuration - elapsed;
-  const rmins = Math.floor(remaining / 60);
-  const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
-
-  // 🔥 choose display style
-  const timeText = `-${rmins}:${rsecs}`; 
-  // OR:
-  // const timeText = `${mins}:${secs} / -${rmins}:${rsecs}`;
-
-  // 🎯 row fill + overlay
-  if (!autoFollowEnabled) return;
-
-  const activeRow = document.querySelector("#logTable tbody tr.onair");
-
-  if (activeRow) {
-    activeRow.style.background = `
-      linear-gradient(
-        to right,
-        #00cc33 ${percent}%,
-        #0b3d91 ${percent}%
-      )
-    `;
-  }
-
-  // 🧼 cleanup other rows
-  document.querySelectorAll("#logTable tbody tr").forEach(tr => {
-    if (!tr.classList.contains("onair")) {
-      tr.style.background = "";
-      tr.removeAttribute("data-time"); // 🔥 important
-    }
-  });
-
-  // 🎯 top time display
-  document.getElementById("elapsed").textContent = `${mins}:${secs}`;
-  document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
-
-}, 1000);
 
 function getTodayLogName() {
   const now = new Date();
