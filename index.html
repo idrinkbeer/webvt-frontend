@@ -1140,12 +1140,22 @@ function applyOnAirHighlight() {
   rows.forEach(tr => {
     tr.classList.remove("onair");
 
-    const text = tr.textContent.toLowerCase();
+function normalize(str) {
+  return (str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "") // remove junk
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-    if (
-      text.includes(currentTitle) &&
-      text.includes(currentArtist)
-    ) {
+const rowText = normalize(tr.textContent);
+const title = normalize(currentTitle);
+const artist = normalize(currentArtist);
+
+if (
+  rowText.includes(title) ||
+  rowText.includes(artist)
+){
       tr.classList.add("onair");
     }
   });
@@ -1975,12 +1985,22 @@ function jumpToCurrentTime() {
     rows.forEach(tr => {
       tr.classList.remove("onair");
 
-      const text = tr.textContent.toLowerCase();
+      function normalize(str) {
+  return (str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]/g, "") // remove junk
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-      if (
-        text.includes(currentTitle) &&
-        text.includes(currentArtist)
-      ) {
+const rowText = normalize(tr.textContent);
+const title = normalize(currentTitle);
+const artist = normalize(currentArtist);
+
+if (
+  rowText.includes(title) ||
+  rowText.includes(artist)
+) {
         tr.classList.add("onair");
 
         tr.scrollIntoView({
