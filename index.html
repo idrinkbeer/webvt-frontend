@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -723,7 +723,6 @@ function renderTable() {
 
             <div id="status"></div>
             <div id="recordTime">⏱ 0:00</div>
-            <canvas id="vtLiveCanvas" style="width:100%; height:60px; background:#000;"></canvas>
 <div id="vtWaveform" style="margin-top:5px;"></div>
             <div id="songWaveform" style="margin-top:10px;"></div>
             <div class="audio-player">
@@ -1035,18 +1034,6 @@ async function startRecording() {
     }
   });
 
-  isDrawingLive = true;
-
-  // 🎤 SHOW CANVAS
-  const canvas = document.getElementById("vtLiveCanvas");
-  if (!canvas) return;
-
-  canvas.style.display = "block";
-
-  const ctx = canvas.getContext("2d");
-  canvas.width = canvas.offsetWidth;
-  canvas.height = 60;
-
   audioContext = new AudioContext();
 
   const source = audioContext.createMediaStreamSource(mediaStream);
@@ -1074,7 +1061,15 @@ async function startRecording() {
   analyser.connect(processor);
   processor.connect(audioContext.destination);
 
-  // 🎤 LIVE WAVEFORM (CANVAS)
+  // 🎙 store recorder
+  window._recorder = { samples, processor };
+
+  // ✅ START RECORDING STATE BEFORE DRAW
+  isRecording = true;
+
+  // =========================
+  // 🔥 LIVE VT WAVEFORM (WAVESURFER)
+  // =========================
   const liveAnalyser = audioContext.createAnalyser();
   liveAnalyser.fftSize = 1024;
 
@@ -1083,59 +1078,57 @@ async function startRecording() {
   const bufferLength = liveAnalyser.fftSize;
   const dataArrayLive = new Float32Array(bufferLength);
 
+  // 🎨 make it red while recording (optional but 🔥)
+  if (vtWave) {
+    vtWave.empty();
 
-function drawLiveWave() {
-  if (!isRecording || !isDrawingLive) return;
-
-  liveAnalyser.getFloatTimeDomainData(dataArrayLive);
-
-  // clear canvas
-  ctx.fillStyle = "#000";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const barWidth = 3;
-  const gap = 2;
-  const step = Math.floor(bufferLength / (canvas.width / (barWidth + gap)));
-
-  let x = 0;
-
-  for (let i = 0; i < bufferLength; i += step) {
-    const v = Math.abs(dataArrayLive[i]); // amplitude
-    const barHeight = v * canvas.height * 1.5;
-
-    const y = (canvas.height - barHeight) / 2;
-
-    ctx.fillStyle = "#00ff88"; // same as wavesurfer
-    ctx.beginPath();
-
-    // rounded bars (like WaveSurfer)
-    const radius = 2;
-
-    ctx.moveTo(x + radius, y);
-    ctx.lineTo(x + barWidth - radius, y);
-    ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + radius);
-    ctx.lineTo(x + barWidth, y + barHeight - radius);
-    ctx.quadraticCurveTo(
-      x + barWidth,
-      y + barHeight,
-      x + barWidth - radius,
-      y + barHeight
-    );
-    ctx.lineTo(x + radius, y + barHeight);
-    ctx.quadraticCurveTo(x, y + barHeight, x, y + barHeight - radius);
-    ctx.lineTo(x, y + radius);
-    ctx.quadraticCurveTo(x, y, x + radius, y);
-
-    ctx.fill();
-
-    x += barWidth + gap;
-
-    if (x > canvas.width) break;
+    vtWave.setOptions({
+      waveColor: "#ff0000",
+      progressColor: "#ff4444"
+    });
   }
 
-  requestAnimationFrame(drawLiveWave);
-}
+  function drawLiveWaveform() {
+    if (!isRecording) return;
 
+    liveAnalyser.getFloatTimeDomainData(dataArrayLive);
+
+    // convert mic data → peaks
+    const peaks = [];
+    const step = Math.floor(bufferLength / 120);
+
+    for (let i = 0; i < bufferLength; i += step) {
+      peaks.push(Math.abs(dataArrayLive[i]));
+    }
+
+    // 🔥 render into WaveSurfer (this is the key)
+    if (vtWave) {
+      vtWave.load("", peaks);
+    }
+
+    requestAnimationFrame(drawLiveWaveform);
+  }
+
+  drawLiveWaveform();
+
+  updateVU();
+
+  document.getElementById("recordBtn").textContent = "Stop";
+  document.getElementById("status").textContent = "Recording...";
+
+  // ⏱ timer
+  recordSeconds = 0;
+
+  recordInterval = setInterval(() => {
+    recordSeconds++;
+
+    const mins = Math.floor(recordSeconds / 60);
+    const secs = (recordSeconds % 60).toString().padStart(2, "0");
+
+    const el = document.getElementById("recordTime");
+    if (el) el.textContent = `⏱ ${mins}:${secs}`;
+  }, 1000);
+}
 
 function encodeMP3(samples, sampleRate) {
   const mp3encoder = new lamejs.Mp3Encoder(1, sampleRate, 128); // mono, 128 kbps
@@ -1168,6 +1161,7 @@ function encodeMP3(samples, sampleRate) {
   
 async function stopRecording() {
   await new Promise(r => setTimeout(r, 50));
+
   // ⏱ STOP TIMER
   if (recordInterval) {
     clearInterval(recordInterval);
@@ -1175,6 +1169,7 @@ async function stopRecording() {
   }
 
   isDrawingLive = false;
+  isRecording = false;
 
   const { samples, processor } = window._recorder;
 
@@ -1193,56 +1188,64 @@ async function stopRecording() {
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
 
-const row = filteredLog[selectedIndex];
-const { nextSong } = getPrevNextSongs(selectedIndex);
+  const row = filteredLog[selectedIndex];
+  const { nextSong } = getPrevNextSongs(selectedIndex);
 
-// 🎯 CALCULATE DURATION
-const duration = trimmed.length / audioContext.sampleRate;
+  // 🎯 CALCULATE DURATION
+  const duration = trimmed.length / audioContext.sampleRate;
 
-// 🎯 DETERMINE SEC TONE (manual OR fallback)
-let secToneSeconds;
+  // 🎯 DETERMINE SEC TONE
+  let secToneSeconds;
 
-if (secToneTime !== null) {
-  // ✅ USER SET IT MANUALLY
-  secToneSeconds = secToneTime;
-  console.log("🎯 Using manual Sec Tone:", secToneSeconds);
-} else {
-  // 🔁 FALLBACK AUTO LOGIC
-  if (nextSong && duration > nextSong.intro) {
-    secToneSeconds = duration - nextSong.intro;
+  if (secToneTime !== null) {
+    secToneSeconds = secToneTime;
+    console.log("🎯 Using manual Sec Tone:", secToneSeconds);
   } else {
-    secToneSeconds = duration;
+    if (nextSong && duration > nextSong.intro) {
+      secToneSeconds = duration - nextSong.intro;
+    } else {
+      secToneSeconds = duration;
+    }
+    console.log("🤖 Using auto Sec Tone:", secToneSeconds);
   }
-  console.log("🤖 Using auto Sec Tone:", secToneSeconds);
-}
 
-// 🎯 CONVERT TO SAMPLES (AIR FORMAT)
-const remaining = duration - secToneSeconds;
-const secTone = Math.floor(remaining * 1000);
-  
-// 🎯 PASS TO TAGGING
-recordedBlob = await addID3Tags(
-  rawBlob,
-  row,
-  nextSong,
-  duration,
-  secTone
-);
+  const remaining = duration - secToneSeconds;
+  const secTone = Math.floor(remaining * 1000);
+
+  // 🎯 TAG + SAVE
+  recordedBlob = await addID3Tags(
+    rawBlob,
+    row,
+    nextSong,
+    duration,
+    secTone
+  );
 
   recordings[row.cart] = recordedBlob;
 
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
-     if (vtWave) {
-      window.isAudioReady = false;
 
-      vtWave.load(URL.createObjectURL(recordedBlob));
+  // =========================
+  // 🔥 RESTORE WAVESURFER STYLE
+  // =========================
+  if (vtWave) {
+    window.isAudioReady = false;
 
-      vtWave.once("ready", () => {
-        console.log("🎙 VT ready after recording");
-        window.isAudioReady = true;
-      });
-    }
+    // back to normal colors (match songWave)
+    vtWave.setOptions({
+      waveColor: "#1e3a8a",
+      progressColor: "#00ff88"
+    });
+
+    // load final waveform
+    vtWave.load(URL.createObjectURL(recordedBlob));
+
+    vtWave.once("ready", () => {
+      console.log("🎙 VT ready after recording");
+      window.isAudioReady = true;
+    });
+  }
 
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
@@ -1254,7 +1257,6 @@ recordedBlob = await addID3Tags(
     analyser = null;
   }
 
-  isRecording = false;
   document.getElementById("recordBtn").textContent = "Start";
 
   // 🔊 stop song + restore volume
@@ -1262,17 +1264,6 @@ recordedBlob = await addID3Tags(
     songWave.setVolume(1);
     songWave.stop();
   }
-
-const canvas = document.getElementById("vtLiveCanvas");
-if (canvas) {
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // 👇 hide it after recording
-  canvas.style.display = "none";
-}
-
-
 }
 
 // =====================
