@@ -1722,6 +1722,58 @@ function toggleAutoFollow() {
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
   
+
+  setInterval(() => {
+  if (!currentSongStart || !currentSongDuration) return;
+
+  const now = new Date();
+  const elapsed = (now - currentSongStart) / 1000;
+
+  let percent = (elapsed / currentSongDuration) * 100;
+  percent = Math.max(0, Math.min(100, percent));
+
+  // 🎯 top progress bar
+  document.getElementById("playBar").style.width = percent + "%";
+
+  // 🎯 time display
+  const mins = Math.floor(elapsed / 60);
+  const secs = Math.floor(elapsed % 60).toString().padStart(2, "0");
+
+  const remaining = currentSongDuration - elapsed;
+  const rmins = Math.floor(remaining / 60);
+  const rsecs = Math.floor(remaining % 60).toString().padStart(2, "0");
+
+  document.getElementById("elapsed").textContent = `${mins}:${secs}`;
+  document.getElementById("remaining").textContent = `-${rmins}:${rsecs}`;
+
+  // 🔥 highlight fill
+  const allRows = document.querySelectorAll("#logTable tbody tr");
+
+  const dataRows = Array.from(allRows).filter(tr => {
+    return !tr.querySelector(".recorder");
+  });
+
+  const activeRow = document.querySelector("#logTable tbody tr.active");
+
+  if (activeRow) {
+    activeRow.style.background = `
+      linear-gradient(
+        to right,
+        #00cc33 ${percent}%,
+        #0b3d91 ${percent}%
+      )
+    `;
+  }
+
+  // 🧼 clear others
+  dataRows.forEach(tr => {
+    if (!tr.classList.contains("active")) {
+      tr.style.background = "";
+    }
+  });
+
+}, 1000);
+  
 </script>
 
 </body>
