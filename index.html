@@ -1662,8 +1662,10 @@ function normalizeCart(cart) {
 function isSongMatch(row) {
   if (!row || row.type !== "SONG") return false;
 
-  const rowCart = normalizeCart(row.cart);
-  const nowCart = normalizeCart(currentCart);
+  //const rowCart = normalizeCart(row.cart);
+  //const nowCart = normalizeCart(currentCart);
+   const rowCart = row.cart;
+  const nowCart = currentCart;
 
   console.log("🔍 CART compare:", rowCart, "vs", nowCart);
 
