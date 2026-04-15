@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -729,9 +729,8 @@ if (ac.state === "suspended") {
     analyserNode.fftSize = 2048;
 
     source.connect(analyserNode);
-    analyserNode.connect(ac.destination);
 
-    const data = new Uint8Array(analyserNode.frequencyBinCount);
+    const data = new Float32Array(analyserNode.fftSize);
 
     vuConnections.set(media, {
       analyser: analyserNode,
@@ -1331,8 +1330,7 @@ function updateVU() {
 
   let rms = Math.sqrt(sum / bufferLength);
 
-  // 🎯 convert to dB
-  let db = 20 * Math.log10(rms);
+  let db = 20 * Math.log10(rms || 0.00001);
 
   // clamp range (typical radio feel)
   db = Math.max(-60, Math.min(0, db));
