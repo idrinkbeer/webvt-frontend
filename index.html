@@ -1839,7 +1839,7 @@ async function loadNowPlaying() {
 
     // 🎯 PARSE DATA (adjust indexes if needed)
     const startTimeStr = lines[0];
-    const filenameRaw = lines[1] || "";   // 🔥 filename (NEW)
+    const filenameRaw = lines[12] || "";   // 🔥 filename (NEW)
     const artistRaw = lines[2] || "";
     const titleRaw = lines[3] || "";
     const duration = parseInt(lines[6]) || 0;
