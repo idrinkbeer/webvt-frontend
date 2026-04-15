@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1083,6 +1083,7 @@ async function startRecording() {
   const bufferLength = liveAnalyser.fftSize;
   const dataArrayLive = new Float32Array(bufferLength);
 
+
   function drawLiveWave() {
     if (!isRecording || !isDrawingLive) return;
 
@@ -1115,14 +1116,15 @@ async function startRecording() {
     requestAnimationFrame(drawLiveWave);
   }
 
+      isRecording = true;
+
+
   drawLiveWave();
 
   // 🎙 store recorder
   window._recorder = { samples, processor };
 
   updateVU();
-
-  isRecording = true;
 
   document.getElementById("recordBtn").textContent = "Stop";
   document.getElementById("status").textContent = "Recording...";
