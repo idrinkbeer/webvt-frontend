@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+ <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1318,14 +1318,24 @@ let vuRightLevel = 0;
 function updateVU() {
   if (!analyser || !isVUActive) return;
 
-  analyser.getByteFrequencyData(dataArray);
+  const bufferLength = analyser.fftSize;
+  const data = new Float32Array(bufferLength);
 
-  let sum = dataArray.reduce((a,b)=>a+b,0);
-  let avg = sum / dataArray.length;
+  // ✅ REAL audio waveform (not frequency)
+  analyser.getFloatTimeDomainData(data);
 
-  let level = Math.pow(avg / 255, 0.6);
+  let sum = 0;
+  for (let i = 0; i < bufferLength; i++) {
+    sum += data[i] * data[i];
+  }
 
-  // fake stereo split (for mic input)
+  // 🎯 RMS (true loudness)
+  let rms = Math.sqrt(sum / bufferLength);
+
+  // 🎛 scale it (this is the key tuning knob)
+  let level = Math.min(rms * 3, 1); // adjust multiplier if needed
+
+  // smooth fall
   vuLeftLevel = Math.max(level, vuLeftLevel * 0.9);
   vuRightLevel = Math.max(level * 0.95, vuRightLevel * 0.9);
 
