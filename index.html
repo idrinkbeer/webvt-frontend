@@ -752,15 +752,20 @@ setTimeout(() => {
     container: "#vtWaveform",
     waveColor: "#facc15",
     progressColor: "#eab308",
-    height: 60
+    height: 100
   });
 
-  songWave = WaveSurfer.create({
-    container: "#songWaveform",
-    waveColor: "#334155",
-    progressColor: "#22c55e",
-    height: 60
-  });
+songWave = WaveSurfer.create({
+  container: "#songWaveform",
+  waveColor: "#1e3a8a",       // deep blue base
+  progressColor: "#00ff88",   // bright green (on-air feel)
+  cursorColor: "#ffffff",
+  barWidth: 2,
+  barGap: 1,
+  barRadius: 2,
+  height: 100,
+  normalize: true
+});
 
   const rowData = filteredLog[selectedIndex];
   if (!rowData) return;
