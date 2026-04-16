@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1364,6 +1364,7 @@ async function stopRecording() {
   const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
+  recordedBlob = rawBlob;
 
   const row = filteredLog[selectedIndex];
   const { nextSong } = getPrevNextSongs(selectedIndex);
