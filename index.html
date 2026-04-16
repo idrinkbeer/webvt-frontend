@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+    <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1388,7 +1388,8 @@ async function stopRecording() {
   }
 
   const remaining = duration - secToneSeconds;
-  const secTone = Math.floor(remaining * 1000);
+  const secTone = remaining;
+  secToneTime = secToneSeconds;
 
   recordings[row.cart] = recordedBlob;
 
