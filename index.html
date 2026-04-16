@@ -385,7 +385,19 @@ select {
 }
 
 #libWaveform {
-  height: 50px;
+  position: relative;
+  height: 60px;
+}
+
+/* 🔴 RED SEC TONE LINE */
+#secMarker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 60px;
+  background: red;
+  cursor: ew-resize;
+  z-index: 10;
 }
 
 /* spacing between dropdowns */
@@ -529,16 +541,13 @@ select + select {
     <!-- PREVIEW -->
     <div class="lib-preview">
       <div id="libWaveform"></div>
+      <div id="secMarker"></div>
 
       <div style="margin-top:5px;">
         <button class="air-btn air-btn-green" onclick="playLibPreview()">PLAY</button>
+        <button class="air-btn air-btn-green" onclick="playFromSecTone()">PLAY SEGUE</button>
         <button class="air-btn air-btn-green" onclick="stopLibPreview()">STOP</button>
-      </div>
-
-        <!-- 🎯 SEC TONE -->
-      <div style="margin-top:5px;">
-        Sec Tone: <span id="secToneTime">0.00</span>s
-        <button onclick="saveSecTone()">SAVE SEGUE</button>
+        <button onclick="saveSecTone()">SAVE</button>
       </div>
     </div>
 
@@ -582,6 +591,9 @@ let lastTitle = "";
 let lastArtist = "";
 let previewTimeout = null;
 let isVUActive = false;
+let secTone = 0;
+let isDraggingMarker = false;
+
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -2036,7 +2048,7 @@ function loadLibPreview(file) {
     container: "#libWaveform",
     waveColor: "#1e3a8a",
     progressColor: "#00ff88",
-    height: 50,
+    height: 60,
     barWidth: 2,
     normalize: true
   });
@@ -2045,15 +2057,7 @@ function loadLibPreview(file) {
 
   libWave.on("ready", () => {
     secTone = 0;
-    updateSecToneDisplay();
-  });
-
-  // 🎯 CLICK TO SET SEC TONE
-  libWave.on("click", (pos) => {
-    const duration = libWave.getDuration();
-    secTone = pos * duration;
-
-    updateSecToneDisplay();
+    moveMarker(0);
   });
 }
 
@@ -2116,6 +2120,58 @@ async function saveSecTone() {
     alert("Failed to save");
   }
 }
+
+function moveMarker(time) {
+  if (!libWave) return;
+
+  const duration = libWave.getDuration();
+  const percent = time / duration;
+
+  const marker = document.getElementById("secMarker");
+  const container = document.getElementById("libWaveform");
+
+  const width = container.clientWidth;
+
+  marker.style.left = (percent * width) + "px";
+
+  secTone = time;
+
+  updateSecToneDisplay();
+}
+
+
+const marker = document.getElementById("secMarker");
+const container = document.getElementById("libWaveform");
+
+marker.onmousedown = () => {
+  isDraggingMarker = true;
+};
+
+document.onmouseup = () => {
+  isDraggingMarker = false;
+};
+
+document.onmousemove = (e) => {
+  if (!isDraggingMarker || !libWave) return;
+
+  const rect = container.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+
+  x = Math.max(0, Math.min(rect.width, x));
+
+  const percent = x / rect.width;
+  const time = percent * libWave.getDuration();
+
+  moveMarker(time);
+};
+
+function playFromSecTone() {
+  if (!libWave) return;
+
+  libWave.setTime(secTone);
+  libWave.play();
+}
+
 
 </script>
 
