@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -286,57 +286,69 @@ select {
 
 
 
-/* ===== LIBRARY MODAL ===== */
+/* ===== AIR LIBRARY WINDOW ===== */
 .lib-modal {
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:rgba(0,0,0,0.8);
-  z-index:9999;
+  display: none;
+  position: fixed;
+  top: 120px;
+  left: 120px;
+  width: 400px;
+  height: 450px;
+  background: #000;
+  border: 3px solid #001a66;
+  z-index: 9999;
 }
 
-.lib-content {
-  background:#000;
-  width:80%;
-  height:80%;
-  margin:5% auto;
-  padding:20px;
-  border:2px solid #001a66;
-  color:#fff;
-  display:flex;
-  flex-direction:column;
-}
-
+/* HEADER BAR (DRAG HANDLE) */
 .lib-header {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
+  background: #001a66;
+  padding: 6px 10px;
+  cursor: move;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  border-bottom: 2px solid #000;
+}
+
+.lib-header button {
+  background: #cc0000;
+  border: 2px solid #000;
+  color: #fff;
+  padding: 2px 8px;
+}
+
+/* CONTENT */
+.lib-content {
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 30px);
+  padding: 10px;
 }
 
 #songSearch {
-  margin:10px 0;
-  padding:8px;
-  border:2px solid #000;
-  background:#001a66;
-  color:#fff;
+  margin-bottom: 8px;
+  padding: 6px;
+  background: #001a66;
+  border: 2px solid #000;
+  color: #fff;
+  font-size: 12px;
 }
 
+/* LIST */
 #songList {
-  flex:1;
-  overflow:auto;
-  list-style:none;
-  padding:0;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
 }
 
 #songList li {
-  padding:8px;
-  border-bottom:1px solid #001a66;
-  cursor:pointer;
+  padding: 6px;
+  border-bottom: 1px solid #001a66;
 }
 
 #songList li:hover {
-  background:#0033cc;
+  background: #0033cc;
 }
 
 
@@ -458,17 +470,19 @@ select + select {
 
 <!-- 🎵 MUSIC LIBRARY MODAL -->
 <div id="libraryModal" class="lib-modal">
+
+  <div class="lib-header" id="libHeader">
+    <span>MUSIC LIBRARY</span>
+    <button onclick="closeLibrary()">X</button>
+  </div>
+
   <div class="lib-content">
-    <div class="lib-header">
-      <h2>Music Library</h2>
-      <button onclick="closeLibrary()">✕</button>
-    </div>
-
-    <input type="text" id="songSearch" placeholder="Search songs..." onkeyup="filterSongs()"/>
-
+    <input type="text" id="songSearch" placeholder="Search..." onkeyup="filterSongs()"/>
     <ul id="songList"></ul>
   </div>
+
 </div>
+
 
 <script src="https://unpkg.com/lamejs@1.2.0/lame.min.js"></script>
 <script src="https://unpkg.com/wavesurfer.js"></script>
@@ -1843,7 +1857,37 @@ function toggleAutoFollow() {
 
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
-  
+
+
+// =====================
+// 🖱 DRAGGABLE WINDOW FOR LIBRARY
+// =====================
+(function() {
+  const modal = document.getElementById("libraryModal");
+  const header = document.getElementById("libHeader");
+
+  let offsetX = 0;
+  let offsetY = 0;
+  let isDragging = false;
+
+  header.onmousedown = (e) => {
+    isDragging = true;
+    offsetX = e.clientX - modal.offsetLeft;
+    offsetY = e.clientY - modal.offsetTop;
+  };
+
+  document.onmousemove = (e) => {
+    if (!isDragging) return;
+
+    modal.style.left = (e.clientX - offsetX) + "px";
+    modal.style.top = (e.clientY - offsetY) + "px";
+  };
+
+  document.onmouseup = () => {
+    isDragging = false;
+  };
+})();
+
 // =====================
 // 🎵 MUSIC LIBRARY (API VERSION)
 // =====================
@@ -1851,7 +1895,8 @@ function toggleAutoFollow() {
 let allSongs = [];
 
 function openLibrary() {
-  document.getElementById("libraryModal").style.display = "block";
+  const modal = document.getElementById("libraryModal");
+  modal.style.display = "block";
   loadLibrarySongs();
 }
 
