@@ -352,6 +352,42 @@ select {
 }
 
 
+
+/* TABLE */
+.lib-table {
+  flex: 1;
+  overflow-y: auto;
+  font-size: 12px;
+  border: 2px solid #000;
+}
+
+.lib-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 4px;
+  border-bottom: 1px solid #001a66;
+}
+
+.lib-head {
+  background: #001a66;
+  font-weight: bold;
+}
+
+.lib-row:hover {
+  background: #0033cc;
+  cursor: pointer;
+}
+
+/* PREVIEW */
+.lib-preview {
+  border-top: 2px solid #001a66;
+  padding-top: 5px;
+}
+
+#libWaveform {
+  height: 50px;
+}
+
 /* spacing between dropdowns */
 select + select {
   margin-left: 5px;
@@ -477,8 +513,30 @@ select + select {
   </div>
 
   <div class="lib-content">
+
     <input type="text" id="songSearch" placeholder="Search..." onkeyup="filterSongs()"/>
-    <ul id="songList"></ul>
+
+    <!-- TABLE -->
+    <div class="lib-table">
+      <div class="lib-row lib-head">
+        <div>Artist</div>
+        <div>Title</div>
+      </div>
+
+      <div id="songList"></div>
+    </div>
+
+    <!-- PREVIEW -->
+    <div class="lib-preview">
+      <div id="libWaveform"></div>
+
+      <div style="margin-top:5px;">
+        <button class="air-btn air-btn-green" onclick="playLibPreview()">PLAY</button>
+        <button class="air-btn air-btn-green" onclick="stopLibPreview()">STOP</button>
+
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -1933,14 +1991,64 @@ function renderLibrary(songs) {
   list.innerHTML = "";
 
   songs.forEach(file => {
-    const li = document.createElement("li");
-    li.textContent = file.name;
 
-    li.onclick = () => playLibrarySong(file);
+    // 🎯 split filename → Artist - Title
+    let artist = "Unknown";
+    let title = file.name;
 
-    list.appendChild(li);
+    if (file.name.includes(" - ")) {
+      const parts = file.name.replace(".mp3", "").split(" - ");
+      artist = parts[0];
+      title = parts[1];
+    }
+
+    const row = document.createElement("div");
+    row.className = "lib-row";
+
+    row.innerHTML = `
+      <div>${artist}</div>
+      <div>${title}</div>
+    `;
+
+    row.onclick = () => loadLibPreview(file);
+
+    list.appendChild(row);
   });
 }
+
+let libWave = null;
+let currentLibFile = null;
+
+function loadLibPreview(file) {
+  currentLibFile = file;
+
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+
+  // destroy old wave
+  if (libWave) {
+    libWave.destroy();
+  }
+
+  libWave = WaveSurfer.create({
+    container: "#libWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 50,
+    barWidth: 2,
+    normalize: true
+  });
+
+  libWave.load(url);
+}
+
+function playLibPreview() {
+  if (libWave) libWave.play();
+}
+
+function stopLibPreview() {
+  if (libWave) libWave.stop();
+}
+
 
 function filterSongs() {
   const search = document.getElementById("songSearch").value.toLowerCase();
