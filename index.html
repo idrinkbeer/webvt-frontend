@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+   <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -606,10 +606,10 @@ let lastTitle = "";
 let lastArtist = "";
 let previewTimeout = null;
 let isVUActive = false;
-let secTone = 0;
 let isDraggingMarker = false;
 let libIntro = 0;
 let isDraggingIntro = false;
+let libSecTone = 0;
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -2073,35 +2073,40 @@ async function loadLibPreview(file) {
 
   libWave.load(url);
 
-  libWave.on("ready", async () => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/music/meta/${encodeURIComponent(file.name)}`,
-        {
-          headers: { Authorization: "Bearer " + token }
-        }
-      );
+libWave.on("ready", async () => {
+  try {
+    const res = await fetch(
+      `${API_BASE}/music/meta/${encodeURIComponent(file.name)}`,
+      {
+        headers: { Authorization: "Bearer " + token }
+      }
+    );
 
-      const data = await res.json();
+    const data = await res.json();
 
-      // 🔴 load sec tone
-      moveMarker(data.secTone || 0);
+    // 🔥 SET STATE FIRST
+    libSecTone = data.secTone || 0;
+    libIntro = data.intro || 0;
 
-      // 🟡 load intro
-      moveIntroMarker(data.intro || 0);
+    // 🔥 THEN MOVE MARKERS
+    moveMarker(libSecTone);
+    moveIntroMarker(libIntro);
 
-    } catch (err) {
-      console.error("Meta load failed", err);
+  } catch (err) {
+    console.error("Meta load failed", err);
 
-      moveMarker(0);
-      moveIntroMarker(0);
-    }
-  });
+    libSecTone = 0;
+    libIntro = 0;
+
+    moveMarker(0);
+    moveIntroMarker(0);
+  }
+});
 }
 
 function updateSecToneDisplay() {
   document.getElementById("secToneTime").textContent =
-    secTone.toFixed(2);
+    libSecTone.toFixed(2)
 }
 
 function playLibPreview() {
@@ -2147,7 +2152,7 @@ async function saveSecTone() {
       },
       body: JSON.stringify({
         filename: currentLibFile.name,
-        secTone: secTone,
+        secTone: libSecTone,
         intro: libIntro
       })
     });
@@ -2173,7 +2178,7 @@ function moveMarker(time) {
 
   marker.style.left = (percent * width) + "px";
 
-  secTone = time;
+  libSecTone = time;
 
   updateSecToneDisplay();
 }
@@ -2210,7 +2215,7 @@ document.addEventListener("mousemove", (e) => {
 function playFromSecTone() {
   if (!libWave) return;
 
-  libWave.setTime(secTone);
+  libWave.setTime(libSecTone);
   libWave.play();
 }
 
