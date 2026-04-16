@@ -751,28 +751,17 @@ function logout() {
 
   const row = filteredLog[selectedIndex];
 
-  const formData = new FormData();
-formData.append("file", recordedBlob, `${row.cart}.mp3`);
-formData.append("cart", row.cart);
-
-// 🔥 ADD THESE
-formData.append("secTone", secToneTime || 0);
-formData.append("intro", 0);
-
-  const status = document.getElementById("status");
-  const btn = document.getElementById("uploadBtn");
-
-  status.textContent = "Uploading...";
-  btn.disabled = true;
-
-  try {
-    const res = await fetch(`${API_BASE}/upload`, {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token
-      },
-      body: formData
-    });
+await fetch(`${API_BASE}/upload`, {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer " + token,
+    "Content-Type": "application/octet-stream",
+    "X-Filename": `${row.cart}.mp3`,
+    "X-SecTone": secToneTime || 0,
+    "X-Intro": 0
+  },
+  body: recordedBlob
+});
 
     if (!res.ok) throw new Error("Upload failed");
 
