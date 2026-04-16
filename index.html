@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+     <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1953,16 +1953,17 @@ function toggleAutoFollow() {
     offsetY = e.clientY - modal.offsetTop;
   };
 
-  document.onmousemove = (e) => {
-    if (!isDragging) return;
+document.addEventListener("mousemove", (e) => {
+  if (!isDragging) return;
 
-    modal.style.left = (e.clientX - offsetX) + "px";
-    modal.style.top = (e.clientY - offsetY) + "px";
-  };
+  modal.style.left = (e.clientX - offsetX) + "px";
+  modal.style.top = (e.clientY - offsetY) + "px";
+});
 
-  document.onmouseup = () => {
-    isDragging = false;
-  };
+document.addEventListener("mouseup", () => {
+  isDragging = false;
+  isDraggingMarker = false;
+});
 })();
 
 // =====================
@@ -2148,23 +2149,25 @@ marker.onmousedown = () => {
   isDraggingMarker = true;
 };
 
-document.onmouseup = () => {
+document.addEventListener("mouseup", () => {
+  isDragging = false;
   isDraggingMarker = false;
-};
+});
 
-document.onmousemove = (e) => {
+document.addEventListener("mousemove", (e) => {
   if (!isDraggingMarker || !libWave) return;
 
+  const container = document.getElementById("libWaveform");
   const rect = container.getBoundingClientRect();
-  let x = e.clientX - rect.left;
 
+  let x = e.clientX - rect.left;
   x = Math.max(0, Math.min(rect.width, x));
 
   const percent = x / rect.width;
   const time = percent * libWave.getDuration();
 
   moveMarker(time);
-};
+});
 
 function playFromSecTone() {
   if (!libWave) return;
