@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -570,8 +570,8 @@ select + select {
     🎵 ---
   </div>
 
-  🔴 Segue: <span id="secToneTime">0.00</span>s  
   🟡 Intro: <span id="introTime">0.00</span>s
+  🔴 Segue: <span id="secToneTime">0.00</span>s  
 
 </div>
 
@@ -2010,7 +2010,7 @@ if (file.name.includes(" - ")) {
 
 const label = document.getElementById("libNowPlaying");
 if (label) {
-  label.innerHTML = `🎵 <strong>${title}</strong> - ${artist}`;
+  label.innerHTML = `🎵 <strong>${artist}</strong> - ${title}`;
 }
 
   const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
