@@ -746,27 +746,32 @@ function logout() {
 // =====================
 // UPLOAD VOICETRACK 
 // =====================
-  async function uploadToAIR() {
+async function uploadToAIR() {
   if (!recordedBlob) return;
 
   const row = filteredLog[selectedIndex];
+  const status = document.getElementById("status");
+  const btn = document.getElementById("uploadBtn");
 
-await fetch(`${API_BASE}/upload`, {
-  method: "POST",
-  headers: {
-    Authorization: "Bearer " + token,
-    "Content-Type": "application/octet-stream",
-    "X-Filename": `${row.cart}.mp3`,
-    "X-SecTone": secToneTime || 0,
-    "X-Intro": 0
-  },
-  body: recordedBlob
-});
+  try {
+    const res = await fetch(`${API_BASE}/upload`, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/octet-stream",
+        "X-Filename": `${row.cart}.mp3`,
+        "X-SecTone": secToneTime || 0,
+        "X-Intro": 0
+      },
+      body: recordedBlob
+    });
 
     if (!res.ok) throw new Error("Upload failed");
 
     status.textContent = "✅ VT Uploaded to AIR";
     btn.textContent = "VT Uploaded ✓";
+    btn.disabled = true;
+
     uploaded[row.cart] = true;
 
   } catch (err) {
