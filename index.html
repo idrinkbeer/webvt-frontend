@@ -1,4 +1,4 @@
-     <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -400,6 +400,17 @@ select {
   z-index: 10;
 }
 
+/* 🟡 INTRO MARKER */
+#introMarker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 60px;
+  background: yellow;
+  cursor: ew-resize;
+  z-index: 9;
+}
+
 /* spacing between dropdowns */
 select + select {
   margin-left: 5px;
@@ -542,6 +553,7 @@ select + select {
     <div class="lib-preview">
 <div style="position:relative;">
   <div id="libWaveform"></div>
+  <div id="introMarker"></div>
   <div id="secMarker"></div>
 </div>
 
@@ -595,6 +607,8 @@ let previewTimeout = null;
 let isVUActive = false;
 let secTone = 0;
 let isDraggingMarker = false;
+let libIntro = 0;
+let isDraggingIntro = false;
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -1963,6 +1977,7 @@ document.addEventListener("mousemove", (e) => {
 document.addEventListener("mouseup", () => {
   isDragging = false;
   isDraggingMarker = false;
+  isDraggingIntro = false;
 });
 })();
 
@@ -2111,7 +2126,8 @@ async function saveSecTone() {
       },
       body: JSON.stringify({
         filename: currentLibFile.name,
-        secTone: secTone
+        secTone: secTone,
+        intro: libIntro
       })
     });
 
@@ -2152,6 +2168,7 @@ marker.onmousedown = () => {
 document.addEventListener("mouseup", () => {
   isDragging = false;
   isDraggingMarker = false;
+  isDraggingIntro = false;
 });
 
 document.addEventListener("mousemove", (e) => {
@@ -2176,6 +2193,48 @@ function playFromSecTone() {
   libWave.play();
 }
 
+
+function moveIntroMarker(time) {
+  if (!libWave) return;
+
+  const duration = libWave.getDuration();
+  const percent = time / duration;
+
+  const marker = document.getElementById("introMarker");
+  const container = document.getElementById("libWaveform");
+
+  const width = container.clientWidth;
+
+  marker.style.left = (percent * width) + "px";
+
+  libIntro = time;
+
+  updateIntroDisplay();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  const introMarker = document.getElementById("introMarker");
+
+  introMarker.onmousedown = (e) => {
+    e.stopPropagation();
+    isDraggingIntro = true;
+  };
+});
+
+document.addEventListener("mousemove", (e) => {
+  if (!isDraggingIntro || !libWave) return;
+
+  const container = document.getElementById("libWaveform");
+  const rect = container.getBoundingClientRect();
+
+  let x = e.clientX - rect.left;
+  x = Math.max(0, Math.min(rect.width, x));
+
+  const percent = x / rect.width;
+  const time = percent * libWave.getDuration();
+
+  moveIntroMarker(time);
+});
 
 </script>
 
