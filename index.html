@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -555,6 +555,11 @@ select + select {
   <div id="libWaveform"></div>
   <div id="introMarker"></div>
   <div id="secMarker"></div>
+</div>
+
+<div style="margin-top:5px; font-size:12px;">
+  🔴 Sec: <span id="secToneTime">0.00</span>s  
+  🟡 Intro: <span id="introTime">0.00</span>s
 </div>
 
       <div style="margin-top:5px;">
@@ -2084,11 +2089,9 @@ libWave.on("ready", async () => {
 
     const data = await res.json();
 
-    // 🔥 SET STATE FIRST
     libSecTone = data.secTone || 0;
     libIntro = data.intro || 0;
 
-    // 🔥 THEN MOVE MARKERS
     moveMarker(libSecTone);
     moveIntroMarker(libIntro);
 
@@ -2105,8 +2108,10 @@ libWave.on("ready", async () => {
 }
 
 function updateSecToneDisplay() {
-  document.getElementById("secToneTime").textContent =
-    libSecTone.toFixed(2)
+  const el = document.getElementById("secToneTime");
+  if (el) {
+    el.textContent = libSecTone.toFixed(2);
+  }
 }
 
 function playLibPreview() {
@@ -2268,6 +2273,13 @@ document.addEventListener("mousemove", (e) => {
 
   moveIntroMarker(time);
 });
+
+function updateIntroDisplay() {
+  const el = document.getElementById("introTime");
+  if (el) {
+    el.textContent = libIntro.toFixed(2);
+  }
+}
 
 </script>
 
