@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+  <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2018,8 +2018,17 @@ libWave.on("ready", async () => {
 
     const data = await res.json();
 
-    libSecTone = data.secTone || 0;
-    libIntro = data.intro || 0;
+    const duration = libWave.getDuration();
+
+    // 🟡 INTRO (default = start)
+    libIntro = (data.intro && data.intro > 0)
+      ? data.intro
+      : 0;
+
+    // 🔴 SEC TONE (default = END OF SONG)
+    libSecTone = (data.secTone && data.secTone > 0)
+      ? data.secTone
+      : duration;
 
     moveMarker(libSecTone);
     moveIntroMarker(libIntro);
@@ -2027,11 +2036,14 @@ libWave.on("ready", async () => {
   } catch (err) {
     console.error("Meta load failed", err);
 
-    libSecTone = 0;
-    libIntro = 0;
+    const duration = libWave.getDuration();
 
-    moveMarker(0);
-    moveIntroMarker(0);
+    // fallback defaults
+    libIntro = 0;
+    libSecTone = duration;
+
+    moveMarker(libSecTone);
+    moveIntroMarker(libIntro);
   }
 });
 }
