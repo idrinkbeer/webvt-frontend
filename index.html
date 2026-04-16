@@ -558,9 +558,10 @@ select + select {
 </div>
 
       <div style="margin-top:5px;">
-        <button class="air-btn air-btn-green" onclick="playLibPreview()">PLAY</button>
-        <button class="air-btn air-btn-green" onclick="playFromSecTone()">PLAY SEGUE</button>
-        <button class="air-btn air-btn-green" onclick="stopLibPreview()">STOP</button>
+        <button onclick="playLibPreview()">PLAY</button>
+        <button onclick="playFromIntro()">PLAY INTRO</button>
+        <button onclick="playFromSecTone()">PLAY SEGUE</button>
+        <button onclick="stopLibPreview()">STOP</button>
         <button onclick="saveSecTone()">SAVE</button>
       </div>
     </div>
@@ -2054,7 +2055,7 @@ function renderLibrary(songs) {
 let libWave = null;
 let currentLibFile = null;
 
-function loadLibPreview(file) {
+async function loadLibPreview(file) {
   currentLibFile = file;
 
   const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
@@ -2072,9 +2073,29 @@ function loadLibPreview(file) {
 
   libWave.load(url);
 
-  libWave.on("ready", () => {
-    secTone = 0;
-    moveMarker(0);
+  libWave.on("ready", async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/music/meta/${encodeURIComponent(file.name)}`,
+        {
+          headers: { Authorization: "Bearer " + token }
+        }
+      );
+
+      const data = await res.json();
+
+      // 🔴 load sec tone
+      moveMarker(data.secTone || 0);
+
+      // 🟡 load intro
+      moveIntroMarker(data.intro || 0);
+
+    } catch (err) {
+      console.error("Meta load failed", err);
+
+      moveMarker(0);
+      moveIntroMarker(0);
+    }
   });
 }
 
@@ -2190,6 +2211,13 @@ function playFromSecTone() {
   if (!libWave) return;
 
   libWave.setTime(secTone);
+  libWave.play();
+}
+
+function playFromIntro() {
+  if (!libWave) return;
+
+  libWave.setTime(libIntro);
   libWave.play();
 }
 
