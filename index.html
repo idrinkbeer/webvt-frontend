@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+   <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2062,9 +2062,9 @@ if (label) {
         ? introVal
         : 0;
 
-      libSecTone = (!isNaN(secVal) && secVal >= 0)
-        ? secVal
-        : duration;
+libSecTone = (!isNaN(secVal) && secVal > 0)
+  ? secVal
+  : duration;
 
       // 🔥 UPDATE MARKERS
       moveMarker(libSecTone);
