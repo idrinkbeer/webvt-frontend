@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+   <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -284,11 +284,68 @@ select {
   background-repeat: no-repeat;
 }
 
+
+
+/* ===== LIBRARY MODAL ===== */
+.lib-modal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.8);
+  z-index:9999;
+}
+
+.lib-content {
+  background:#000;
+  width:80%;
+  height:80%;
+  margin:5% auto;
+  padding:20px;
+  border:2px solid #001a66;
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+}
+
+.lib-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+#songSearch {
+  margin:10px 0;
+  padding:8px;
+  border:2px solid #000;
+  background:#001a66;
+  color:#fff;
+}
+
+#songList {
+  flex:1;
+  overflow:auto;
+  list-style:none;
+  padding:0;
+}
+
+#songList li {
+  padding:8px;
+  border-bottom:1px solid #001a66;
+  cursor:pointer;
+}
+
+#songList li:hover {
+  background:#0033cc;
+}
+
+
 /* spacing between dropdowns */
 select + select {
   margin-left: 5px;
 }
     
+
 </style>
 </head>
 
@@ -374,10 +431,11 @@ select + select {
 
     <!-- RIGHT -->
 
-    <div>
-      <button id="autoFollowBtn" class="air-btn air-btn-green" onclick="toggleAutoFollow()">AUTO ON</button>
-      <button onclick="logout()">Logout</button>
-    </div>
+<div>
+  <button class="air-btn" onclick="openLibrary()">Library</button>
+  <button id="autoFollowBtn" class="air-btn air-btn-green" onclick="toggleAutoFollow()">AUTO ON</button>
+  <button onclick="logout()">Logout</button>
+</div>
 
   </div>
 
@@ -396,6 +454,20 @@ select + select {
     <tbody></tbody>
   </table>
 
+</div>
+
+<!-- 🎵 MUSIC LIBRARY MODAL -->
+<div id="libraryModal" class="lib-modal">
+  <div class="lib-content">
+    <div class="lib-header">
+      <h2>Music Library</h2>
+      <button onclick="closeLibrary()">✕</button>
+    </div>
+
+    <input type="text" id="songSearch" placeholder="Search songs..." onkeyup="filterSongs()"/>
+
+    <ul id="songList"></ul>
+  </div>
 </div>
 
 <script src="https://unpkg.com/lamejs@1.2.0/lame.min.js"></script>
@@ -1772,6 +1844,81 @@ function toggleAutoFollow() {
   console.log("AUTO FOLLOW:", autoFollowEnabled ? "ON" : "OFF");
 }
   
+// =====================
+// 🎵 MUSIC LIBRARY (API VERSION)
+// =====================
+
+let allSongs = [];
+
+function openLibrary() {
+  document.getElementById("libraryModal").style.display = "block";
+  loadLibrarySongs();
+}
+
+function closeLibrary() {
+  document.getElementById("libraryModal").style.display = "none";
+}
+
+async function loadLibrarySongs() {
+  const list = document.getElementById("songList");
+  list.innerHTML = "<li>Loading...</li>";
+
+  try {
+    const res = await fetch(`${API_BASE}/music`, {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    });
+
+    const data = await res.json();
+
+    // 🔥 since API returns just filenames
+    allSongs = data.map(name => ({ name }));
+
+    renderLibrary(allSongs);
+
+  } catch (err) {
+    console.error(err);
+    list.innerHTML = "<li>Error loading songs</li>";
+  }
+}
+
+function renderLibrary(songs) {
+  const list = document.getElementById("songList");
+  list.innerHTML = "";
+
+  songs.forEach(file => {
+    const li = document.createElement("li");
+    li.textContent = file.name;
+
+    li.onclick = () => playLibrarySong(file);
+
+    list.appendChild(li);
+  });
+}
+
+function filterSongs() {
+  const search = document.getElementById("songSearch").value.toLowerCase();
+
+  const filtered = allSongs.filter(f =>
+    f.name.toLowerCase().includes(search)
+  );
+
+  renderLibrary(filtered);
+}
+
+// 🔥 USE YOUR EXISTING PLAYER SYSTEM (UNCHANGED)
+function playLibrarySong(file) {
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+
+  if (previewAudio) {
+    previewAudio.pause();
+  }
+
+  previewAudio = new Audio(url);
+  previewAudio.play();
+}
+
 </script>
 
 </body>
