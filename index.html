@@ -648,6 +648,7 @@ let isDraggingMarker = false;
 let libIntro = 0;
 let isDraggingIntro = false;
 let libSecTone = 0;
+let lastHour = null;
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -1702,14 +1703,21 @@ const title = lines[3];
   `${title} - ${artist}`;
 
 // 🔥 detect song change
-if (
+const now = new Date();
+const currentHour = now.getHours();
+
+const songChanged =
   currentTitle !== lastTitle ||
-  currentArtist !== lastArtist
-) {
-  console.log("🎵 Song changed → updating highlight");
+  currentArtist !== lastArtist;
+
+const hourChanged = currentHour !== lastHour;
+
+if (songChanged || hourChanged) {
+  console.log("🎵 Update trigger → song/hour change");
 
   lastTitle = currentTitle;
   lastArtist = currentArtist;
+  lastHour = currentHour;
 
   if (autoFollowEnabled) {
     jumpToCurrentTime();
