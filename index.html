@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+    <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -533,7 +533,12 @@ select + select {
       <div style="margin-top:5px;">
         <button class="air-btn air-btn-green" onclick="playLibPreview()">PLAY</button>
         <button class="air-btn air-btn-green" onclick="stopLibPreview()">STOP</button>
+      </div>
 
+        <!-- 🎯 SEC TONE -->
+      <div style="margin-top:5px;">
+        Sec Tone: <span id="secToneTime">0.00</span>s
+        <button onclick="saveSecTone()">SAVE SEGUE</button>
       </div>
     </div>
 
@@ -2018,16 +2023,14 @@ function renderLibrary(songs) {
 
 let libWave = null;
 let currentLibFile = null;
+let secTone = 0;
 
 function loadLibPreview(file) {
   currentLibFile = file;
 
   const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
-  // destroy old wave
-  if (libWave) {
-    libWave.destroy();
-  }
+  if (libWave) libWave.destroy();
 
   libWave = WaveSurfer.create({
     container: "#libWaveform",
@@ -2039,6 +2042,24 @@ function loadLibPreview(file) {
   });
 
   libWave.load(url);
+
+  libWave.on("ready", () => {
+    secTone = 0;
+    updateSecToneDisplay();
+  });
+
+  // 🎯 CLICK TO SET SEC TONE
+  libWave.on("click", (pos) => {
+    const duration = libWave.getDuration();
+    secTone = pos * duration;
+
+    updateSecToneDisplay();
+  });
+}
+
+function updateSecToneDisplay() {
+  document.getElementById("secToneTime").textContent =
+    secTone.toFixed(2);
 }
 
 function playLibPreview() {
@@ -2070,6 +2091,30 @@ function playLibrarySong(file) {
 
   previewAudio = new Audio(url);
   previewAudio.play();
+}
+
+async function saveSecTone() {
+  if (!currentLibFile) return;
+
+  try {
+    await fetch(`${API_BASE}/sectone`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({
+        filename: currentLibFile.name,
+        secTone: secTone
+      })
+    });
+
+    alert("Sec Tone saved!");
+
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save");
+  }
 }
 
 </script>
