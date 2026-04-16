@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+   <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -565,8 +565,14 @@ select + select {
 </div>
 
 <div style="margin-top:5px; font-size:12px;">
-  🔴 Sec: <span id="secToneTime">0.00</span>s  
+
+  <div id="libNowPlaying" style="margin-bottom:4px;">
+    🎵 ---
+  </div>
+
+  🔴 Segue: <span id="secToneTime">0.00</span>s  
   🟡 Intro: <span id="introTime">0.00</span>s
+
 </div>
 
       <div style="margin-top:5px;">
@@ -1992,10 +1998,27 @@ let currentLibFile = null;
 async function loadLibPreview(file) {
   currentLibFile = file;
 
+  // 🎵 update display name
+let artist = "Unknown";
+let title = file.name;
+
+if (file.name.includes(" - ")) {
+  const parts = file.name.replace(".mp3", "").split(" - ");
+  artist = parts[0];
+  title = parts[1];
+}
+
+const label = document.getElementById("libNowPlaying");
+if (label) {
+  label.innerHTML = `🎵 <strong>${title}</strong> - ${artist}`;
+}
+
   const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
+  // 🔥 DESTROY OLD INSTANCE
   if (libWave) libWave.destroy();
 
+  // 🔥 CREATE ONCE
   libWave = WaveSurfer.create({
     container: "#libWaveform",
     waveColor: "#1e3a8a",
@@ -2005,47 +2028,52 @@ async function loadLibPreview(file) {
     normalize: true
   });
 
+  // 🚀 START META FETCH IMMEDIATELY (PARALLEL)
+  const metaPromise = fetch(
+    `${API_BASE}/music/meta/${encodeURIComponent(file.name)}`,
+    {
+      headers: { Authorization: "Bearer " + token }
+    }
+  ).then(r => r.json());
+
+  // 🚀 LOAD AUDIO IMMEDIATELY
   libWave.load(url);
 
-libWave.on("ready", async () => {
-  try {
-    const res = await fetch(
-      `${API_BASE}/music/meta/${encodeURIComponent(file.name)}`,
-      {
-        headers: { Authorization: "Bearer " + token }
-      }
-    );
-
-    const data = await res.json();
-
+  // ⚡ WHEN WAVE READY
+  libWave.on("ready", async () => {
     const duration = libWave.getDuration();
 
-    // 🟡 INTRO (default = start)
-    libIntro = (data.intro && data.intro > 0)
-      ? data.intro
-      : 0;
-
-    // 🔴 SEC TONE (default = END OF SONG)
-    libSecTone = (data.secTone && data.secTone > 0)
-      ? data.secTone
-      : duration;
-
-    moveMarker(libSecTone);
-    moveIntroMarker(libIntro);
-
-  } catch (err) {
-    console.error("Meta load failed", err);
-
-    const duration = libWave.getDuration();
-
-    // fallback defaults
+    // ⚡ INSTANT DEFAULT MARKERS (FEELS FAST)
     libIntro = 0;
     libSecTone = duration;
 
     moveMarker(libSecTone);
     moveIntroMarker(libIntro);
-  }
-});
+
+    try {
+      // 🔥 WAIT FOR META (ALREADY LOADING)
+      const data = await metaPromise;
+
+      const introVal = parseFloat(data.intro);
+      const secVal = parseFloat(data.secTone);
+
+      // 🟡 APPLY REAL VALUES
+      libIntro = (!isNaN(introVal) && introVal >= 0)
+        ? introVal
+        : 0;
+
+      libSecTone = (!isNaN(secVal) && secVal >= 0)
+        ? secVal
+        : duration;
+
+      // 🔥 UPDATE MARKERS
+      moveMarker(libSecTone);
+      moveIntroMarker(libIntro);
+
+    } catch (err) {
+      console.error("Meta load failed", err);
+    }
+  });
 }
 
 function updateSecToneDisplay() {
