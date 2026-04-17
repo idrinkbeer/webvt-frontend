@@ -1,4 +1,4 @@
-        <!DOCTYPE html>
+          <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -661,6 +661,35 @@ const tableBody = document.querySelector("#logTable tbody");
 async function initApp() {
   if (!token) return;
 
+  const logContainer = document.querySelector("#logTable tbody");
+
+logContainer.addEventListener("dragover", e => e.preventDefault());
+
+logContainer.addEventListener("drop", e => {
+  e.preventDefault();
+
+  const songData = e.dataTransfer.getData("song");
+  if (!songData) return;
+
+  const song = JSON.parse(songData);
+
+  const newItem = {
+    type: "SONG",
+    time: "00:00:00",
+    title: song.name,
+    artist: "",
+    duration: song.duration,
+    segue: song.segue,
+    filename: song.name
+  };
+
+  filteredLog.push(newItem);
+
+  recalcTimes();
+  renderTable();
+});
+
+
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
 
@@ -892,6 +921,14 @@ function buildHourDropdown() {
   };
 }
 
+function moveItem(from, to) {
+  const item = filteredLog.splice(from, 1)[0];
+  filteredLog.splice(to, 0, item);
+
+  recalcTimes();
+  renderTable();
+}
+
 // =====================
 // TABLE
 // =====================
@@ -906,6 +943,27 @@ function renderTable() {
 
   filteredLog.forEach((row, i) => {
     const tr = document.createElement("tr");
+
+    tr.draggable = true;
+
+// DRAG START
+tr.addEventListener("dragstart", e => {
+  e.dataTransfer.setData("index", i);
+});
+
+// DRAG OVER
+tr.addEventListener("dragover", e => e.preventDefault());
+
+// DROP
+tr.addEventListener("drop", e => {
+  e.preventDefault();
+
+  const from = parseInt(e.dataTransfer.getData("index"));
+  const to = i;
+
+  moveItem(from, to);
+});
+
 
     if (row.type === "VTX") tr.classList.add("vtx");
     if (i === selectedIndex) tr.classList.add("active");
@@ -1998,6 +2056,18 @@ function renderLibrary(songs) {
 
     list.appendChild(row);
   });
+
+  row.draggable = true;
+
+row.addEventListener("dragstart", e => {
+  e.dataTransfer.setData("song", JSON.stringify({
+    name: file.name,
+    duration: 200, // placeholder
+    intro: 0,
+    segue: 180
+  }));
+});
+
 }
 
 let libWave = null;
@@ -2350,6 +2420,60 @@ function parseAIR(air) {
 
         console.log("Wave duration:", libWave.getDuration());
 console.log("Saving segue:", libSecTone);
+
+
+
+
+function setupLibraryDrag(el, song) {
+  el.draggable = true;
+
+  el.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("song", JSON.stringify(song));
+  });
+}
+
+
+function formatTime(seconds) {
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(Math.floor(seconds % 60)).padStart(2, "0");
+  return `${h}:${m}:${s}`;
+}
+
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60);
+  const s = String(sec % 60).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function buildASC(log) {
+  return log.map(item => {
+
+    if (item.type === "VTX") {
+      return `${item.time}\\\\VTX\\Z\\${item.cart}\\:03 VOICE TRACK\\\\\\\\0:05\\00\\\\`;
+    }
+
+    return `${item.time}\\\\MUS\\$\\${item.id}\\${item.title}\\${item.artist}\\${item.year || ""}\\${formatDuration(item.duration)}\\${item.segue}\\F\\${item.filename}`;
+
+  }).join("\n");
+}
+
+
+function recalcTimes() {
+  if (!filteredLog.length) return;
+
+  // get first row time as starting point
+  let [h, m, s] = filteredLog[0].time.split(":").map(Number);
+  let currentTime = h * 3600 + m * 60 + s;
+
+  filteredLog.forEach(item => {
+    item.time = formatTime(currentTime);
+
+    // 🔥 THIS IS CORRECT FOR RADIO LOGS
+    currentTime += item.segue || item.duration || 0;
+  });
+}
+
 </script>
 
 </body>
