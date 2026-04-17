@@ -530,6 +530,7 @@ select + select {
 
   <!-- TABLE -->
   <table id="logTable">
+    <h2>Hour ${hour}:00</h2>
     <thead>
       <tr>
         <th>Time</th>
@@ -1000,10 +1001,30 @@ function moveItem(from, to) {
 // TABLE
 // =====================
 function filterByHour(hour) {
-  filteredLog = log
-  .filter(row => row.time.startsWith(hour))
-  .map(row => ({ ...row })); // 🔥 CLONE OBJECT
-  selectedIndex = null;
+  const syncIndexes = log
+    .map((item, i) => item.type === "SYNC" ? i : -1)
+    .filter(i => i !== -1);
+
+  let start = null;
+  let end = log.length;
+
+  for (let i = 0; i < syncIndexes.length; i++) {
+    const idx = syncIndexes[i];
+    const syncHour = log[idx].time.substring(0, 2);
+
+    if (syncHour === hour) {
+      start = idx + 1; // 🔥 AFTER sync
+      end = syncIndexes[i + 1] || log.length;
+      break;
+    }
+  }
+
+  if (start === null) {
+    filteredLog = [];
+  } else {
+    filteredLog = log.slice(start, end);
+  }
+
   renderTable();
 }
 
