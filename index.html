@@ -673,16 +673,23 @@ logContainer.addEventListener("drop", e => {
 
   const song = JSON.parse(songData);
 
-  // 🔥 find EXACT row index (skip recorder rows)
   const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
     .filter(r => !r.querySelector(".recorder"));
 
-  const targetRow = e.target.closest("tr");
-  let insertIndex = rows.indexOf(targetRow);
+  // 🔥 TRUE DROP POSITION (pixel-based)
+  let insertIndex = rows.length;
 
-  if (insertIndex === -1) insertIndex = filteredLog.length;
+  for (let i = 0; i < rows.length; i++) {
+    const rect = rows[i].getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
 
-  // ✅ parse artist/title
+    if (e.clientY < midpoint) {
+      insertIndex = i;
+      break;
+    }
+  }
+
+  // parse metadata
   let artist = "Unknown";
   let title = song.name;
 
@@ -701,7 +708,6 @@ logContainer.addEventListener("drop", e => {
     filename: song.name
   };
 
-  // 🔥 INSERT (not push)
   filteredLog.splice(insertIndex, 0, newItem);
 
   recalcTimes();
@@ -952,7 +958,9 @@ function moveItem(from, to) {
 // TABLE
 // =====================
 function filterByHour(hour) {
-  filteredLog = log.filter(row => row.time.startsWith(hour));
+  filteredLog = log
+  .filter(row => row.time.startsWith(hour))
+  .map(row => ({ ...row })); // 🔥 CLONE OBJECT
   selectedIndex = null;
   renderTable();
 }
