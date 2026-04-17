@@ -2170,14 +2170,13 @@ function moveMarker(time) {
   const percent = time / duration;
 
   const marker = document.getElementById("secMarker");
-  const container = document.getElementById("libWaveform");
 
-  const width = container.clientWidth;
+  // 🔥 THIS is the correct width
+  const width = libWave.drawer.wrapper.scrollWidth;
 
   marker.style.left = (percent * width) + "px";
 
   libSecTone = time;
-
   updateSecToneDisplay();
 }
 
@@ -2229,17 +2228,18 @@ function moveIntroMarker(time) {
   if (!libWave) return;
 
   const duration = libWave.getDuration();
+  if (!duration) return;
+
   const percent = time / duration;
 
   const marker = document.getElementById("introMarker");
-  const container = document.getElementById("libWaveform");
 
-  const width = container.clientWidth;
+  // 🔥 SAME FIX HERE
+  const width = libWave.drawer.wrapper.scrollWidth;
 
   marker.style.left = (percent * width) + "px";
 
   libIntro = time;
-
   updateIntroDisplay();
 }
 
