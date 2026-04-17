@@ -2589,10 +2589,9 @@ function getDropIndex(clientY) {
 
 async function saveLog() {
   const filename = document.getElementById("logSelect").value;
-
   const asc = buildASC(filteredLog);
 
-  await fetch(`${API_BASE}/logs/${filename}`, {
+  const res = await fetch(`${API_BASE}/logs/${filename}`, {
     method: "POST",
     headers: {
       "Content-Type": "text/plain",
@@ -2601,7 +2600,13 @@ async function saveLog() {
     body: asc
   });
 
-  alert("Log saved!");
+  const data = await res.json();
+
+  if (data.success) {
+    alert("Log saved!");
+  } else {
+    alert("Save failed");
+  }
 }
 
 </script>
