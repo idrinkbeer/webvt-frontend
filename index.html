@@ -1,4 +1,4 @@
-        <!DOCTYPE html>
+          <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -507,22 +507,11 @@ select + select {
   
 </div>
 
-<div id="dropIndicator" style="
-  position:absolute;
-  height:2px;
-  background:#00ff88;
-  pointer-events:none;
-  display:none;
-  z-index:9999;
-"></div>
-
-
     <!-- RIGHT -->
 
 <div>
   <button class="air-btn" onclick="openLibrary()">Library</button>
   <button id="autoFollowBtn" class="air-btn air-btn-green" onclick="toggleAutoFollow()">AUTO ON</button>
-  <button onclick="saveLog()">Save Log</button>
   <button onclick="logout()">Logout</button>
 </div>
 
@@ -660,74 +649,17 @@ let libIntro = 0;
 let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
- let originalASC = "";
-let originalLines = [];
-        let dirtyHours = new Set();
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
-const logContainer = document.querySelector("#logTable tbody");
 
 // =====================
 // LOGIN SYSTEM 
 // =====================
 async function initApp() {
   if (!token) return;
-
-  
-
-logContainer.addEventListener("dragover", e => e.preventDefault());
-
-logContainer.addEventListener("drop", e => {
-  e.preventDefault();
-  indicator.style.display = "none";
-
-  const songData = e.dataTransfer.getData("song");
-  if (!songData) return;
-
-  const song = JSON.parse(songData);
-
-  const insertIndex = getDropIndex(e.clientY);
-
-  // parse filename
-  let artist = "Unknown";
-  let title = song.name;
-
-  if (song.name.includes(" - ")) {
-    const parts = song.name.replace(".mp3", "").split(" - ");
-    artist = parts[0];
-    title = parts[1];
-  }
-
-  // 🔥 GET NEIGHBORS
-  const prev = filteredLog[insertIndex - 1];
-  const next = filteredLog[insertIndex];
-
-  // 🔥 ASSIGN TIME (NO RECALC)
-  let time = "00:00:00";
-
-  if (prev) {
-    time = prev.time;           // 👈 match previous item
-  } else if (next) {
-    time = next.time;           // 👈 or next if first slot
-  }
-
-  const newItem = {
-    type: "SONG",
-    title,
-    artist,
-    duration: song.duration,
-    segue: song.segue,
-    filename: song.name,
-    time // ✅ IMPORTANT
-  };
-
-  filteredLog.splice(insertIndex, 0, newItem);
-
-  renderTable();
-});
 
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
@@ -892,12 +824,7 @@ async function loadSelectedLog(filename) {
   const res = await fetch(`${API_BASE}/logs/${filename}`, {
     headers: { Authorization: "Bearer " + token }
   });
-
   const text = await res.text();
-
-  // 🔥 ADD THIS
-  originalASC = text;
-  originalLines = text.split("\n");
 
   processASC(text);
   document.getElementById("hourSelect").style.display = "inline-block";
@@ -907,52 +834,28 @@ async function loadSelectedLog(filename) {
 // ASC PROCESSING
 // =====================
 function processASC(text) {
-  const lines = text.split("\n");
-
-  log = lines
-    .map((line, i) => {
+  log = text.split("\n")
+    .map(line => {
       const parts = line.split("\\");
 
-      // 🔥 1. TIME SYNC (FIRST!)
-      if (line.includes("TIME SYNC")) {
-        return {
-          type: "SYNC",
-          time: parts[0],
-          originalLine: line,
-          originalLineIndex: i
-        };
-      }
-
-      // 🎵 MUSIC
       if (line.includes("\\MUS\\")) {
-        const durationParts = parts[9]?.split(":") || ["0", "0"];
-        const duration =
-          parseInt(durationParts[0]) * 60 +
-          parseInt(durationParts[1]);
-
-        const segue = parseInt(parts[10]) || duration;
-
         return {
           type: "SONG",
           time: parts[0],
           title: parts[5],
           artist: parts[6],
           filename: parts[12]?.trim(),
-          duration,
-          segue,
-          originalLine: line,
-          originalLineIndex: i
+          intro: parseInt(parts[10]) || 0,
+          end: parts[11]
         };
       }
 
-      // 🎙 VOICETRACK
       if (line.includes("\\VTX\\")) {
         return {
           type: "VTX",
           time: parts[0],
           cart: parts[4],
-          originalLine: line,
-          originalLineIndex: i
+          title: "VOICE TRACK"
         };
       }
 
@@ -989,42 +892,12 @@ function buildHourDropdown() {
   };
 }
 
-function moveItem(from, to) {
-  const item = filteredLog.splice(from, 1)[0];
-  filteredLog.splice(to, 0, item);
-
-  
-  renderTable();
-}
-
 // =====================
 // TABLE
 // =====================
 function filterByHour(hour) {
-  const syncIndexes = log
-    .map((item, i) => item.type === "SYNC" ? i : -1)
-    .filter(i => i !== -1);
-
-  let start = null;
-  let end = log.length;
-
-  for (let i = 0; i < syncIndexes.length; i++) {
-    const idx = syncIndexes[i];
-    const syncHour = log[idx].time.substring(0, 2);
-
-    if (syncHour === hour) {
-      start = idx + 1; // 🔥 AFTER sync
-      end = syncIndexes[i + 1] || log.length;
-      break;
-    }
-  }
-
-  if (start === null) {
-    filteredLog = [];
-  } else {
-    filteredLog = log.slice(start, end);
-  }
-
+  filteredLog = log.filter(row => row.time.startsWith(hour));
+  selectedIndex = null;
   renderTable();
 }
 
@@ -1033,27 +906,6 @@ function renderTable() {
 
   filteredLog.forEach((row, i) => {
     const tr = document.createElement("tr");
-
-    tr.draggable = true;
-
-// DRAG START
-tr.addEventListener("dragstart", e => {
-  e.dataTransfer.setData("index", i);
-});
-
-// DRAG OVER
-tr.addEventListener("dragover", e => e.preventDefault());
-
-// DROP
-tr.addEventListener("drop", e => {
-  e.preventDefault();
-
-  const from = parseInt(e.dataTransfer.getData("index"));
-  const to = i;
-
-  moveItem(from, to);
-});
-
 
     if (row.type === "VTX") tr.classList.add("vtx");
     if (i === selectedIndex) tr.classList.add("active");
@@ -1933,11 +1785,6 @@ const hourSelect = document.getElementById("hourSelect");
 // get available hours from dropdown
 const availableHours = Array.from(hourSelect.options).map(o => o.value);
 
-if (!availableHours.length) {
-  console.log("⚠️ No hours available yet");
-  return;
-}
-
 let selectedHour = currentHourStr;
 
 // 🎯 if exact hour doesn't exist → find closest
@@ -2129,6 +1976,7 @@ function renderLibrary(songs) {
 
   songs.forEach(file => {
 
+    // 🎯 split filename → Artist - Title
     let artist = "Unknown";
     let title = file.name;
 
@@ -2147,18 +1995,6 @@ function renderLibrary(songs) {
     `;
 
     row.onclick = () => loadLibPreview(file);
-
-    // ✅ FIX: DRAG HERE (inside loop)
-    row.draggable = true;
-
-    row.addEventListener("dragstart", e => {
-      e.dataTransfer.setData("song", JSON.stringify({
-        name: file.name,
-        duration: 200,
-        intro: 0,
-        segue: 180
-      }));
-    });
 
     list.appendChild(row);
   });
@@ -2512,202 +2348,8 @@ function parseAIR(air) {
   }
 }
 
-
-
-async function setupLibraryDrag(el, song) {
-  el.draggable = true;
-
-  let airData = null;
-
-  try {
-    const res = await fetch(
-      `${API_BASE}/music/tag/${encodeURIComponent(song.name)}`,
-      {
-        headers: { Authorization: "Bearer " + token }
-      }
-    );
-
-    const data = await res.json();
-    airData = parseAIR(data.air);
-
-  } catch (err) {
-    console.warn("AIR load failed for", song.name);
-  }
-
-  el.addEventListener("dragstart", e => {
-    e.dataTransfer.setData("song", JSON.stringify({
-      name: song.name,
-      duration: airData?.end || 200,
-      segue: airData?.segue || 180,
-      intro: airData?.intro || 0
-    }));
-  });
-}
-
-
-function formatTime(seconds) {
-  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
-  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
-  const s = String(Math.floor(seconds % 60)).padStart(2, "0");
-  return `${h}:${m}:${s}`;
-}
-
-function formatDuration(sec) {
-  const m = Math.floor(sec / 60);
-  const s = String(sec % 60).padStart(2, "0");
-  return `${m}:${s}`;
-}
-
-function rebuildASC() {
-  const newLines = [...originalLines];
-
-  const syncIndexes = log
-    .map((item, i) => item.type === "SYNC" ? i : -1)
-    .filter(i => i !== -1);
-
-  dirtyHours.forEach(hour => {
-
-    let start = null;
-    let end = originalLines.length;
-
-    // 🔍 find SYNC for this hour
-    for (let i = 0; i < syncIndexes.length; i++) {
-      const idx = syncIndexes[i];
-      const syncHour = log[idx].time.substring(0, 2);
-
-      if (syncHour === hour) {
-        start = idx + 1; // ✅ AFTER TIME SYNC
-        end = syncIndexes[i + 1] || originalLines.length;
-        break;
-      }
-    }
-
-    if (start === null) return;
-
-    // 🔥 rebuild ONLY the content AFTER sync
-    const rebuiltHour = filteredLog.map(item => {
-      if (item.originalLineIndex !== undefined) {
-        let line = originalLines[item.originalLineIndex];
-        return line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
-      } else {
-        return buildASCLine(item);
-      }
-    });
-
-    // 🔥 replace ONLY the block AFTER sync
-    newLines.splice(start, end - start, ...rebuiltHour);
-  });
-
-  return newLines.join("\n");
-}
-
-
-
-function buildASCLine(item) {
-  const cart = item.cart || "000000";
-
-  const duration = formatDuration(item.duration || 0);
-
-  const segue = item.segue || 0;
-
-  const flag = item.flags || "F"; // default to F or C depending on your system
-
-  const year = item.year || "";
-
-  return [
-    item.time || "00:00:00",
-    " ",              // 👈 REQUIRED (matches existing lines)
-    "MUS",
-    "$",
-    cart,
-    item.title || "",
-    item.artist || "",
-    "",               // blank field (important)
-    year,
-    duration,
-    segue,
-    flag,
-    item.filename || ""
-  ].join("\\");
-}
-
-
-const indicator = document.getElementById("dropIndicator");
-
-logContainer.addEventListener("dragover", e => {
-  e.preventDefault();
-
-  const index = getDropIndex(e.clientY);
-  const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
-    .filter(r => !r.querySelector(".recorder"));
-
-  if (rows.length === 0) return;
-
-  if (index < rows.length) {
-    const rect = rows[index].getBoundingClientRect();
-
-    indicator.style.top = rect.top + "px";
-    indicator.style.left = rect.left + "px";
-    indicator.style.width = rect.width + "px";
-  } else {
-    const last = rows[rows.length - 1].getBoundingClientRect();
-
-    indicator.style.top = last.bottom + "px";
-    indicator.style.left = last.left + "px";
-    indicator.style.width = last.width + "px";
-  }
-
-  indicator.style.display = "block";
-});
-
-logContainer.addEventListener("dragleave", () => {
-  indicator.style.display = "none";
-});
-
-logContainer.addEventListener("drop", () => {
-  indicator.style.display = "none";
-});
-
-
-function getDropIndex(clientY) {
-  const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
-    .filter(r => !r.querySelector(".recorder"));
-
-  for (let i = 0; i < rows.length; i++) {
-    const rect = rows[i].getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-
-    if (clientY < midpoint) {
-      return i;
-    }
-  }
-
-  return rows.length;
-}
-
-
-async function saveLog() {
-  const filename = document.getElementById("logSelect").value;
-  const asc = rebuildASC();
-
-  const res = await fetch(`${API_BASE}/logs/${filename}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain",
-      Authorization: "Bearer " + token
-    },
-    body: asc
-  });
-
-  const data = await res.json();
-
-  if (data.success) {
-    alert("Log saved!");
-  } else {
-    alert("Save failed");
-  }
-}
-
+        console.log("Wave duration:", libWave.getDuration());
+console.log("Saving segue:", libSecTone);
 </script>
 
 </body>
