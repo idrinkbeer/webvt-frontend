@@ -660,11 +660,14 @@ let libIntro = 0;
 let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
+ let originalASC = "";
+let originalLines = [];
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
+const logContainer = document.querySelector("#logTable tbody");
 
 // =====================
 // LOGIN SYSTEM 
@@ -672,7 +675,7 @@ const tableBody = document.querySelector("#logTable tbody");
 async function initApp() {
   if (!token) return;
 
-  const logContainer = document.querySelector("#logTable tbody");
+  
 
 logContainer.addEventListener("dragover", e => e.preventDefault());
 
@@ -873,9 +876,6 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
-
-  let originalASC = "";
-let originalLines = [];
   const res = await fetch(`${API_BASE}/logs/${filename}`, {
     headers: { Authorization: "Bearer " + token }
   });
@@ -895,7 +895,7 @@ let originalLines = [];
 // =====================
 function processASC(text) {
   log = text.split("\n")
-    .map(line => {
+    .map((line, i) => {
       const parts = line.split("\\");
 
 if (line.includes("\\MUS\\")) {
