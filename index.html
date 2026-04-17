@@ -1,4 +1,4 @@
-          <!DOCTYPE html>
+        <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1843,6 +1843,11 @@ const hourSelect = document.getElementById("hourSelect");
 // get available hours from dropdown
 const availableHours = Array.from(hourSelect.options).map(o => o.value);
 
+if (!availableHours.length) {
+  console.log("⚠️ No hours available yet");
+  return;
+}
+
 let selectedHour = currentHourStr;
 
 // 🎯 if exact hour doesn't exist → find closest
@@ -2034,7 +2039,6 @@ function renderLibrary(songs) {
 
   songs.forEach(file => {
 
-    // 🎯 split filename → Artist - Title
     let artist = "Unknown";
     let title = file.name;
 
@@ -2054,20 +2058,20 @@ function renderLibrary(songs) {
 
     row.onclick = () => loadLibPreview(file);
 
+    // ✅ FIX: DRAG HERE (inside loop)
+    row.draggable = true;
+
+    row.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("song", JSON.stringify({
+        name: file.name,
+        duration: 200,
+        intro: 0,
+        segue: 180
+      }));
+    });
+
     list.appendChild(row);
   });
-
-  row.draggable = true;
-
-row.addEventListener("dragstart", e => {
-  e.dataTransfer.setData("song", JSON.stringify({
-    name: file.name,
-    duration: 200, // placeholder
-    intro: 0,
-    segue: 180
-  }));
-});
-
 }
 
 let libWave = null;
@@ -2417,10 +2421,6 @@ function parseAIR(air) {
     return null;
   }
 }
-
-        console.log("Wave duration:", libWave.getDuration());
-console.log("Saving segue:", libSecTone);
-
 
 
 
