@@ -700,21 +700,33 @@ logContainer.addEventListener("drop", e => {
     title = parts[1];
   }
 
+  // 🔥 GET NEIGHBORS
+  const prev = filteredLog[insertIndex - 1];
+  const next = filteredLog[insertIndex];
+
+  // 🔥 ASSIGN TIME (NO RECALC)
+  let time = "00:00:00";
+
+  if (prev) {
+    time = prev.time;           // 👈 match previous item
+  } else if (next) {
+    time = next.time;           // 👈 or next if first slot
+  }
+
   const newItem = {
     type: "SONG",
     title,
     artist,
     duration: song.duration,
     segue: song.segue,
-    filename: song.name
+    filename: song.name,
+    time // ✅ IMPORTANT
   };
 
   filteredLog.splice(insertIndex, 0, newItem);
 
-  recalcTimes();
   renderTable();
 });
-
 
   document.getElementById("loginContainer").style.display = "none";
   document.getElementById("app").style.display = "block";
@@ -973,7 +985,7 @@ function moveItem(from, to) {
   const item = filteredLog.splice(from, 1)[0];
   filteredLog.splice(to, 0, item);
 
-  recalcTimes();
+  
   renderTable();
 }
 
@@ -2522,29 +2534,27 @@ function formatDuration(sec) {
 function rebuildASC() {
   const newLines = [];
 
-  log.forEach(originalItem => {
-    const edited = filteredLog.find(f =>
-      f.originalLineIndex === originalItem.originalLineIndex
-    );
-
-    if (edited) {
-      // 🔥 ALWAYS rebuild edited rows
-      newLines.push(buildASCLine(edited));
-    } else {
-      // unchanged row → keep original
-      newLines.push(originalLines[originalItem.originalLineIndex]);
-    }
-  });
-
-  // 🔥 ADD NEW ITEMS (dragged from library etc.)
   filteredLog.forEach(item => {
-    if (item.originalLineIndex === undefined) {
+
+    if (item.originalLineIndex !== undefined) {
+      // existing item → update time but keep structure
+      let line = originalLines[item.originalLineIndex];
+
+      // 🔥 update ONLY the time (first field)
+      line = line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
+
+      newLines.push(line);
+
+    } else {
+      // 🔥 NEW ITEM → build fresh line
       newLines.push(buildASCLine(item));
     }
+
   });
 
   return newLines.join("\n");
 }
+
 
 
 function buildASCLine(item) {
@@ -2563,23 +2573,6 @@ function buildASCLine(item) {
     item.end || "",
     item.filename || ""
   ].join("\\");
-}
-
-function recalcTimes() {
-  if (!filteredLog.length) return;
-
-  // 🔥 use FIRST ITEM as anchor (correct behavior)
-  let [h, m, s] = filteredLog[0].time.split(":").map(Number);
-  let currentTime = h * 3600 + m * 60 + s;
-
-  filteredLog.forEach((item, i) => {
-    if (i === 0) {
-      item.time = formatTime(currentTime);
-    } else {
-      currentTime += filteredLog[i - 1].segue || filteredLog[i - 1].duration || 0;
-      item.time = formatTime(currentTime);
-    }
-  });
 }
 
 
