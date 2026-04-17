@@ -1,4 +1,4 @@
-        <!DOCTYPE html>
+         <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -906,46 +906,53 @@ async function loadSelectedLog(filename) {
 // ASC PROCESSING
 // =====================
 function processASC(text) {
-  log = text.split("\n")
+  const lines = text.split("\n");
+
+  log = lines
     .map((line, i) => {
       const parts = line.split("\\");
 
-if (line.includes("\\MUS\\")) {
-  const durationParts = parts[9]?.split(":") || ["0","0"];
-  const duration =
-    parseInt(durationParts[0]) * 60 +
-    parseInt(durationParts[1]);
+      // 🔥 1. TIME SYNC (FIRST!)
+      if (line.includes("TIME SYNC")) {
+        return {
+          type: "SYNC",
+          time: parts[0],
+          originalLine: line,
+          originalLineIndex: i
+        };
+      }
 
-  const segue = parseInt(parts[10]) || duration;
+      // 🎵 MUSIC
+      if (line.includes("\\MUS\\")) {
+        const durationParts = parts[9]?.split(":") || ["0", "0"];
+        const duration =
+          parseInt(durationParts[0]) * 60 +
+          parseInt(durationParts[1]);
 
-return {
-  type: "SONG",
-  time: parts[0],
-  title: parts[5],
-  artist: parts[6],
-  filename: parts[12]?.trim(),
-  intro: parseInt(parts[10]) || 0,
-  end: parts[11],
-  duration,
-  segue,
+        const segue = parseInt(parts[10]) || duration;
 
-  // 🔥 ADD THESE
-  originalLine: line,
-  originalLineIndex: i
-};
-}
+        return {
+          type: "SONG",
+          time: parts[0],
+          title: parts[5],
+          artist: parts[6],
+          filename: parts[12]?.trim(),
+          duration,
+          segue,
+          originalLine: line,
+          originalLineIndex: i
+        };
+      }
 
+      // 🎙 VOICETRACK
       if (line.includes("\\VTX\\")) {
-return {
-  type: "VTX",
-  time: parts[0],
-  cart: parts[4],
-  title: "VOICE TRACK",
-
-  // 🔥 ADD THESE
-  originalLine: line,
-  originalLineIndex: i
-};
+        return {
+          type: "VTX",
+          time: parts[0],
+          cart: parts[4],
+          originalLine: line,
+          originalLineIndex: i
+        };
       }
 
       return null;
@@ -2534,33 +2541,27 @@ function formatDuration(sec) {
 function rebuildASC() {
   const newLines = [];
 
-  const selectedHour = document.getElementById("hourSelect").value;
+  // 🔥 find TIME SYNC
+  const timeSync = filteredLog.find(item => item.type === "SYNC");
 
-  // 🔥 Build updated hour lines first
-  const updatedHourLines = filteredLog.map(item => {
+  // 🔥 always put it first
+  if (timeSync) {
+    newLines.push(originalLines[timeSync.originalLineIndex]);
+  }
+
+  // 🔥 then everything else (excluding SYNC)
+  filteredLog.forEach(item => {
+
+    if (item.type === "SYNC") return; // skip
+
     if (item.originalLineIndex !== undefined) {
       let line = originalLines[item.originalLineIndex];
-      return line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
-    } else {
-      return buildASCLine(item);
-    }
-  });
-
-  let inserted = false;
-
-  originalLines.forEach(line => {
-    const lineHour = line.substring(0, 2);
-
-    if (lineHour === selectedHour) {
-      // 🔥 insert updated hour ONCE
-      if (!inserted) {
-        newLines.push(...updatedHourLines);
-        inserted = true;
-      }
-      // skip original hour lines
-    } else {
+      line = line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
       newLines.push(line);
+    } else {
+      newLines.push(buildASCLine(item));
     }
+
   });
 
   return newLines.join("\n");
