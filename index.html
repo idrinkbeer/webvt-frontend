@@ -2534,22 +2534,33 @@ function formatDuration(sec) {
 function rebuildASC() {
   const newLines = [];
 
-  filteredLog.forEach(item => {
+  const selectedHour = document.getElementById("hourSelect").value;
 
+  // 🔥 Build updated hour lines first
+  const updatedHourLines = filteredLog.map(item => {
     if (item.originalLineIndex !== undefined) {
-      // existing item → update time but keep structure
       let line = originalLines[item.originalLineIndex];
-
-      // 🔥 update ONLY the time (first field)
-      line = line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
-
-      newLines.push(line);
-
+      return line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
     } else {
-      // 🔥 NEW ITEM → build fresh line
-      newLines.push(buildASCLine(item));
+      return buildASCLine(item);
     }
+  });
 
+  let inserted = false;
+
+  originalLines.forEach(line => {
+    const lineHour = line.substring(0, 2);
+
+    if (lineHour === selectedHour) {
+      // 🔥 insert updated hour ONCE
+      if (!inserted) {
+        newLines.push(...updatedHourLines);
+        inserted = true;
+      }
+      // skip original hour lines
+    } else {
+      newLines.push(line);
+    }
   });
 
   return newLines.join("\n");
