@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+     <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2228,18 +2228,17 @@ function moveIntroMarker(time) {
   if (!libWave) return;
 
   const duration = libWave.getDuration();
-  if (!duration) return;
-
   const percent = time / duration;
 
   const marker = document.getElementById("introMarker");
+  const container = document.getElementById("libWaveform");
 
-  // 🔥 SAME FIX HERE
-  const width = libWave.drawer.wrapper.scrollWidth;
+  const width = container.clientWidth;
 
   marker.style.left = (percent * width) + "px";
 
   libIntro = time;
+
   updateIntroDisplay();
 }
 
