@@ -2332,11 +2332,20 @@ function buildAIRString({ intro, segue, duration }) {
 function parseAIR(air) {
   if (!air || !air.startsWith("AIR#")) return null;
 
-  return {
-    segue: parseInt(air.substr(10, 6)) / 100,
-    end:   parseInt(air.substr(16, 6)) / 100,
-    intro: parseInt(air.substr(22, 3)) / 10
-  };
+  try {
+    const ctSEG  = parseInt(air.slice(10, 16), 10);
+    const ctAUDe = parseInt(air.slice(16, 22), 10);
+    const ctINT  = parseInt(air.slice(22, 25), 10);
+
+    return {
+      segue: ctSEG / 10,   // 🔥 FIXED
+      end:   ctAUDe / 10,  // 🔥 FIXED
+      intro: ctINT / 10
+    };
+  } catch (e) {
+    console.error("AIR parse failed:", e);
+    return null;
+  }
 }
 
         console.log("Wave duration:", libWave.getDuration());
