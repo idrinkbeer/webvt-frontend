@@ -2557,31 +2557,44 @@ function formatDuration(sec) {
   return `${m}:${s}`;
 }
 
-
 function rebuildASC() {
-  const newLines = [];
+  const newLines = [...originalLines];
 
-  // 🔥 find TIME SYNC
-  const timeSync = filteredLog.find(item => item.type === "SYNC");
+  const syncIndexes = log
+    .map((item, i) => item.type === "SYNC" ? i : -1)
+    .filter(i => i !== -1);
 
-  // 🔥 always put it first
-  if (timeSync) {
-    newLines.push(originalLines[timeSync.originalLineIndex]);
-  }
+  dirtyHours.forEach(hour => {
 
-  // 🔥 then everything else (excluding SYNC)
-  filteredLog.forEach(item => {
+    let start = null;
+    let end = originalLines.length;
 
-    if (item.type === "SYNC") return; // skip
+    // 🔍 find SYNC for this hour
+    for (let i = 0; i < syncIndexes.length; i++) {
+      const idx = syncIndexes[i];
+      const syncHour = log[idx].time.substring(0, 2);
 
-    if (item.originalLineIndex !== undefined) {
-      let line = originalLines[item.originalLineIndex];
-      line = line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
-      newLines.push(line);
-    } else {
-      newLines.push(buildASCLine(item));
+      if (syncHour === hour) {
+        start = idx + 1; // ✅ AFTER TIME SYNC
+        end = syncIndexes[i + 1] || originalLines.length;
+        break;
+      }
     }
 
+    if (start === null) return;
+
+    // 🔥 rebuild ONLY the content AFTER sync
+    const rebuiltHour = filteredLog.map(item => {
+      if (item.originalLineIndex !== undefined) {
+        let line = originalLines[item.originalLineIndex];
+        return line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
+      } else {
+        return buildASCLine(item);
+      }
+    });
+
+    // 🔥 replace ONLY the block AFTER sync
+    newLines.splice(start, end - start, ...rebuiltHour);
   });
 
   return newLines.join("\n");
