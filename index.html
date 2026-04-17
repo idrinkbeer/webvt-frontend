@@ -1,4 +1,4 @@
-     <!DOCTYPE html>
+    <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2334,12 +2334,22 @@ function buildAIRString({ intro, segue, duration }) {
 function parseAIR(air) {
   if (!air || !air.startsWith("AIR#")) return null;
 
-  return {
-    segue: parseInt(air.substr(10, 6)) / 100,
-    end:   parseInt(air.substr(16, 6)) / 100,
-    intro: parseInt(air.substr(22, 3)) / 10
-  };
+  try {
+    const ctSEG  = parseInt(air.substring(10, 16), 10);
+    const ctAUDe = parseInt(air.substring(16, 22), 10);
+    const ctINT  = parseInt(air.substring(22, 25), 10);
+
+    return {
+      segue: ctSEG / 100,
+      end:   ctAUDe / 100,
+      intro: ctINT / 10
+    };
+  } catch (e) {
+    console.error("AIR parse failed:", e);
+    return null;
+  }
 }
+
 </script>
 
 </body>
