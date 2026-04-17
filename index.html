@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+    <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2036,13 +2036,12 @@ if (label) {
     normalize: true
   });
 
-  // 🚀 START META FETCH IMMEDIATELY (PARALLEL)
-  const metaPromise = fetch(
-    `${API_BASE}/music/meta/${encodeURIComponent(file.name)}`,
-    {
-      headers: { Authorization: "Bearer " + token }
-    }
-  ).then(r => r.json());
+const tagPromise = fetch(
+  `${API_BASE}/music/tag/${encodeURIComponent(file.name)}`,
+  {
+    headers: { Authorization: "Bearer " + token }
+  }
+).then(r => r.json());
 
   // 🚀 LOAD AUDIO IMMEDIATELY
   libWave.load(url);
@@ -2059,11 +2058,17 @@ if (label) {
     moveIntroMarker(libIntro);
 
     try {
-      // 🔥 WAIT FOR META (ALREADY LOADING)
-      const data = await metaPromise;
+const data = await tagPromise;
 
-      const introVal = parseFloat(data.intro);
-      const secVal = parseFloat(data.secTone);
+const parsed = parseAIR(data.air);
+
+if (parsed) {
+  libIntro = parsed.intro;
+  libSecTone = parsed.segue;
+} else {
+  libIntro = 0;
+  libSecTone = duration;
+}
 
       // 🟡 APPLY REAL VALUES
       libIntro = (!isNaN(introVal) && introVal >= 0)
@@ -2128,9 +2133,18 @@ async function saveSecTone() {
   const spinner = document.getElementById("libSpinner");
 
   try {
-    // 🔄 SHOW SPINNER
     spinner.classList.add("active");
 
+    // ✅ build AIR string FIRST
+    const duration = libWave.getDuration();
+
+    const airString = buildAIRString({
+      intro: libIntro,
+      segue: libSecTone,
+      duration
+    });
+
+    // ✅ then send it
     await fetch(`${API_BASE}/sectone`, {
       method: "POST",
       headers: {
@@ -2140,18 +2154,17 @@ async function saveSecTone() {
       body: JSON.stringify({
         filename: currentLibFile.name,
         secTone: libSecTone,
-        intro: libIntro
+        intro: libIntro,
+        air: airString
       })
     });
 
-    // ✅ OPTIONAL: refresh list
     await loadLibrarySongs();
 
   } catch (err) {
     console.error(err);
     alert("Failed to save");
   } finally {
-    // 🔄 HIDE SPINNER
     spinner.classList.remove("active");
   }
 }
@@ -2267,6 +2280,71 @@ function updateIntroDisplay() {
   }
 }
 
+
+function zeroPad(num, size) {
+  return String(num).padStart(size, "0");
+}
+
+function formatDate(date) {
+  if (!date) return "000000000000";
+
+  const d = new Date(date);
+
+  return (
+    zeroPad(d.getMonth() + 1, 2) +
+    zeroPad(d.getDate(), 2) +
+    d.getFullYear() +
+    zeroPad(d.getHours(), 2) +
+    zeroPad(d.getMinutes(), 2)
+  );
+}
+
+function buildAIRString({ intro, segue, duration }) {
+  const ctAUDs = 0;
+  const ctINT  = Math.floor(intro * 1000);
+  const ctSEG  = Math.floor(segue * 1000);
+  const ctAUDe = Math.floor(duration * 1000);
+
+  let s = "AIR#"
+    + zeroPad(Math.floor(ctAUDs / 100), 6)
+    + zeroPad(Math.floor(ctSEG / 100), 6)
+    + zeroPad(Math.floor(ctAUDe / 100), 6)
+    + zeroPad(Math.floor((ctINT - ctAUDs) / 100) % 1000, 3);
+
+  // dates (unused)
+  s += "000000000000"; // start
+  s += "000000000000"; // end
+
+  // ending char
+  s += "F";
+
+  // rest (defaults)
+  s += "0";          // killTrail
+  s += "000";        // fadeLength
+  s += "0000";       // reserved
+  s += "0";          // fade char
+  s += "0";          // unknown
+  s += "          "; // linkI
+  s += "          "; // linkO
+  s += "      ";     // idCode
+  s += "000000";     // marker1
+  s += "000000";     // marker2
+  s += "0";          // unknown
+  s += "0000";       // speed
+  s += "ID--";       // id flag
+
+  return s;
+}
+
+function parseAIR(air) {
+  if (!air || !air.startsWith("AIR#")) return null;
+
+  return {
+    segue: parseInt(air.substr(10, 6)) / 100,
+    end:   parseInt(air.substr(16, 6)) / 100,
+    intro: parseInt(air.substr(22, 3)) / 10
+  };
+}
 </script>
 
 </body>
