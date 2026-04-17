@@ -873,10 +873,18 @@ async function loadLogs() {
 }
 
 async function loadSelectedLog(filename) {
+
+  let originalASC = "";
+let originalLines = [];
   const res = await fetch(`${API_BASE}/logs/${filename}`, {
     headers: { Authorization: "Bearer " + token }
   });
+
   const text = await res.text();
+
+  // 🔥 ADD THIS
+  originalASC = text;
+  originalLines = text.split("\n");
 
   processASC(text);
   document.getElementById("hourSelect").style.display = "inline-block";
@@ -898,26 +906,34 @@ if (line.includes("\\MUS\\")) {
 
   const segue = parseInt(parts[10]) || duration;
 
-  return {
-    type: "SONG",
-    time: parts[0],
-    title: parts[5],
-    artist: parts[6],
-    filename: parts[12]?.trim(),
-    intro: parseInt(parts[10]) || 0,
-    end: parts[11],
-    duration,
-    segue
-  };
+return {
+  type: "SONG",
+  time: parts[0],
+  title: parts[5],
+  artist: parts[6],
+  filename: parts[12]?.trim(),
+  intro: parseInt(parts[10]) || 0,
+  end: parts[11],
+  duration,
+  segue,
+
+  // 🔥 ADD THESE
+  originalLine: line,
+  originalLineIndex: i
+};
 }
 
       if (line.includes("\\VTX\\")) {
-        return {
-          type: "VTX",
-          time: parts[0],
-          cart: parts[4],
-          title: "VOICE TRACK"
-        };
+return {
+  type: "VTX",
+  time: parts[0],
+  cart: parts[4],
+  title: "VOICE TRACK",
+
+  // 🔥 ADD THESE
+  originalLine: line,
+  originalLineIndex: i
+};
       }
 
       return null;
@@ -2502,16 +2518,25 @@ function formatDuration(sec) {
   return `${m}:${s}`;
 }
 
-function buildASC(log) {
-  return log.map(item => {
 
-    if (item.type === "VTX") {
-      return `${item.time}\\\\VTX\\Z\\${item.cart}\\:03 VOICE TRACK\\\\\\\\0:05\\00\\\\`;
-    }
+function rebuildASC() {
+  const updatedLines = [...originalLines];
 
-    return `${item.time}\\\\MUS\\$\\${item.id}\\${item.title}\\${item.artist}\\${item.year || ""}\\${formatDuration(item.duration)}\\${item.segue}\\F\\${item.filename}`;
+  filteredLog.forEach(item => {
+    if (item.originalLineIndex == null) return;
 
-  }).join("\n");
+    let line = item.originalLine;
+
+    // 🔥 update ONLY the time (first field)
+    line = line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
+
+    // OPTIONAL: update segue if needed
+    line = line.replace(/\\\d+\\F\\/, `\\${item.segue}\\F\\`);
+
+    updatedLines[item.originalLineIndex] = line;
+  });
+
+  return updatedLines.join("\n");
 }
 
 
@@ -2589,7 +2614,7 @@ function getDropIndex(clientY) {
 
 async function saveLog() {
   const filename = document.getElementById("logSelect").value;
-  const asc = buildASC(filteredLog);
+  const asc = rebuildASC();
 
   const res = await fetch(`${API_BASE}/logs/${filename}`, {
     method: "POST",
