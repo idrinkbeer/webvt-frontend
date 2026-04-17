@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+     <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2007,26 +2007,26 @@ async function loadLibPreview(file) {
   currentLibFile = file;
 
   // 🎵 update display name
-let artist = "Unknown";
-let title = file.name;
+  let artist = "Unknown";
+  let title = file.name;
 
-if (file.name.includes(" - ")) {
-  const parts = file.name.replace(".mp3", "").split(" - ");
-  artist = parts[0];
-  title = parts[1];
-}
+  if (file.name.includes(" - ")) {
+    const parts = file.name.replace(".mp3", "").split(" - ");
+    artist = parts[0];
+    title = parts[1];
+  }
 
-const label = document.getElementById("libNowPlaying");
-if (label) {
-  label.innerHTML = `🎵 <strong>${artist}</strong> - ${title}`;
-}
+  const label = document.getElementById("libNowPlaying");
+  if (label) {
+    label.innerHTML = `🎵 <strong>${artist}</strong> - ${title}`;
+  }
 
   const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   // 🔥 DESTROY OLD INSTANCE
   if (libWave) libWave.destroy();
 
-  // 🔥 CREATE ONCE
+  // 🔥 CREATE WAVE
   libWave = WaveSurfer.create({
     container: "#libWaveform",
     waveColor: "#1e3a8a",
@@ -2036,55 +2036,47 @@ if (label) {
     normalize: true
   });
 
-const tagPromise = fetch(
-  `${API_BASE}/music/tag/${encodeURIComponent(file.name)}`,
-  {
-    headers: { Authorization: "Bearer " + token }
-  }
-).then(r => r.json());
+  // 🔥 fetch AIR tag early
+  const tagPromise = fetch(
+    `${API_BASE}/music/tag/${encodeURIComponent(file.name)}`,
+    {
+      headers: { Authorization: "Bearer " + token }
+    }
+  ).then(r => r.json());
 
-  // 🚀 LOAD AUDIO IMMEDIATELY
+  // 🚀 LOAD AUDIO
   libWave.load(url);
 
-  // ⚡ WHEN WAVE READY
   libWave.on("ready", async () => {
     const duration = libWave.getDuration();
 
-    // ⚡ INSTANT DEFAULT MARKERS (FEELS FAST)
+    // ⚡ instant default markers (fast UI feel)
     libIntro = 0;
     libSecTone = duration;
 
-    moveMarker(libSecTone);
     moveIntroMarker(libIntro);
+    moveMarker(libSecTone);
 
     try {
-const data = await tagPromise;
+      const data = await tagPromise;
+      const parsed = parseAIR(data.air);
 
-const parsed = parseAIR(data.air);
+      if (parsed) {
+        libIntro = parsed.intro;
+        libSecTone = parsed.segue;
+      } else {
+        libIntro = 0;
+        libSecTone = duration;
+      }
 
-if (parsed) {
-  libIntro = parsed.intro;
-  libSecTone = parsed.segue;
-} else {
-  libIntro = 0;
-  libSecTone = duration;
-}
-
-      // 🟡 APPLY REAL VALUES
-      libIntro = (!isNaN(introVal) && introVal >= 0)
-        ? introVal
-        : 0;
-
-libSecTone = (!isNaN(secVal) && secVal > 0)
-  ? secVal
-  : duration;
-
-      // 🔥 UPDATE MARKERS
-      moveMarker(libSecTone);
+      // ✅ apply parsed AIR markers
       moveIntroMarker(libIntro);
+      moveMarker(libSecTone);
+
+      console.log("Loaded AIR:", parsed);
 
     } catch (err) {
-      console.error("Meta load failed", err);
+      console.error("AIR load failed", err);
     }
   });
 }
