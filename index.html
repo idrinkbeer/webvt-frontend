@@ -2165,6 +2165,8 @@ function moveMarker(time) {
   if (!libWave) return;
 
   const duration = libWave.getDuration();
+  if (!duration) return;
+
   const percent = time / duration;
 
   const marker = document.getElementById("secMarker");
