@@ -2298,21 +2298,19 @@ function zeroPad(num, size) {
 function buildAIRString({ intro, segue, duration }) {
   const ctAUDs = 0;
 
-  const safeIntro = Math.min(intro, duration);
-  const safeSegue = Math.min(segue, duration);
-
-  const ctINT  = Math.floor(safeIntro * 1000);
-  const ctSEG  = Math.floor(safeSegue * 1000);
+  const ctINT  = Math.floor(intro * 1000);
+  const ctSEG  = Math.floor(segue * 1000);
   const ctAUDe = Math.floor(duration * 1000);
 
   let s = "AIR#"
-    + zeroPad(ctAUDs / 100, 6)
-    + zeroPad(ctSEG / 100, 6)
-    + zeroPad(ctAUDe / 100, 6)
-    + zeroPad(((ctINT - ctAUDs) / 100) % 1000, 3);
+    + zeroPad(Math.floor(ctAUDs / 100), 6)
+    + zeroPad(Math.floor(ctSEG / 100), 6)
+    + zeroPad(Math.floor(ctAUDe / 100), 6)
+    + zeroPad(Math.floor((ctINT - ctAUDs) / 100) % 1000, 3);
 
-  s += "000000000000"; // start date
-  s += "000000000000"; // end date
+  // rest unchanged...
+  s += "000000000000";
+  s += "000000000000";
   s += "F";
   s += "0";
   s += "000";
