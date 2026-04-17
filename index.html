@@ -2528,13 +2528,18 @@ function rebuildASC() {
     );
 
     if (edited) {
-      newLines.push(
-        edited.originalLineIndex !== undefined
-          ? originalLines[edited.originalLineIndex]
-          : buildASCLine(edited)
-      );
+      // 🔥 ALWAYS rebuild edited rows
+      newLines.push(buildASCLine(edited));
     } else {
+      // unchanged row → keep original
       newLines.push(originalLines[originalItem.originalLineIndex]);
+    }
+  });
+
+  // 🔥 ADD NEW ITEMS (dragged from library etc.)
+  filteredLog.forEach(item => {
+    if (item.originalLineIndex === undefined) {
+      newLines.push(buildASCLine(item));
     }
   });
 
@@ -2547,14 +2552,15 @@ function buildASCLine(item) {
     item.time || "00:00:00",
     "MUS",
     "$",
-    item.cart || "000000",
+    item.cart || "",
+    "",
     item.title || "",
     item.artist || "",
     "",
     "",
-    item.duration || "0:00",
-    "00",
-    item.flags || "",
+    formatDuration(item.duration || 0),
+    item.intro || 0,
+    item.end || "",
     item.filename || ""
   ].join("\\");
 }
