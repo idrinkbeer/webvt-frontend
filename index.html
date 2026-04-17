@@ -1,4 +1,4 @@
-        <!DOCTYPE html>
+         <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -507,6 +507,16 @@ select + select {
   
 </div>
 
+<div id="dropIndicator" style="
+  position:absolute;
+  height:2px;
+  background:#00ff88;
+  pointer-events:none;
+  display:none;
+  z-index:9999;
+"></div>
+
+
     <!-- RIGHT -->
 
 <div>
@@ -667,29 +677,16 @@ logContainer.addEventListener("dragover", e => e.preventDefault());
 
 logContainer.addEventListener("drop", e => {
   e.preventDefault();
+  indicator.style.display = "none";
 
   const songData = e.dataTransfer.getData("song");
   if (!songData) return;
 
   const song = JSON.parse(songData);
 
-  const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
-    .filter(r => !r.querySelector(".recorder"));
+  const insertIndex = getDropIndex(e.clientY);
 
-  // 🔥 TRUE DROP POSITION (pixel-based)
-  let insertIndex = rows.length;
-
-  for (let i = 0; i < rows.length; i++) {
-    const rect = rows[i].getBoundingClientRect();
-    const midpoint = rect.top + rect.height / 2;
-
-    if (e.clientY < midpoint) {
-      insertIndex = i;
-      break;
-    }
-  }
-
-  // parse metadata
+  // parse filename
   let artist = "Unknown";
   let title = song.name;
 
@@ -892,17 +889,26 @@ function processASC(text) {
     .map(line => {
       const parts = line.split("\\");
 
-      if (line.includes("\\MUS\\")) {
-        return {
-          type: "SONG",
-          time: parts[0],
-          title: parts[5],
-          artist: parts[6],
-          filename: parts[12]?.trim(),
-          intro: parseInt(parts[10]) || 0,
-          end: parts[11]
-        };
-      }
+if (line.includes("\\MUS\\")) {
+  const durationParts = parts[9]?.split(":") || ["0","0"];
+  const duration =
+    parseInt(durationParts[0]) * 60 +
+    parseInt(durationParts[1]);
+
+  const segue = parseInt(parts[10]) || duration;
+
+  return {
+    type: "SONG",
+    time: parts[0],
+    title: parts[5],
+    artist: parts[6],
+    filename: parts[12]?.trim(),
+    intro: parseInt(parts[10]) || 0,
+    end: parts[11],
+    duration,
+    segue
+  };
+}
 
       if (line.includes("\\VTX\\")) {
         return {
@@ -2489,16 +2495,72 @@ function buildASC(log) {
 function recalcTimes() {
   if (!filteredLog.length) return;
 
-  // 🔥 lock to current hour (THIS FIXES YOUR BUG)
-  const baseHour = parseInt(currentHour);
+  // 🔥 use FIRST ITEM as anchor (correct behavior)
+  let [h, m, s] = filteredLog[0].time.split(":").map(Number);
+  let currentTime = h * 3600 + m * 60 + s;
 
-  let currentTime = baseHour * 3600;
-
-  filteredLog.forEach(item => {
-    item.time = formatTime(currentTime);
-
-    currentTime += item.segue || item.duration || 0;
+  filteredLog.forEach((item, i) => {
+    if (i === 0) {
+      item.time = formatTime(currentTime);
+    } else {
+      currentTime += filteredLog[i - 1].segue || filteredLog[i - 1].duration || 0;
+      item.time = formatTime(currentTime);
+    }
   });
+}
+
+
+const indicator = document.getElementById("dropIndicator");
+
+logContainer.addEventListener("dragover", e => {
+  e.preventDefault();
+
+  const index = getDropIndex(e.clientY);
+  const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
+    .filter(r => !r.querySelector(".recorder"));
+
+  if (rows.length === 0) return;
+
+  if (index < rows.length) {
+    const rect = rows[index].getBoundingClientRect();
+
+    indicator.style.top = rect.top + "px";
+    indicator.style.left = rect.left + "px";
+    indicator.style.width = rect.width + "px";
+  } else {
+    const last = rows[rows.length - 1].getBoundingClientRect();
+
+    indicator.style.top = last.bottom + "px";
+    indicator.style.left = last.left + "px";
+    indicator.style.width = last.width + "px";
+  }
+
+  indicator.style.display = "block";
+});
+
+logContainer.addEventListener("dragleave", () => {
+  indicator.style.display = "none";
+});
+
+logContainer.addEventListener("drop", () => {
+  indicator.style.display = "none";
+});
+
+
+function getDropIndex(clientY) {
+  const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
+    .filter(r => !r.querySelector(".recorder"));
+
+  for (let i = 0; i < rows.length; i++) {
+    const rect = rows[i].getBoundingClientRect();
+    const midpoint = rect.top + rect.height / 2;
+
+    if (clientY < midpoint) {
+      return i;
+    }
+  }
+
+  return rows.length;
 }
 
 </script>
