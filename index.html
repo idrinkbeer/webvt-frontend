@@ -673,16 +673,16 @@ logContainer.addEventListener("drop", e => {
 
   const song = JSON.parse(songData);
 
-  // 🔥 find row you dropped ON
+  // 🔥 find EXACT row index (skip recorder rows)
+  const rows = Array.from(document.querySelectorAll("#logTable tbody tr"))
+    .filter(r => !r.querySelector(".recorder"));
+
   const targetRow = e.target.closest("tr");
-  let insertIndex = filteredLog.length;
+  let insertIndex = rows.indexOf(targetRow);
 
-  if (targetRow) {
-    const rows = Array.from(document.querySelectorAll("#logTable tbody tr"));
-    insertIndex = rows.indexOf(targetRow);
-  }
+  if (insertIndex === -1) insertIndex = filteredLog.length;
 
-  // ✅ parse artist/title (we'll fix this next)
+  // ✅ parse artist/title
   let artist = "Unknown";
   let title = song.name;
 
@@ -694,7 +694,6 @@ logContainer.addEventListener("drop", e => {
 
   const newItem = {
     type: "SONG",
-    time: "00:00:00",
     title,
     artist,
     duration: song.duration,
@@ -702,7 +701,7 @@ logContainer.addEventListener("drop", e => {
     filename: song.name
   };
 
-  // 🔥 INSERT instead of push
+  // 🔥 INSERT (not push)
   filteredLog.splice(insertIndex, 0, newItem);
 
   recalcTimes();
@@ -2482,14 +2481,14 @@ function buildASC(log) {
 function recalcTimes() {
   if (!filteredLog.length) return;
 
-  // get first row time as starting point
-  let [h, m, s] = filteredLog[0].time.split(":").map(Number);
-  let currentTime = h * 3600 + m * 60 + s;
+  // 🔥 lock to current hour (THIS FIXES YOUR BUG)
+  const baseHour = parseInt(currentHour);
+
+  let currentTime = baseHour * 3600;
 
   filteredLog.forEach(item => {
     item.time = formatTime(currentTime);
 
-    // 🔥 THIS IS CORRECT FOR RADIO LOGS
     currentTime += item.segue || item.duration || 0;
   });
 }
