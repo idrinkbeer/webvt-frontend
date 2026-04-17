@@ -2519,22 +2519,23 @@ function formatDuration(sec) {
 }
 
 
-function rebuildASC(log) {
+function rebuildASC() {
   const newLines = [];
 
-  log.forEach(item => {
+  log.forEach(originalItem => {
+    const edited = filteredLog.find(f =>
+      f.originalLineIndex === originalItem.originalLineIndex
+    );
 
-    // ✅ EXISTING LINE → keep original
-    if (item.originalLineIndex !== undefined) {
-      newLines.push(originalLines[item.originalLineIndex]);
+    if (edited) {
+      newLines.push(
+        edited.originalLineIndex !== undefined
+          ? originalLines[edited.originalLineIndex]
+          : buildASCLine(edited)
+      );
+    } else {
+      newLines.push(originalLines[originalItem.originalLineIndex]);
     }
-
-    // 🆕 NEW ITEM → BUILD NEW ASC LINE
-    else {
-      const newLine = buildASCLine(item);
-      newLines.push(newLine);
-    }
-
   });
 
   return newLines.join("\n");
