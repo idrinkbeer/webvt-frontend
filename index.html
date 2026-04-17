@@ -2299,39 +2299,42 @@ function formatDate(date) {
   );
 }
 
+function zeroPad(num, size) {
+  return String(Math.floor(num)).padStart(size, "0");
+}
+
 function buildAIRString({ intro, segue, duration }) {
   const ctAUDs = 0;
-  const ctINT  = Math.floor(intro * 1000);
-  const ctSEG  = Math.floor(segue * 1000);
+
+  const safeIntro = Math.min(intro, duration);
+  const safeSegue = Math.min(segue, duration);
+
+  const ctINT  = Math.floor(safeIntro * 1000);
+  const ctSEG  = Math.floor(safeSegue * 1000);
   const ctAUDe = Math.floor(duration * 1000);
 
   let s = "AIR#"
-    + zeroPad(Math.floor(ctAUDs / 100), 6)
-    + zeroPad(Math.floor(ctSEG / 100), 6)
-    + zeroPad(Math.floor(ctAUDe / 100), 6)
-    + zeroPad(Math.floor((ctINT - ctAUDs) / 100) % 1000, 3);
+    + zeroPad(ctAUDs / 100, 6)
+    + zeroPad(ctSEG / 100, 6)
+    + zeroPad(ctAUDe / 100, 6)
+    + zeroPad(((ctINT - ctAUDs) / 100) % 1000, 3);
 
-  // dates (unused)
-  s += "000000000000"; // start
-  s += "000000000000"; // end
-
-  // ending char
+  s += "000000000000"; // start date
+  s += "000000000000"; // end date
   s += "F";
-
-  // rest (defaults)
-  s += "0";          // killTrail
-  s += "000";        // fadeLength
-  s += "0000";       // reserved
-  s += "0";          // fade char
-  s += "0";          // unknown
-  s += "          "; // linkI
-  s += "          "; // linkO
-  s += "      ";     // idCode
-  s += "000000";     // marker1
-  s += "000000";     // marker2
-  s += "0";          // unknown
-  s += "0000";       // speed
-  s += "ID--";       // id flag
+  s += "0";
+  s += "000";
+  s += "0000";
+  s += "0";
+  s += "0";
+  s += "          ";
+  s += "          ";
+  s += "      ";
+  s += "000000";
+  s += "000000";
+  s += "0";
+  s += "0000";
+  s += "ID--";
 
   return s;
 }
