@@ -2569,19 +2569,29 @@ function rebuildASC() {
 
 
 function buildASCLine(item) {
+  const cart = item.cart || "000000";
+
+  const duration = formatDuration(item.duration || 0);
+
+  const segue = item.segue || 0;
+
+  const flag = item.flags || "F"; // default to F or C depending on your system
+
+  const year = item.year || "";
+
   return [
     item.time || "00:00:00",
+    " ",              // 👈 REQUIRED (matches existing lines)
     "MUS",
     "$",
-    item.cart || "",
-    "",
+    cart,
     item.title || "",
     item.artist || "",
-    "",
-    "",
-    formatDuration(item.duration || 0),
-    item.intro || 0,
-    item.end || "",
+    "",               // blank field (important)
+    year,
+    duration,
+    segue,
+    flag,
     item.filename || ""
   ].join("\\");
 }
