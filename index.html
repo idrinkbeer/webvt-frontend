@@ -2519,26 +2519,44 @@ function formatDuration(sec) {
 }
 
 
-function rebuildASC() {
-  const updatedLines = [...originalLines];
+function rebuildASC(log) {
+  const newLines = [];
 
-  filteredLog.forEach(item => {
-    if (item.originalLineIndex == null) return;
+  log.forEach(item => {
 
-    let line = item.originalLine;
+    // ✅ EXISTING LINE → keep original
+    if (item.originalLineIndex !== undefined) {
+      newLines.push(originalLines[item.originalLineIndex]);
+    }
 
-    // 🔥 update ONLY the time (first field)
-    line = line.replace(/^\d{2}:\d{2}:\d{2}/, item.time);
+    // 🆕 NEW ITEM → BUILD NEW ASC LINE
+    else {
+      const newLine = buildASCLine(item);
+      newLines.push(newLine);
+    }
 
-    // OPTIONAL: update segue if needed
-    line = line.replace(/\\\d+\\F\\/, `\\${item.segue}\\F\\`);
-
-    updatedLines[item.originalLineIndex] = line;
   });
 
-  return updatedLines.join("\n");
+  return newLines.join("\n");
 }
 
+
+function buildASCLine(item) {
+  return [
+    item.time || "00:00:00",
+    "MUS",
+    "$",
+    item.cart || "000000",
+    item.title || "",
+    item.artist || "",
+    "",
+    "",
+    item.duration || "0:00",
+    "00",
+    item.flags || "",
+    item.filename || ""
+  ].join("\\");
+}
 
 function recalcTimes() {
   if (!filteredLog.length) return;
