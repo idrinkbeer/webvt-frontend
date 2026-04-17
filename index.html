@@ -673,17 +673,37 @@ logContainer.addEventListener("drop", e => {
 
   const song = JSON.parse(songData);
 
+  // 🔥 find row you dropped ON
+  const targetRow = e.target.closest("tr");
+  let insertIndex = filteredLog.length;
+
+  if (targetRow) {
+    const rows = Array.from(document.querySelectorAll("#logTable tbody tr"));
+    insertIndex = rows.indexOf(targetRow);
+  }
+
+  // ✅ parse artist/title (we'll fix this next)
+  let artist = "Unknown";
+  let title = song.name;
+
+  if (song.name.includes(" - ")) {
+    const parts = song.name.replace(".mp3", "").split(" - ");
+    artist = parts[0];
+    title = parts[1];
+  }
+
   const newItem = {
     type: "SONG",
     time: "00:00:00",
-    title: song.name,
-    artist: "",
+    title,
+    artist,
     duration: song.duration,
     segue: song.segue,
     filename: song.name
   };
 
-  filteredLog.push(newItem);
+  // 🔥 INSERT instead of push
+  filteredLog.splice(insertIndex, 0, newItem);
 
   recalcTimes();
   renderTable();
