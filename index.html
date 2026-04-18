@@ -538,7 +538,13 @@ select + select {
 <div id="libraryModal" class="lib-modal">
 
   <div class="lib-header" id="libHeader">
-    <span>MUSIC LIBRARY</span>
+    <span>
+  LIBRARY
+  <select id="libType" onchange="loadLibrarySongs()">
+    <option value="music">Music</option>
+    <option value="sweepers">Sweepers</option>
+  </select>
+</span>
     <button onclick="closeLibrary()">X</button>
   </div>
 
@@ -649,7 +655,7 @@ let libIntro = 0;
 let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
-
+let currentLibType = "music";
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1951,8 +1957,10 @@ async function loadLibrarySongs() {
   const list = document.getElementById("songList");
   list.innerHTML = "<li>Loading...</li>";
 
+  currentLibType = document.getElementById("libType").value;
+
   try {
-    const res = await fetch(`${API_BASE}/music`, {
+    const res = await fetch(`${API_BASE}/library?type=${currentLibType}`, {
       headers: {
         Authorization: "Bearer " + token
       }
@@ -1960,16 +1968,15 @@ async function loadLibrarySongs() {
 
     const data = await res.json();
 
-    // 🔥 since API returns just filenames
-    allSongs = (data || [])
-  .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
-  .map(name => ({ name }));
+    allSongs = (data.items || [])
+      .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
+      .map(name => ({ name, type: currentLibType }));
 
     renderLibrary(allSongs);
 
   } catch (err) {
     console.error(err);
-    list.innerHTML = "<li>Error loading songs</li>";
+    list.innerHTML = "<li>Error loading library</li>";
   }
 }
 
@@ -1990,7 +1997,7 @@ function renderLibrary(songs) {
     }
 
     const row = document.createElement("div");
-    row.className = "lib-row";
+    row.className = "lib-row " + (file.type === "sweepers" ? "swp" : "");
 
     row.innerHTML = `
       <div>${artist}</div>
@@ -2024,7 +2031,9 @@ async function loadLibPreview(file) {
     label.innerHTML = `🎵 <strong>${artist}</strong> - ${title}`;
   }
 
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+  const url = file.type === "sweepers"
+  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
+  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   // 🔥 DESTROY OLD INSTANCE
   if (libWave) libWave.destroy();
@@ -2041,7 +2050,7 @@ async function loadLibPreview(file) {
 
   // 🔥 fetch AIR tag early
   const tagPromise = fetch(
-    `${API_BASE}/music/tag/${encodeURIComponent(file.name)}`,
+    `${API_BASE}/tag/${file.type}/${encodeURIComponent(file.name)}`,
     {
       headers: { Authorization: "Bearer " + token }
     }
@@ -2112,7 +2121,9 @@ function filterSongs() {
 
 // 🔥 USE YOUR EXISTING PLAYER SYSTEM (UNCHANGED)
 function playLibrarySong(file) {
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+  const url = file.type === "sweepers"
+  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
+  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   if (previewAudio) {
     previewAudio.pause();
@@ -2146,12 +2157,13 @@ async function saveSecTone() {
         "Content-Type": "application/json",
         Authorization: "Bearer " + token
       },
-      body: JSON.stringify({
-        filename: currentLibFile.name,
-        secTone: libSecTone,
-        intro: libIntro,
-        air: airString
-      })
+body: JSON.stringify({
+  filename: currentLibFile.name,
+  type: currentLibFile.type, // ✅ THIS IS KEY
+  secTone: libSecTone,
+  intro: libIntro,
+  air: airString
+})
     });
 
     await loadLibrarySongs();
