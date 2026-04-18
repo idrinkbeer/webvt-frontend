@@ -2095,27 +2095,19 @@ async function loadLibPreview(file) {
 
     try {
       const data = await tagPromise;
-      const parsed = parseAIR(data.air);
+const parsed = parseAIR(data.air);
 const artistInput = document.getElementById("libArtist");
 const titleInput = document.getElementById("libTitle");
 
-// 🎯 Use ID3 FIRST
-if (data.artist) artistInput.value = data.artist;
-if (data.title) titleInput.value = data.title;
-
-// fallback to filename if empty
-if (!data.artist && artistInput) artistInput.value = artist;
-if (!data.title && titleInput) titleInput.value = title;
-
-// 🎯 Prefer AIR values over filename
-if (parsed?.artist) {
-  artistInput.value = parsed.artist;
+// ✅ ID3 ONLY (source of truth)
+if (data.artist && data.artist.trim()) {
+  artistInput.value = data.artist;
 } else {
-  artistInput.value = artist; // fallback from filename
+  artistInput.value = artist; // fallback to filename
 }
 
-if (parsed?.title) {
-  titleInput.value = parsed.title;
+if (data.title && data.title.trim()) {
+  titleInput.value = data.title;
 } else {
   titleInput.value = title;
 }
