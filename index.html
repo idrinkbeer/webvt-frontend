@@ -2099,9 +2099,13 @@ async function loadLibPreview(file) {
 const artistInput = document.getElementById("libArtist");
 const titleInput = document.getElementById("libTitle");
 
-// fallback from filename
-if (artistInput) artistInput.value = artist;
-if (titleInput) titleInput.value = title;
+// 🎯 Use ID3 FIRST
+if (data.artist) artistInput.value = data.artist;
+if (data.title) titleInput.value = data.title;
+
+// fallback to filename if empty
+if (!data.artist && artistInput) artistInput.value = artist;
+if (!data.title && titleInput) titleInput.value = title;
 
 // 🎯 Prefer AIR values over filename
 if (parsed?.artist) {
