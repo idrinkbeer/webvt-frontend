@@ -2031,13 +2031,8 @@ async function loadLibPreview(file) {
   currentLibFile = file;
 
   // 🎵 update display name
-  let artist = "Unknown";
-  let title = file.name;
-
-  if (file.name.includes(" - ")) {
-    const parts = file.name.replace(".mp3", "").split(" - ");
-    artist = parts[0];
-    title = parts[1];
+let artist = file.artist || "Unknown";
+let title = file.title || file.name.replace(".mp3", "");
   }
 
   const label = document.getElementById("libNowPlaying");
@@ -2142,6 +2137,8 @@ function filterSongs() {
   const search = document.getElementById("songSearch").value.toLowerCase();
 
   const filtered = allSongs.filter(f =>
+    (f.artist || "").toLowerCase().includes(search) ||
+    (f.title || "").toLowerCase().includes(search) ||
     f.name.toLowerCase().includes(search)
   );
 
@@ -2377,11 +2374,8 @@ function buildAIRString({ intro, segue, duration, artist, title }) {
   s += "0000";
   s += "0";
   s += "0";
-
-  // 🎯 WRITE ARTIST + TITLE INTO AIR
-  s += padText(artist, 10); // artist field
-  s += padText(title, 10);  // title field
-
+s += "          "; // artist placeholder (10 spaces)
+s += "          "; // title placeholder (10 spaces)
   // remaining fields
   s += "      ";
   s += "000000";
@@ -2401,16 +2395,10 @@ function parseAIR(air) {
     const ctAUDe = parseInt(air.slice(16, 22), 10);
     const ctINT  = parseInt(air.slice(22, 25), 10);
 
-    // 🎯 extract text fields
-    const artist = air.slice(37, 47).trim();
-    const title  = air.slice(47, 57).trim();
-
     return {
       segue: ctSEG / 10,
       end: ctAUDe / 10,
-      intro: ctINT / 10,
-      artist,
-      title
+      intro: ctINT / 10
     };
 
   } catch (e) {
