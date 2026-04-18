@@ -1992,9 +1992,7 @@ async function loadLibrarySongs() {
 
     const data = await res.json();
 
-    allSongs = (data.items || [])
-      .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
-      .map(name => ({ name, type: currentLibType }));
+allSongs = data.items || [];
 
     renderLibrary(allSongs);
 
@@ -2004,44 +2002,13 @@ async function loadLibrarySongs() {
   }
 }
 
-async function renderLibrary(songs) {
+function renderLibrary(songs) {
   const list = document.getElementById("songList");
-  list.innerHTML = "<div>Loading metadata...</div>";
-
   list.innerHTML = "";
 
-  for (const file of songs) {
-    let artist = "Loading...";
-    let title = file.name;
-
-    try {
-      const res = await fetch(
-        `${API_BASE}/tag/${file.type}/${encodeURIComponent(file.name)}`,
-        {
-          headers: { Authorization: "Bearer " + token }
-        }
-      );
-
-      const data = await res.json();
-
-      // ✅ Use ID3 if available
-      if (data.artist && data.artist.trim()) {
-        artist = data.artist;
-      }
-
-      if (data.title && data.title.trim()) {
-        title = data.title;
-      } else {
-        // fallback to filename
-        if (file.name.includes(" - ")) {
-          const parts = file.name.replace(".mp3", "").split(" - ");
-          title = parts[1] || file.name;
-        }
-      }
-
-    } catch (err) {
-      console.error("Tag fetch failed:", file.name);
-    }
+  songs.forEach(file => {
+    const artist = file.artist || "Unknown";
+    const title = file.title || file.name;
 
     const row = document.createElement("div");
     row.className = "lib-row " + (file.type === "sweepers" ? "swp" : "");
@@ -2054,7 +2021,7 @@ async function renderLibrary(songs) {
     row.onclick = () => loadLibPreview(file);
 
     list.appendChild(row);
-  }
+  });
 }
 
 let libWave = null;
