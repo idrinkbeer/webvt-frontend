@@ -2072,6 +2072,21 @@ async function loadLibPreview(file) {
     try {
       const data = await tagPromise;
       const parsed = parseAIR(data.air);
+      const artistInput = document.getElementById("libArtist");
+const titleInput = document.getElementById("libTitle");
+
+// 🎯 Prefer AIR values over filename
+if (parsed?.artist) {
+  artistInput.value = parsed.artist;
+} else {
+  artistInput.value = artist; // fallback from filename
+}
+
+if (parsed?.title) {
+  titleInput.value = parsed.title;
+} else {
+  titleInput.value = title;
+}
 
       if (parsed) {
         libIntro = parsed.intro;
@@ -2144,11 +2159,16 @@ async function saveSecTone() {
     // ✅ build AIR string FIRST
     const duration = libWave.getDuration();
 
-    const airString = buildAIRString({
-      intro: libIntro,
-      segue: libSecTone,
-      duration
-    });
+const artist = document.getElementById("libArtist").value;
+const title = document.getElementById("libTitle").value;
+
+const airString = buildAIRString({
+  intro: libIntro,
+  segue: libSecTone,
+  duration,
+  artist,
+  title
+});
 
     // ✅ then send it
     await fetch(`${API_BASE}/sectone`, {
@@ -2167,6 +2187,11 @@ body: JSON.stringify({
     });
 
     await loadLibrarySongs();
+
+// 🔁 reload current file preview
+setTimeout(() => {
+  loadLibPreview(currentLibFile);
+}, 200);
 
   } catch (err) {
     console.error(err);
@@ -2310,7 +2335,11 @@ function zeroPad(num, size) {
   return String(Math.floor(num)).padStart(size, "0");
 }
 
-function buildAIRString({ intro, segue, duration }) {
+function padText(text, length) {
+  return (text || "").substring(0, length).padEnd(length, " ");
+}
+
+function buildAIRString({ intro, segue, duration, artist, title }) {
   const ctAUDs = 0;
 
   const ctINT  = Math.floor(intro * 1000);
@@ -2323,17 +2352,23 @@ function buildAIRString({ intro, segue, duration }) {
     + zeroPad(Math.floor(ctAUDe / 100), 6)
     + zeroPad(Math.floor((ctINT - ctAUDs) / 100) % 1000, 3);
 
-  // rest unchanged...
+  // dates (keep)
   s += "000000000000";
   s += "000000000000";
+
+  // flags
   s += "F";
   s += "0";
   s += "000";
   s += "0000";
   s += "0";
   s += "0";
-  s += "          ";
-  s += "          ";
+
+  // 🎯 WRITE ARTIST + TITLE INTO AIR
+  s += padText(artist, 10); // artist field
+  s += padText(title, 10);  // title field
+
+  // remaining fields
   s += "      ";
   s += "000000";
   s += "000000";
@@ -2352,11 +2387,18 @@ function parseAIR(air) {
     const ctAUDe = parseInt(air.slice(16, 22), 10);
     const ctINT  = parseInt(air.slice(22, 25), 10);
 
+    // 🎯 extract text fields
+    const artist = air.slice(37, 47).trim();
+    const title  = air.slice(47, 57).trim();
+
     return {
-      segue: ctSEG / 10,   // 🔥 FIXED
-      end:   ctAUDe / 10,  // 🔥 FIXED
-      intro: ctINT / 10
+      segue: ctSEG / 10,
+      end: ctAUDe / 10,
+      intro: ctINT / 10,
+      artist,
+      title
     };
+
   } catch (e) {
     console.error("AIR parse failed:", e);
     return null;
