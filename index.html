@@ -2197,9 +2197,7 @@ const title = document.getElementById("libTitle").value;
 const airString = buildAIRString({
   intro: libIntro,
   segue: libSecTone,
-  duration,
-  artist,
-  title
+  duration
 });
 
     // ✅ then send it
@@ -2211,7 +2209,9 @@ const airString = buildAIRString({
       },
 body: JSON.stringify({
   filename: currentLibFile.name,
-  type: currentLibFile.type, // ✅ THIS IS KEY
+  type: currentLibFile.type,
+  artist, 
+  title,   
   secTone: libSecTone,
   intro: libIntro,
   air: airString
