@@ -2004,20 +2004,43 @@ async function loadLibrarySongs() {
   }
 }
 
-function renderLibrary(songs) {
+async function renderLibrary(songs) {
   const list = document.getElementById("songList");
+  list.innerHTML = "<div>Loading metadata...</div>";
+
   list.innerHTML = "";
 
-  songs.forEach(file => {
-
-    // 🎯 split filename → Artist - Title
-    let artist = "Unknown";
+  for (const file of songs) {
+    let artist = "Loading...";
     let title = file.name;
 
-    if (file.name.includes(" - ")) {
-      const parts = file.name.replace(".mp3", "").split(" - ");
-      artist = parts[0];
-      title = parts[1];
+    try {
+      const res = await fetch(
+        `${API_BASE}/tag/${file.type}/${encodeURIComponent(file.name)}`,
+        {
+          headers: { Authorization: "Bearer " + token }
+        }
+      );
+
+      const data = await res.json();
+
+      // ✅ Use ID3 if available
+      if (data.artist && data.artist.trim()) {
+        artist = data.artist;
+      }
+
+      if (data.title && data.title.trim()) {
+        title = data.title;
+      } else {
+        // fallback to filename
+        if (file.name.includes(" - ")) {
+          const parts = file.name.replace(".mp3", "").split(" - ");
+          title = parts[1] || file.name;
+        }
+      }
+
+    } catch (err) {
+      console.error("Tag fetch failed:", file.name);
     }
 
     const row = document.createElement("div");
@@ -2031,7 +2054,7 @@ function renderLibrary(songs) {
     row.onclick = () => loadLibPreview(file);
 
     list.appendChild(row);
-  });
+  }
 }
 
 let libWave = null;
