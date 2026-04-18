@@ -883,7 +883,8 @@ function buildHourDropdown() {
     select.appendChild(opt);
   });
 
-  currentHour = hours[0];
+  const nowHour = new Date().getHours().toString();
+currentHour = hours.includes(nowHour) ? nowHour : hours[0];
   select.value = currentHour;
 
   select.onchange = () => {
@@ -891,6 +892,8 @@ function buildHourDropdown() {
     filterByHour(currentHour);
   };
 }
+
+console.log("Loaded hour:", currentHour);
 
 // =====================
 // TABLE
