@@ -2096,8 +2096,12 @@ async function loadLibPreview(file) {
     try {
       const data = await tagPromise;
       const parsed = parseAIR(data.air);
-      const artistInput = document.getElementById("libArtist");
+const artistInput = document.getElementById("libArtist");
 const titleInput = document.getElementById("libTitle");
+
+// fallback from filename
+if (artistInput) artistInput.value = artist;
+if (titleInput) titleInput.value = title;
 
 // 🎯 Prefer AIR values over filename
 if (parsed?.artist) {
