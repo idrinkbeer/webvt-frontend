@@ -1,4 +1,4 @@
-           <!DOCTYPE html>
+          <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -538,13 +538,7 @@ select + select {
 <div id="libraryModal" class="lib-modal">
 
   <div class="lib-header" id="libHeader">
-    <span>
-  LIBRARY
-  <select id="libType" onchange="loadLibrarySongs()">
-    <option value="music">Music</option>
-    <option value="sweepers">Sweepers</option>
-  </select>
-</span>
+    <span>MUSIC LIBRARY</span>
     <button onclick="closeLibrary()">X</button>
   </div>
 
@@ -655,7 +649,7 @@ let libIntro = 0;
 let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
-let currentLibType = "music";
+
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -889,8 +883,7 @@ function buildHourDropdown() {
     select.appendChild(opt);
   });
 
-  const nowHour = new Date().getHours().toString();
-currentHour = hours.includes(nowHour) ? nowHour : hours[0];
+  currentHour = hours[0];
   select.value = currentHour;
 
   select.onchange = () => {
@@ -898,8 +891,6 @@ currentHour = hours.includes(nowHour) ? nowHour : hours[0];
     filterByHour(currentHour);
   };
 }
-
-console.log("Loaded hour:", currentHour);
 
 // =====================
 // TABLE
@@ -1957,10 +1948,8 @@ async function loadLibrarySongs() {
   const list = document.getElementById("songList");
   list.innerHTML = "<li>Loading...</li>";
 
-  currentLibType = document.getElementById("libType").value;
-
   try {
-    const res = await fetch(`${API_BASE}/library?type=${currentLibType}`, {
+    const res = await fetch(`${API_BASE}/music`, {
       headers: {
         Authorization: "Bearer " + token
       }
@@ -1968,15 +1957,16 @@ async function loadLibrarySongs() {
 
     const data = await res.json();
 
-    allSongs = (data.items || [])
-      .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
-      .map(name => ({ name, type: currentLibType }));
+    // 🔥 since API returns just filenames
+    allSongs = (data || [])
+  .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
+  .map(name => ({ name }));
 
     renderLibrary(allSongs);
 
   } catch (err) {
     console.error(err);
-    list.innerHTML = "<li>Error loading library</li>";
+    list.innerHTML = "<li>Error loading songs</li>";
   }
 }
 
@@ -1997,7 +1987,7 @@ function renderLibrary(songs) {
     }
 
     const row = document.createElement("div");
-    row.className = "lib-row " + (file.type === "sweepers" ? "swp" : "");
+    row.className = "lib-row";
 
     row.innerHTML = `
       <div>${artist}</div>
@@ -2031,9 +2021,7 @@ async function loadLibPreview(file) {
     label.innerHTML = `🎵 <strong>${artist}</strong> - ${title}`;
   }
 
-  const url = file.type === "sweepers"
-  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
-  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   // 🔥 DESTROY OLD INSTANCE
   if (libWave) libWave.destroy();
@@ -2050,7 +2038,7 @@ async function loadLibPreview(file) {
 
   // 🔥 fetch AIR tag early
   const tagPromise = fetch(
-    `${API_BASE}/tag/${file.type}/${encodeURIComponent(file.name)}`,
+    `${API_BASE}/music/tag/${encodeURIComponent(file.name)}`,
     {
       headers: { Authorization: "Bearer " + token }
     }
@@ -2072,21 +2060,6 @@ async function loadLibPreview(file) {
     try {
       const data = await tagPromise;
       const parsed = parseAIR(data.air);
-      const artistInput = document.getElementById("libArtist");
-const titleInput = document.getElementById("libTitle");
-
-// 🎯 Prefer AIR values over filename
-if (parsed?.artist) {
-  artistInput.value = parsed.artist;
-} else {
-  artistInput.value = artist; // fallback from filename
-}
-
-if (parsed?.title) {
-  titleInput.value = parsed.title;
-} else {
-  titleInput.value = title;
-}
 
       if (parsed) {
         libIntro = parsed.intro;
@@ -2136,9 +2109,7 @@ function filterSongs() {
 
 // 🔥 USE YOUR EXISTING PLAYER SYSTEM (UNCHANGED)
 function playLibrarySong(file) {
-  const url = file.type === "sweepers"
-  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
-  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   if (previewAudio) {
     previewAudio.pause();
@@ -2159,16 +2130,11 @@ async function saveSecTone() {
     // ✅ build AIR string FIRST
     const duration = libWave.getDuration();
 
-const artist = document.getElementById("libArtist").value;
-const title = document.getElementById("libTitle").value;
-
-const airString = buildAIRString({
-  intro: libIntro,
-  segue: libSecTone,
-  duration,
-  artist,
-  title
-});
+    const airString = buildAIRString({
+      intro: libIntro,
+      segue: libSecTone,
+      duration
+    });
 
     // ✅ then send it
     await fetch(`${API_BASE}/sectone`, {
@@ -2177,21 +2143,15 @@ const airString = buildAIRString({
         "Content-Type": "application/json",
         Authorization: "Bearer " + token
       },
-body: JSON.stringify({
-  filename: currentLibFile.name,
-  type: currentLibFile.type, // ✅ THIS IS KEY
-  secTone: libSecTone,
-  intro: libIntro,
-  air: airString
-})
+      body: JSON.stringify({
+        filename: currentLibFile.name,
+        secTone: libSecTone,
+        intro: libIntro,
+        air: airString
+      })
     });
 
     await loadLibrarySongs();
-
-// 🔁 reload current file preview
-setTimeout(() => {
-  loadLibPreview(currentLibFile);
-}, 200);
 
   } catch (err) {
     console.error(err);
@@ -2335,11 +2295,7 @@ function zeroPad(num, size) {
   return String(Math.floor(num)).padStart(size, "0");
 }
 
-function padText(text, length) {
-  return (text || "").substring(0, length).padEnd(length, " ");
-}
-
-function buildAIRString({ intro, segue, duration, artist, title }) {
+function buildAIRString({ intro, segue, duration }) {
   const ctAUDs = 0;
 
   const ctINT  = Math.floor(intro * 1000);
@@ -2352,23 +2308,17 @@ function buildAIRString({ intro, segue, duration, artist, title }) {
     + zeroPad(Math.floor(ctAUDe / 100), 6)
     + zeroPad(Math.floor((ctINT - ctAUDs) / 100) % 1000, 3);
 
-  // dates (keep)
+  // rest unchanged...
   s += "000000000000";
   s += "000000000000";
-
-  // flags
   s += "F";
   s += "0";
   s += "000";
   s += "0000";
   s += "0";
   s += "0";
-
-  // 🎯 WRITE ARTIST + TITLE INTO AIR
-  s += padText(artist, 10); // artist field
-  s += padText(title, 10);  // title field
-
-  // remaining fields
+  s += "          ";
+  s += "          ";
   s += "      ";
   s += "000000";
   s += "000000";
@@ -2387,18 +2337,11 @@ function parseAIR(air) {
     const ctAUDe = parseInt(air.slice(16, 22), 10);
     const ctINT  = parseInt(air.slice(22, 25), 10);
 
-    // 🎯 extract text fields
-    const artist = air.slice(37, 47).trim();
-    const title  = air.slice(47, 57).trim();
-
     return {
-      segue: ctSEG / 10,
-      end: ctAUDe / 10,
-      intro: ctINT / 10,
-      artist,
-      title
+      segue: ctSEG / 10,   // 🔥 FIXED
+      end:   ctAUDe / 10,  // 🔥 FIXED
+      intro: ctINT / 10
     };
-
   } catch (e) {
     console.error("AIR parse failed:", e);
     return null;
