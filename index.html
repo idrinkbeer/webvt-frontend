@@ -1,4 +1,4 @@
-            <!DOCTYPE html>
+                       <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -869,9 +869,13 @@ async function loadSelectedLog(filename) {
   const res = await fetch(`${API_BASE}/logs/${filename}`, {
     headers: { Authorization: "Bearer " + token }
   });
-  const text = await res.text();
+if (!res.ok) {
+  console.error("Log load failed:", res.status);
+  return;
+}
 
-  processASC(text);
+const text = await res.text();
+processASC(text);
   document.getElementById("hourSelect").style.display = "inline-block";
 }
 
@@ -909,7 +913,11 @@ function processASC(text) {
     .filter(Boolean);
 
   buildHourDropdown();
+  if (log.length > 0) {
   filterByHour(log[0].time.split(":")[0]);
+} else {
+  console.warn("Empty log file");
+}
 }
 
 // =====================
@@ -2089,11 +2097,14 @@ async function loadLibPreview(file) {
   libWave.load(url);
 
   libWave.on("ready", async () => {
-    if (!libWave) {
+if (!libWave) {
   alert("Audio not loaded yet");
   return;
 }
 
+const duration = libWave.getDuration();
+
+if (!libWave) return;
 const duration = libWave.getDuration();
 
     // ⚡ instant default markers (fast UI feel)
@@ -2198,6 +2209,7 @@ async function saveSecTone() {
   return;
 }
 
+if (!libWave) return;
 const duration = libWave.getDuration();
 
 const artist = document.getElementById("libArtist").value;
@@ -2250,6 +2262,7 @@ function moveMarker(time) {
   return;
 }
 
+if (!libWave) return;
 const duration = libWave.getDuration();
   const percent = time / duration;
 
@@ -2317,6 +2330,7 @@ function moveIntroMarker(time) {
   return;
 }
 
+if (!libWave) return;
 const duration = libWave.getDuration();
   const percent = time / duration;
 
@@ -2447,7 +2461,6 @@ function parseAIR(air) {
   }
 }
 
-        console.log("Wave duration:", libWave.getDuration());
 console.log("Saving segue:", libSecTone);
 </script>
 
