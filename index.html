@@ -1,4 +1,4 @@
-                       <!DOCTYPE html>
+           <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -572,33 +572,9 @@ select + select {
 
 <div style="margin-top:5px; font-size:12px;">
 
-<div id="libNowPlaying" style="margin-bottom:4px;">
-  🎵 ---
-</div>
-
-<div style="margin-bottom:6px; font-size:12px;">
-  Artist:<br>
-  <input id="libArtist" 
-    style="
-      width:100%;
-      background:#000;
-      color:#fff;
-      border:2px solid #001a66;
-      padding:4px;
-    ">
-</div>
-
-<div style="margin-bottom:6px; font-size:12px;">
-  Title:<br>
-  <input id="libTitle" 
-    style="
-      width:100%;
-      background:#000;
-      color:#fff;
-      border:2px solid #001a66;
-      padding:4px;
-    ">
-</div>
+  <div id="libNowPlaying" style="margin-bottom:4px;">
+    🎵 ---
+  </div>
 
   🟡 Intro: <span id="introTime">0.00</span>s
   🔴 Segue: <span id="secToneTime">0.00</span>s  
@@ -746,13 +722,7 @@ async function login() {
     return;
   }
 
-  if (!res.ok) {
-  const text = await res.text();
-  console.error("API error:", text);
-  return;
-}
-
-const data = await res.json();
+  const data = await res.json();
   token = data.token;
 
   localStorage.setItem(STORAGE_KEY, token);
@@ -828,22 +798,13 @@ async function uploadToAIR() {
 // LOAD LOGS
 // =====================
 async function loadLogs() {
-  if (!token) {
-    console.warn("No token, skipping logs load");
-    return [];
-  }
   const res = await fetch(`${API_BASE}/logs`, {
     headers: {
       Authorization: "Bearer " + token
     }
   });
 
-  if (!res.ok) {
-  console.error("Logs fetch failed:", res.status);
-  return [];
-}
-
-const files = await res.json();
+  const files = await res.json();
 
   const select = document.getElementById("logSelect");
   select.innerHTML = "";
@@ -869,13 +830,9 @@ async function loadSelectedLog(filename) {
   const res = await fetch(`${API_BASE}/logs/${filename}`, {
     headers: { Authorization: "Bearer " + token }
   });
-if (!res.ok) {
-  console.error("Log load failed:", res.status);
-  return;
-}
+  const text = await res.text();
 
-const text = await res.text();
-processASC(text);
+  processASC(text);
   document.getElementById("hourSelect").style.display = "inline-block";
 }
 
@@ -913,11 +870,7 @@ function processASC(text) {
     .filter(Boolean);
 
   buildHourDropdown();
-  if (log.length > 0) {
   filterByHour(log[0].time.split(":")[0]);
-} else {
-  console.warn("Empty log file");
-}
 }
 
 // =====================
@@ -1847,7 +1800,7 @@ let selectedHour = currentHourStr;
 if (!availableHours.includes(currentHourStr)) {
   const nowHour = parseInt(currentHourStr);
 
-  let closest = availableHours.length ? availableHours[0] : "00";
+  let closest = availableHours[0];
   let smallestDiff = Infinity;
 
   availableHours.forEach(h => {
@@ -2013,15 +1966,11 @@ async function loadLibrarySongs() {
       }
     });
 
-    if (!res.ok) {
-  const text = await res.text();
-  console.error("API error:", text);
-  return;
-}
+    const data = await res.json();
 
-const data = await res.json();
-
-allSongs = data.items || [];
+    allSongs = (data.items || [])
+      .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
+      .map(name => ({ name, type: currentLibType }));
 
     renderLibrary(allSongs);
 
@@ -2036,8 +1985,16 @@ function renderLibrary(songs) {
   list.innerHTML = "";
 
   songs.forEach(file => {
-    const artist = file.artist || "Unknown";
-    const title = file.title || file.name;
+
+    // 🎯 split filename → Artist - Title
+    let artist = "Unknown";
+    let title = file.name;
+
+    if (file.name.includes(" - ")) {
+      const parts = file.name.replace(".mp3", "").split(" - ");
+      artist = parts[0];
+      title = parts[1];
+    }
 
     const row = document.createElement("div");
     row.className = "lib-row " + (file.type === "sweepers" ? "swp" : "");
@@ -2060,8 +2017,14 @@ async function loadLibPreview(file) {
   currentLibFile = file;
 
   // 🎵 update display name
-  let artist = file.artist || "Unknown";
-  let title = file.title || file.name.replace(".mp3", "");
+  let artist = "Unknown";
+  let title = file.name;
+
+  if (file.name.includes(" - ")) {
+    const parts = file.name.replace(".mp3", "").split(" - ");
+    artist = parts[0];
+    title = parts[1];
+  }
 
   const label = document.getElementById("libNowPlaying");
   if (label) {
@@ -2097,15 +2060,7 @@ async function loadLibPreview(file) {
   libWave.load(url);
 
   libWave.on("ready", async () => {
-if (!libWave) {
-  alert("Audio not loaded yet");
-  return;
-}
-
-const duration = libWave.getDuration();
-
-if (!libWave) return;
-const duration = libWave.getDuration();
+    const duration = libWave.getDuration();
 
     // ⚡ instant default markers (fast UI feel)
     libIntro = 0;
@@ -2116,19 +2071,19 @@ const duration = libWave.getDuration();
 
     try {
       const data = await tagPromise;
-const parsed = parseAIR(data.air);
-const artistInput = document.getElementById("libArtist");
+      const parsed = parseAIR(data.air);
+      const artistInput = document.getElementById("libArtist");
 const titleInput = document.getElementById("libTitle");
 
-// ✅ ID3 ONLY (source of truth)
-if (data.artist && data.artist.trim()) {
-  artistInput.value = data.artist;
+// 🎯 Prefer AIR values over filename
+if (parsed?.artist) {
+  artistInput.value = parsed.artist;
 } else {
-  artistInput.value = artist; // fallback to filename
+  artistInput.value = artist; // fallback from filename
 }
 
-if (data.title && data.title.trim()) {
-  titleInput.value = data.title;
+if (parsed?.title) {
+  titleInput.value = parsed.title;
 } else {
   titleInput.value = title;
 }
@@ -2173,8 +2128,6 @@ function filterSongs() {
   const search = document.getElementById("songSearch").value.toLowerCase();
 
   const filtered = allSongs.filter(f =>
-    (f.artist || "").toLowerCase().includes(search) ||
-    (f.title || "").toLowerCase().includes(search) ||
     f.name.toLowerCase().includes(search)
   );
 
@@ -2204,13 +2157,7 @@ async function saveSecTone() {
     spinner.classList.add("active");
 
     // ✅ build AIR string FIRST
-    if (!libWave) {
-  alert("Audio not loaded yet");
-  return;
-}
-
-if (!libWave) return;
-const duration = libWave.getDuration();
+    const duration = libWave.getDuration();
 
 const artist = document.getElementById("libArtist").value;
 const title = document.getElementById("libTitle").value;
@@ -2218,7 +2165,9 @@ const title = document.getElementById("libTitle").value;
 const airString = buildAIRString({
   intro: libIntro,
   segue: libSecTone,
-  duration
+  duration,
+  artist,
+  title
 });
 
     // ✅ then send it
@@ -2230,9 +2179,7 @@ const airString = buildAIRString({
       },
 body: JSON.stringify({
   filename: currentLibFile.name,
-  type: currentLibFile.type,
-  artist, 
-  title,   
+  type: currentLibFile.type, // ✅ THIS IS KEY
   secTone: libSecTone,
   intro: libIntro,
   air: airString
@@ -2257,13 +2204,7 @@ setTimeout(() => {
 function moveMarker(time) {
   if (!libWave) return;
 
-  if (!libWave) {
-  alert("Audio not loaded yet");
-  return;
-}
-
-if (!libWave) return;
-const duration = libWave.getDuration();
+  const duration = libWave.getDuration();
   const percent = time / duration;
 
   const marker = document.getElementById("secMarker");
@@ -2325,13 +2266,7 @@ function playFromIntro() {
 function moveIntroMarker(time) {
   if (!libWave) return;
 
-  if (!libWave) {
-  alert("Audio not loaded yet");
-  return;
-}
-
-if (!libWave) return;
-const duration = libWave.getDuration();
+  const duration = libWave.getDuration();
   const percent = time / duration;
 
   const marker = document.getElementById("introMarker");
@@ -2428,8 +2363,11 @@ function buildAIRString({ intro, segue, duration, artist, title }) {
   s += "0000";
   s += "0";
   s += "0";
-s += "          "; // artist placeholder (10 spaces)
-s += "          "; // title placeholder (10 spaces)
+
+  // 🎯 WRITE ARTIST + TITLE INTO AIR
+  s += padText(artist, 10); // artist field
+  s += padText(title, 10);  // title field
+
   // remaining fields
   s += "      ";
   s += "000000";
@@ -2449,10 +2387,16 @@ function parseAIR(air) {
     const ctAUDe = parseInt(air.slice(16, 22), 10);
     const ctINT  = parseInt(air.slice(22, 25), 10);
 
+    // 🎯 extract text fields
+    const artist = air.slice(37, 47).trim();
+    const title  = air.slice(47, 57).trim();
+
     return {
       segue: ctSEG / 10,
       end: ctAUDe / 10,
-      intro: ctINT / 10
+      intro: ctINT / 10,
+      artist,
+      title
     };
 
   } catch (e) {
@@ -2461,6 +2405,7 @@ function parseAIR(air) {
   }
 }
 
+        console.log("Wave duration:", libWave.getDuration());
 console.log("Saving segue:", libSecTone);
 </script>
 
