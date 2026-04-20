@@ -1,4 +1,4 @@
-             <!DOCTYPE html>
+            <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -882,7 +882,6 @@ let recordings = {};
 let uploaded = {};
 let vtWave;
 let songWave;
-let isPreviewPlaying = false;
 let vtFinished = false;
 let songFinished = false;
 // VT state machine
@@ -1357,7 +1356,7 @@ function playSong(filename, btn, type = "SONG") {
     : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
   // 🔴 stop VT preview if playing
-  if (isPreviewPlaying) {
+  if (previewPlaying) {
     stopPreview();
   }
 
@@ -1889,6 +1888,8 @@ function previewBreak() {
     return;
   }
 
+  stopPreview(); // 👈 add this line
+
   if (!vtReady || !outWave || !inWave || !vtWave) {
     console.log("⏳ Not ready for preview");
     return;
@@ -1940,24 +1941,43 @@ function previewBreak() {
 
 
 function stopPreview() {
-  if (vtWave) vtWave.stop();
-  if (songWave) songWave.stop();
+  console.log("⏹ FORCE stopping preview");
 
-  vtFinished = false;
-  songFinished = false;
+  previewPlaying = false;
 
-  isPreviewPlaying = false;
+  // 🧨 kill all timers FIRST
+  previewTimers.forEach(t => clearTimeout(t));
+  previewTimers = [];
 
-  const breakBtn = document.querySelector("button[onclick='previewBreak()']");
-  if (breakBtn) breakBtn.textContent = "Preview Break";
+  // 🔊 HARD STOP all waves
+  [outWave, inWave, vtWave].forEach(w => {
+    if (!w) return;
 
-  const vtBtn = document.querySelector("button[onclick='previewVT()']");
-  if (vtBtn) vtBtn.textContent = "Preview VT";
+    try {
+      w.pause();          // 🔥 important
+      w.stop();
+      w.setTime(0);
+      w.setVolume(1);
+    } catch (e) {
+      console.warn("Wave stop error:", e);
+    }
+  });
+
+  // 🔥 ALSO suspend audio context (extra safety)
+  try {
+    if (outWave?.backend?.ac) outWave.backend.ac.suspend();
+    if (inWave?.backend?.ac) inWave.backend.ac.suspend();
+    if (vtWave?.backend?.ac) vtWave.backend.ac.suspend();
+  } catch (e) {}
+
+  // 🔁 reset button
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+  if (btn) btn.textContent = "Preview Break";
 }
 
 function checkPreviewEnd() {
   if (vtFinished && songFinished) {
-    isPreviewPlaying = false;
+    previewPlaying = false;
 
     const btn = document.querySelector("button[onclick='previewBreak()']");
     if (btn) btn.textContent = "Preview Break";
@@ -1970,7 +1990,7 @@ function checkPreviewEnd() {
 
 function previewVT() {
   // 🔁 toggle behavior (same as previewBreak)
-  if (isPreviewPlaying) {
+  if (previewPlaying) {
     stopPreview();
     return;
   }
@@ -1995,7 +2015,7 @@ function previewVT() {
   // ▶ play VT only
   vtWave.play();
 
-  isPreviewPlaying = true;
+  previewPlaying = true;
 
   // 🎛 update button text
   const vtBtn = document.querySelector("button[onclick='previewVT()']");
@@ -2003,7 +2023,7 @@ function previewVT() {
 
   // reset when done
   vtWave.once("finish", () => {
-    isPreviewPlaying = false;
+    previewPlaying = false;
 
     if (vtBtn) vtBtn.textContent = "Preview VT";
   });
