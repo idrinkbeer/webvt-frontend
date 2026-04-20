@@ -363,14 +363,21 @@ select {
 
 .lib-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 2fr 80px;
   padding: 4px;
   border-bottom: 1px solid #001a66;
+  align-items: center;
 }
 
 .lib-head {
   background: #001a66;
   font-weight: bold;
+  border-bottom: 2px solid #000;
+}
+
+.lib-row div:last-child {
+  text-align: right;
+  color: #ccc;
 }
 
 .lib-row:hover {
@@ -551,6 +558,7 @@ select + select {
       <div class="lib-row lib-head">
         <div>Artist</div>
         <div>Title</div>
+        <div>Year</div>
       </div>
 
       <div id="songList"></div>
@@ -559,10 +567,21 @@ select + select {
     <!-- PREVIEW -->
     <div class="lib-preview">
 <div style="position:relative;">
-  <div style="margin-top:8px; font-size:12px;">
-  Artist: <input id="editArtist" style="width:120px;"><br>
-  Title: <input id="editTitle" style="width:120px;"><br>
-  Year: <input id="editYear" style="width:60px;">
+<div style="display:flex; gap:10px; margin-bottom:6px;">
+  <div>
+    <div style="font-size:10px;">ARTIST</div>
+    <input id="editArtist" style="width:140px;">
+  </div>
+
+  <div>
+    <div style="font-size:10px;">TITLE</div>
+    <input id="editTitle" style="width:180px;">
+  </div>
+
+  <div>
+    <div style="font-size:10px;">YEAR</div>
+    <input id="editYear" style="width:60px;">
+  </div>
 </div>
   <div id="libWaveform"></div>
   <div id="introMarker"></div>
@@ -2008,8 +2027,8 @@ async function loadLibrarySongs() {
   const swp = await swpRes.json();
 
   allSongs = [
-    ...music.map(name => ({ name, type: "MUS" })),
-    ...swp.map(name => ({ name, type: "SWP" }))
+    ...music,
+    ...swp
   ];
 
   renderLibrary(allSongs);
@@ -2021,30 +2040,18 @@ function renderLibrary(songs) {
 
   songs.forEach(file => {
 
-    // 🎯 split filename → Artist - Title
-    let artist = "Unknown";
-    let title = file.name;
+    const row = document.createElement("div");
+    row.className = "lib-row";
 
-    if (file.name.includes(" - ")) {
-      const parts = file.name.replace(".mp3", "").split(" - ");
-      artist = parts[0];
-      title = parts[1];
+    if (file.type === "SWP") {
+      row.classList.add("swp");
     }
 
-const row = document.createElement("div");
-row.className = "lib-row";
-
-if (file.type === "SWP") {
-  row.classList.add("swp");
-}
-
-row.innerHTML = `
-  <div>${artist}</div>
-  <div>
-    ${title}
-    ${file.type === "SWP" ? '<span style="font-size:10px; margin-left:5px;">[SWP]</span>' : ''}
-  </div>
-`;
+    row.innerHTML = `
+      <div>${file.artist || "Unknown"}</div>
+      <div>${file.title || "Untitled"}</div>
+      <div>${file.year || ""}</div>
+    `;
 
     row.onclick = () => loadLibPreview(file);
 
@@ -2156,10 +2163,11 @@ function stopLibPreview() {
 
 function filterSongs() {
   const search = document.getElementById("songSearch").value.toLowerCase();
-
-  const filtered = allSongs.filter(f =>
-    f.name.toLowerCase().includes(search)
-  );
+    const filtered = allSongs.filter(f =>
+  (f.artist || "").toLowerCase().includes(search) ||
+  (f.title || "").toLowerCase().includes(search) ||
+  (f.year || "").toString().includes(search)
+);
 
   renderLibrary(filtered);
 }
