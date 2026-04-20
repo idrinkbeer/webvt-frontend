@@ -244,6 +244,52 @@ button:hover {
   animation: blink 1s steps(2, start) infinite;
 }
 
+.lib-fields {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lib-fields div {
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+}
+
+.lib-fields input {
+  width: 140px;
+  background: #000;
+  color: #fff;
+  border: 2px solid #000;
+}
+
+#libWaveform {
+  position: relative;
+  height: 70px;
+  margin-top: 5px;
+}
+
+#introMarker,
+#secMarker {
+  position: absolute;
+  top: 0;
+  height: 70px;
+  width: 2px;
+  z-index: 10;
+}
+
+#introMarker { background: yellow; }
+#secMarker { background: red; }
+
+.lib-info {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.lib-buttons {
+  margin-top: 6px;
+}
+
 @keyframes blink {
   to {
     visibility: hidden;
@@ -565,48 +611,48 @@ select + select {
     </div>
 
     <!-- PREVIEW -->
-    <div class="lib-preview">
-<div style="position:relative;">
-<div style="display:flex; gap:10px; margin-bottom:6px;">
-  <div>
-    <div style="font-size:10px;">ARTIST</div>
-    <input id="editArtist" style="width:140px;">
+   <div class="lib-preview">
+
+  <!-- FIELDS -->
+  <div class="lib-fields">
+    <div>
+      <div class="label">ARTIST</div>
+      <input id="editArtist">
+    </div>
+
+    <div>
+      <div class="label">TITLE</div>
+      <input id="editTitle">
+    </div>
+
+    <div>
+      <div class="label">YEAR</div>
+      <input id="editYear">
+    </div>
   </div>
 
-  <div>
-    <div style="font-size:10px;">TITLE</div>
-    <input id="editTitle" style="width:180px;">
-  </div>
-
-  <div>
-    <div style="font-size:10px;">YEAR</div>
-    <input id="editYear" style="width:60px;">
-  </div>
-</div>
+  <!-- WAVEFORM -->
   <div id="libWaveform"></div>
   <div id="introMarker"></div>
   <div id="secMarker"></div>
-</div>
 
-<div style="margin-top:5px; font-size:12px;">
-
-  <div id="libNowPlaying" style="margin-bottom:4px;">
-    🎵 ---
+  <!-- INFO -->
+  <div class="lib-info">
+    <div id="libNowPlaying">🎵 ---</div>
+    🟡 Intro: <span id="introTime">0.00</span>s
+    🔴 Segue: <span id="secToneTime">0.00</span>s
   </div>
 
-  🟡 Intro: <span id="introTime">0.00</span>s
-  🔴 Segue: <span id="secToneTime">0.00</span>s  
+  <!-- BUTTONS -->
+  <div class="lib-buttons">
+    <button onclick="playLibPreview()">PLAY</button>
+    <button onclick="playFromIntro()">PLAY INTRO</button>
+    <button onclick="playFromSecTone()">PLAY SEGUE</button>
+    <button onclick="stopLibPreview()">STOP</button>
+    <button onclick="saveSecTone()">SAVE</button>
+  </div>
 
 </div>
-
-      <div style="margin-top:5px;">
-        <button onclick="playLibPreview()">PLAY</button>
-        <button onclick="playFromIntro()">PLAY INTRO</button>
-        <button onclick="playFromSecTone()">PLAY SEGUE</button>
-        <button onclick="stopLibPreview()">STOP</button>
-        <button onclick="saveSecTone()">SAVE</button>
-      </div>
-    </div>
 
   </div>
 
@@ -2041,7 +2087,23 @@ function renderLibrary(songs) {
   const list = document.getElementById("songList");
   list.innerHTML = "";
 
-  songs.forEach(file => {
+  songs.forEach(raw => {
+
+    // 🔥 normalize data
+    let artist = raw.artist;
+    let title = raw.title;
+
+    if ((!artist || artist === "") && title && title.includes(" - ")) {
+      const parts = title.split(" - ");
+      artist = parts[0];
+      title = parts.slice(1).join(" - ");
+    }
+
+    const file = {
+      ...raw,
+      artist: artist || "Unknown",
+      title: title || raw.filename
+    };
 
     const row = document.createElement("div");
     row.className = "lib-row";
@@ -2050,11 +2112,11 @@ function renderLibrary(songs) {
       row.classList.add("swp");
     }
 
-row.innerHTML = `
-  <div>${file.artist || "Unknown"}</div>
-  <div>${file.title}</div>
-  <div>${file.year || ""}</div>
-`;
+    row.innerHTML = `
+      <div>${file.artist}</div>
+      <div>${file.title}</div>
+      <div>${file.year || ""}</div>
+    `;
 
     row.onclick = () => loadLibPreview(file);
 
