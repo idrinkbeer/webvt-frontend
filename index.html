@@ -2026,24 +2026,13 @@ async function loadLibrarySongs() {
   const music = await musicRes.json();
   const swp = await swpRes.json();
 
-allSongs = [
-  ...music.map(name => ({
-    name,
-    filename: name,
-    artist: "",
-    title: name.replace(".mp3", ""),
-    year: "",
-    type: "MUS"
-  })),
-  ...swp.map(name => ({
-    name,
-    filename: name,
-    artist: "SWP",
-    title: name.replace(".mp3", ""),
-    year: "",
-    type: "SWP"
-  }))
-];
+  // ✅ DO NOT remap — data is already correct
+  allSongs = [
+    ...music,
+    ...swp
+  ];
+
+  console.log("LIB:", allSongs[0]); // 👈 DEBUG
 
   renderLibrary(allSongs);
 }
@@ -2063,7 +2052,7 @@ function renderLibrary(songs) {
 
 row.innerHTML = `
   <div>${file.artist || "Unknown"}</div>
-  <div>${file.title || file.name}</div>
+  <div>${file.title}</div>
   <div>${file.year || ""}</div>
 `;
 
@@ -2106,7 +2095,7 @@ async function loadLibPreview(file) {
   });
 
   // 🔥 fetch AIR tag early
-  const filename = file.filename || file.name;
+  const filename = file.filename;
   const tagPromise = fetch(`${API_BASE}/music/tag/${encodeURIComponent(filename)}`,
     {
       headers: { Authorization: "Bearer " + token }
