@@ -360,10 +360,8 @@ select {
   top: 120px;
   left: 120px;
   width: 550px;
-  height: 80vh;       /* 🔥 responsive height */
+  height: 80vh;
   max-height: 90vh;
-  display: flex;
-  flex-direction: column;
   background: #000;
   border: 3px solid #001a66;
   z-index: 9999;
@@ -2059,7 +2057,7 @@ let allSongs = [];
 
 function openLibrary() {
   const modal = document.getElementById("libraryModal");
-  modal.style.display = "block";
+  modal.style.display = "flex";
   loadLibrarySongs();
 }
 
