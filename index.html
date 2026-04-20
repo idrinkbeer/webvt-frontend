@@ -278,6 +278,10 @@ button:hover {
   z-index: 10;
 }
 
+#introMarker, #secMarker {
+  pointer-events: auto;
+}
+
 #introMarker { background: yellow; }
 #secMarker { background: red; }
 
@@ -627,9 +631,10 @@ select + select {
   </div>
 
   <!-- WAVEFORM -->
-  <div id="libWaveform"></div>
+<div id="libWaveform">
   <div id="introMarker"></div>
   <div id="secMarker"></div>
+</div>
 
   <!-- INFO -->
   <div class="lib-info">
