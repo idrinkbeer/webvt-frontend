@@ -2027,8 +2027,8 @@ async function loadLibrarySongs() {
   const swp = await swpRes.json();
 
   allSongs = [
-    ...music,
-    ...swp
+    ...music.map(name => ({ name, filename: name, type: "MUS" })),
+    ...swp.map(name => ({ name, filename: name, type: "SWP" }))
   ];
 
   renderLibrary(allSongs);
@@ -2047,11 +2047,11 @@ function renderLibrary(songs) {
       row.classList.add("swp");
     }
 
-    row.innerHTML = `
-      <div>${file.artist || "Unknown"}</div>
-      <div>${file.title || "Untitled"}</div>
-      <div>${file.year || ""}</div>
-    `;
+row.innerHTML = `
+  <div>${file.artist || "Unknown"}</div>
+  <div>${file.title || file.name}</div>
+  <div>${file.year || ""}</div>
+`;
 
     row.onclick = () => loadLibPreview(file);
 
@@ -2092,8 +2092,8 @@ async function loadLibPreview(file) {
   });
 
   // 🔥 fetch AIR tag early
-  const tagPromise = fetch(
-    `${API_BASE}/music/tag/${encodeURIComponent(file.name)}`,
+  const filename = file.filename || file.name;
+  const tagPromise = fetch(`${API_BASE}/music/tag/${encodeURIComponent(filename)}`,
     {
       headers: { Authorization: "Bearer " + token }
     }
@@ -2209,7 +2209,7 @@ const year = document.getElementById("editYear").value;
         Authorization: "Bearer " + token
       },
       body: JSON.stringify({
-        filename: currentLibFile.name,
+        filename: currentLibFile.filename || currentLibFile.name,
         type: currentLibFile.type,
         secTone: libSecTone,
         intro: libIntro,
