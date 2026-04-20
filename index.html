@@ -5,10 +5,10 @@
 
   <style>
 
-/* ===== AIR LIBRARY WINDOW (CLEANED) ===== */
+/* ===== AIR LIBRARY WINDOW (FIXED & CLEAN) ===== */
 
 .lib-modal {
-  display: none; /* controlled by JS */
+  display: none;
   position: fixed;
   top: 120px;
   left: 120px;
@@ -20,7 +20,7 @@
   border: 3px solid #001a66;
   z-index: 9999;
 
-  flex-direction: column; /* only works when display:flex is set in JS */
+  flex-direction: column;
 }
 
 /* HEADER */
@@ -74,7 +74,7 @@
 /* TABLE */
 .lib-table {
   flex: 1;
-  min-height: 0; /* 🔥 critical */
+  min-height: 0;
   overflow-y: auto;
   font-size: 12px;
   border: 2px solid #000;
@@ -104,7 +104,7 @@
   cursor: pointer;
 }
 
-/* PREVIEW (BOTTOM PANEL) */
+/* PREVIEW */
 .lib-preview {
   flex-shrink: 0;
   min-height: 140px;
