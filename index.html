@@ -1,4 +1,4 @@
-           <!DOCTYPE html>
+            <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1440,10 +1440,27 @@ async function stopRecording() {
     // load final waveform
     vtWave.load(URL.createObjectURL(recordedBlob));
 
-    vtWave.once("ready", () => {
-      console.log("🎙 VT ready after recording");
-      window.isAudioReady = true;
-    });
+let vtReady = false;
+let songReady = false;
+
+window.isAudioReady = false;
+
+vtWave.once("ready", () => {
+  vtReady = true;
+  checkReady();
+});
+
+songWave.once("ready", () => {
+  songReady = true;
+  checkReady();
+});
+
+function checkReady() {
+  if (vtReady && songReady) {
+    console.log("🔥 BOTH READY after recording");
+    window.isAudioReady = true;
+  }
+}
   }
 
   document.getElementById("uploadBtn").disabled = false;
@@ -1548,7 +1565,21 @@ function previewBreak() {
   if (vtWave) vtWave.stop();
   if (songWave) songWave.stop();
 
-const vtDuration = vtWave.getDuration();
+let vtDuration = 0;
+
+try {
+  vtDuration = vtWave.getDuration();
+
+  if (!vtDuration || isNaN(vtDuration)) {
+    alert("VT not ready yet");
+    return;
+  }
+
+} catch (e) {
+  console.warn("VT duration error:", e);
+  alert("Audio not ready yet");
+  return;
+}
 
 // 🎯 USE MANUAL SEC TONE IF AVAILABLE
 let songDelay = 0;
