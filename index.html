@@ -886,6 +886,7 @@ let libIntro = 0;
 let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
+let vtReady = false;
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -1241,18 +1242,6 @@ vtWave = WaveSurfer.create({
   normalize: true
 });
 
-songWave = WaveSurfer.create({
-  container: "#songWaveform",
-  waveColor: "#1e3a8a",       // deep blue base
-  progressColor: "#00ff88",   // bright green (on-air feel)
-  cursorColor: "#ffffff",
-  barWidth: 2,
-  barGap: 1,
-  barRadius: 2,
-  height: 60,
-  normalize: true
-});
-
   const rowData = filteredLog[selectedIndex];
   if (!rowData) return;
 
@@ -1383,8 +1372,18 @@ function playSong(filename, btn, type = "SONG") {
 
 function selectRow(i) {
   if (filteredLog[i].type !== "VTX") return;
+
   selectedIndex = i;
+
+  // 🔥 disable button immediately
+  setVTReady(false);
+
   renderTable();
+
+  // 🔥 wait for DOM to render, then preload
+  setTimeout(() => {
+    preloadVT(i);
+  }, 50);
 }
 
   // TRIM SILENCE ON WAV VT
@@ -1468,6 +1467,11 @@ function setupPlayer(player, blob) {
 // RECORDING
 // =====================
 async function toggleRecording() {
+
+  if (!vtReady) {
+  console.log("⏳ Not ready yet");
+  return;
+}
 
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
@@ -2740,6 +2744,84 @@ function parseAIR(air) {
     return null;
   }
 }
+
+
+function setVTReady(state) {
+  vtReady = state;
+
+  const btn = document.getElementById("recordBtn");
+
+  if (!btn) return;
+
+  btn.disabled = !state;
+btn.textContent = state ? "Start" : "Loading...";
+  btn.style.opacity = state ? "1" : "0.5";
+}
+
+async function preloadVT(selectedIndex) {
+
+  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+
+  if (!prevSong || !nextSong) return;
+
+  setVTReady(false);
+
+  // 🔧 fix filenames
+  function fixName(file) {
+    let name = file.filename;
+    if (!name.toLowerCase().endsWith(".mp3")) name += ".mp3";
+    return encodeURIComponent(name);
+  }
+
+  const prevUrl = `${API_BASE}/audio/song/${fixName(prevSong)}`;
+  const nextUrl = nextSong.type === "SWP"
+    ? `${API_BASE}/audio/sweeper/${fixName(nextSong)}`
+    : `${API_BASE}/audio/song/${fixName(nextSong)}`;
+
+  // 🔥 create players if needed
+  if (!outWave) {
+    outWave = WaveSurfer.create({
+      container: "#outWaveform",
+      waveColor: "#1e3a8a",
+      progressColor: "#00ff88",
+      height: 60
+    });
+  }
+
+  if (!inWave) {
+    inWave = WaveSurfer.create({
+      container: "#inWaveform",
+      waveColor: "#1e3a8a",
+      progressColor: "#00ff88",
+      height: 60
+    });
+  }
+
+  let loaded = 0;
+
+  function checkReady() {
+    loaded++;
+    if (loaded === 2) {
+      console.log("✅ VT preloaded");
+      setVTReady(true);
+    }
+  }
+
+  // 🔥 load BOTH
+  outWave.load(prevUrl);
+  outWave.once("ready", () => {
+  const duration = outWave.getDuration();
+  const start = Math.max(0, duration - 15);
+
+  outWave.setTime(start);
+
+  checkReady();
+});
+
+  inWave.load(nextUrl);
+  inWave.once("ready", checkReady);
+}
+
 
 </script>
 
