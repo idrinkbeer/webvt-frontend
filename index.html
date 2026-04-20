@@ -2065,15 +2065,9 @@ let currentLibFile = null;
 async function loadLibPreview(file) {
   currentLibFile = file;
 
-  // 🎵 update display name
-  let artist = "Unknown";
-  let title = file.name;
-
-  if (file.name.includes(" - ")) {
-    const parts = file.name.replace(".mp3", "").split(" - ");
-    artist = parts[0];
-    title = parts[1];
-  }
+  // ✅ USE REAL TAG DATA (NOT filename)
+  const artist = file.artist || "Unknown";
+  const title = file.title || "Untitled";
 
   const label = document.getElementById("libNowPlaying");
   if (label) {
@@ -2081,8 +2075,8 @@ async function loadLibPreview(file) {
   }
 
   const url = file.type === "SWP"
-  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
-  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+    ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.filename)}`
+    : `${API_BASE}/audio/song/${encodeURIComponent(file.filename)}`;
 
   // 🔥 DESTROY OLD INSTANCE
   if (libWave) libWave.destroy();
