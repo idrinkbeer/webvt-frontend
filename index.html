@@ -295,6 +295,29 @@ button:hover {
   z-index: 10;
 }
 
+/* 👇 VISUAL LINE */
+#introMarker::after,
+#secMarker::after {
+  content: "";
+  position: absolute;
+  left: -1px;
+  width: 2px;
+  height: 100%;
+  background: inherit;
+}
+
+/* 👇 BIG HIT AREA */
+#introMarker::before,
+#secMarker::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  width: 16px;   /* 👈 MUCH easier to grab */
+  height: 100%;
+  cursor: ew-resize;
+}
+
+
 #introMarker, #secMarker {
   pointer-events: auto;
 }
