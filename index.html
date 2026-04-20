@@ -1046,12 +1046,18 @@ songWave = WaveSurfer.create({
     checkReady();
   });
 
-  function checkReady() {
-    if (vtReady && songReady) {
-      console.log("🔥 Both waveforms ready");
-      window.isAudioReady = true;
-    }
+window.isAudioReady = false;
+
+const btn = document.querySelector("button[onclick='previewBreak()']");
+if (btn) btn.disabled = true;
+
+function checkReady() {
+  if (vtReady && songReady) {
+    window.isAudioReady = true;
+
+    if (btn) btn.disabled = false;
   }
+}
 
 }, 50);
 
@@ -1086,8 +1092,10 @@ songWave = WaveSurfer.create({
 let previewAudio = null;
 let currentPlayBtn = null;
 
-function playSong(filename, btn) {
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+function playSong(filename, btn, type = "SONG") {
+  const url = type === "SWP"
+    ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
+    : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
   // 🔴 stop VT preview if playing
   if (isPreviewPlaying) {
@@ -1508,16 +1516,15 @@ function getPrevNextSongs(index) {
 }
 
 
-async function previewBreak() {
+function previewBreak() {
 
-  if (previewTimeout) {
-  clearTimeout(previewTimeout);
-  previewTimeout = null;
-}
+  if (!vtWave || !songWave) {
+    alert("Audio not ready yet");
+    return;
+  }
 
-  // 🔁 toggle
-  if (isPreviewPlaying) {
-    stopPreview();
+  if (!window.isAudioReady) {
+    alert("Still loading audio...");
     return;
   }
 
@@ -1526,12 +1533,8 @@ async function previewBreak() {
   const { nextSong } = getPrevNextSongs(selectedIndex);
   const row = filteredLog[selectedIndex];
 
-  if (!nextSong) {
-    alert("Missing next song");
-    return;
-  }
-
   const vtBlob = recordings[row.cart];
+
   if (!vtBlob) {
     alert("No VT recorded");
     return;
