@@ -1,4 +1,4 @@
-             <!DOCTYPE html>
+            <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -868,7 +868,10 @@ let songWave;
 let isPreviewPlaying = false;
 let vtFinished = false;
 let songFinished = false;
-let recordStage = 0; // 0 = idle, 1 = recording, 2 = song fired
+// VT state machine
+let vtStage = 0;
+let vtStartTime = 0;
+let vtMRK1 = 0;
 let secToneTime = null;
 let currentTitle = "";
 let currentArtist = "";
