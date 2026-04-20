@@ -360,7 +360,10 @@ select {
   top: 120px;
   left: 120px;
   width: 550px;
-  height: 600px;
+  height: 80vh;       /* 🔥 responsive height */
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   background: #000;
   border: 3px solid #001a66;
   z-index: 9999;
@@ -389,8 +392,13 @@ select {
 .lib-content {
   display: flex;
   flex-direction: column;
-  height: calc(100% - 30px);
+  flex: 1;
+  overflow: hidden;   /* 🔥 prevents overflow bleed */
   padding: 10px;
+}
+
+.lib-preview {
+  flex-shrink: 0;     /* 🔥 prevents shrinking/cutting */
 }
 
 #songSearch {
@@ -458,27 +466,6 @@ select {
   padding-top: 5px;
 }
 
-/* 🔴 RED SEC TONE LINE */
-#secMarker {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 60px;
-  background: red;
-  cursor: ew-resize;
-  z-index: 10;
-}
-
-/* 🟡 INTRO MARKER */
-#introMarker {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 60px;
-  background: yellow;
-  cursor: ew-resize;
-  z-index: 9;
-}
 
 #libSpinner {
   display: none;
