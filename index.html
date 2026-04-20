@@ -1,4 +1,4 @@
-            <!DOCTYPE html>
+             <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -904,6 +904,9 @@ let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
 let vtReady = false;
+
+let previewPlaying = false;
+let previewTimers = [];
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -1876,37 +1879,62 @@ function getPrevNextSongs(index) {
 }
 
 
-async function previewBreak() {
+function previewBreak() {
 
-  if (!vtReady || !outWave || !inWave) {
+  // 🔴 TOGGLE: stop if already playing
+  if (previewPlaying) {
+    stopPreview();
+    return;
+  }
+
+  if (!vtReady || !outWave || !inWave || !vtWave) {
     console.log("⏳ Not ready for preview");
     return;
   }
 
   console.log("🎧 Previewing break...");
+  previewPlaying = true;
 
-  // reset positions
+  // 🔹 reset all
   const outDuration = outWave.getDuration();
   const start = Math.max(0, outDuration - 10);
 
   outWave.setTime(start);
   outWave.setVolume(1);
+
+  vtWave.setTime(0);
+  vtWave.setVolume(1);
+
+  inWave.setTime(0);
+  inWave.setVolume(0.3);
+
+  // ▶ start outgoing + VT together
   outWave.play();
+  vtWave.play();
 
-  // simulate segue timing (use your secTone if available)
-  const segueTime = secToneTime || 2; // fallback
+  // 🔴 fire incoming at segue time
+  const segueTime = secToneTime || 2;
 
-  setTimeout(() => {
+  const t1 = setTimeout(() => {
     console.log("🔴 Preview segue");
 
-    inWave.setTime(0);
-    inWave.setVolume(0.3);
     inWave.play();
 
-    // duck outgoing
+    // duck outgoing under VT + next song
     outWave.setVolume(0.3);
 
   }, segueTime * 1000);
+
+  previewTimers.push(t1);
+
+  // ⏹ auto stop after VT ends
+  const vtDuration = vtWave.getDuration();
+
+  const t2 = setTimeout(() => {
+    stopPreview();
+  }, vtDuration * 1000 + 500);
+
+  previewTimers.push(t2);
 }
 
 
