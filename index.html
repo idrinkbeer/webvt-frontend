@@ -1582,14 +1582,15 @@ outWave.play();
       });
     }
 
-    inWave.stop();
-    inWave.load(url);
+if (!inWave) {
+  console.error("inWave not ready");
+  return;
+}
 
-    inWave.once("ready", () => {
-      inWave.setTime(0);
-      inWave.play();
-      inWave.setVolume(0.3);
-    });
+// 🔥 instant start (already preloaded)
+inWave.setTime(0);
+inWave.setVolume(0.3);
+inWave.play();
 
     // 🔥 duck outgoing song (KEY FOR FLOW)
     if (outWave) {
