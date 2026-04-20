@@ -431,6 +431,8 @@ select {
   flex: 1;
   overflow-y: auto;
   font-size: 12px;
+    min-height: 0;   /* 🔥 IMPORTANT for scroll containers */
+
   border: 2px solid #000;
 }
 
@@ -448,6 +450,14 @@ select {
   border-bottom: 2px solid #000;
 }
 
+.lib-header span {
+  pointer-events: none;
+}
+
+.lib-header {
+  flex-shrink: 0;
+}
+
 .lib-row div:last-child {
   text-align: right;
   color: #ccc;
@@ -462,6 +472,8 @@ select {
 .lib-preview {
   border-top: 2px solid #001a66;
   padding-top: 5px;
+    flex-shrink: 0;
+  min-height: 140px;   /* 🔥 prevents collapse */
 }
 
 
