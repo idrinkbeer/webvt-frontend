@@ -559,6 +559,11 @@ select + select {
     <!-- PREVIEW -->
     <div class="lib-preview">
 <div style="position:relative;">
+  <div style="margin-top:8px; font-size:12px;">
+  Artist: <input id="editArtist" style="width:120px;"><br>
+  Title: <input id="editTitle" style="width:120px;"><br>
+  Year: <input id="editYear" style="width:60px;">
+</div>
   <div id="libWaveform"></div>
   <div id="introMarker"></div>
   <div id="secMarker"></div>
@@ -2108,6 +2113,9 @@ async function loadLibPreview(file) {
 
     try {
       const data = await tagPromise;
+      document.getElementById("editArtist").value = data.artist || artist;
+document.getElementById("editTitle").value = data.title || title;
+document.getElementById("editYear").value = data.year || "";
       const parsed = parseAIR(data.air);
 
       if (parsed) {
@@ -2175,6 +2183,10 @@ async function saveSecTone() {
 
   const spinner = document.getElementById("libSpinner");
 
+  const artist = document.getElementById("editArtist").value;
+const title = document.getElementById("editTitle").value;
+const year = document.getElementById("editYear").value;
+
   try {
     spinner.classList.add("active");
 
@@ -2196,9 +2208,13 @@ async function saveSecTone() {
       },
       body: JSON.stringify({
         filename: currentLibFile.name,
+        type: currentLibFile.type,
         secTone: libSecTone,
         intro: libIntro,
-        air: airString
+        air: airString,
+        artist,
+        title,
+        year
       })
     });
 
