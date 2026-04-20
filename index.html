@@ -2026,10 +2026,24 @@ async function loadLibrarySongs() {
   const music = await musicRes.json();
   const swp = await swpRes.json();
 
-  allSongs = [
-    ...music.map(name => ({ name, filename: name, type: "MUS" })),
-    ...swp.map(name => ({ name, filename: name, type: "SWP" }))
-  ];
+allSongs = [
+  ...music.map(name => ({
+    name,
+    filename: name,
+    artist: "",
+    title: name.replace(".mp3", ""),
+    year: "",
+    type: "MUS"
+  })),
+  ...swp.map(name => ({
+    name,
+    filename: name,
+    artist: "SWP",
+    title: name.replace(".mp3", ""),
+    year: "",
+    type: "SWP"
+  }))
+];
 
   renderLibrary(allSongs);
 }
@@ -2157,11 +2171,23 @@ function stopLibPreview() {
 
 function filterSongs() {
   const search = document.getElementById("songSearch").value.toLowerCase();
-    const filtered = allSongs.filter(f =>
-  (f.artist || "").toLowerCase().includes(search) ||
-  (f.title || "").toLowerCase().includes(search) ||
-  (f.year || "").toString().includes(search)
-);
+
+  if (!search) {
+    renderLibrary(allSongs);
+    return;
+  }
+
+  const filtered = allSongs.filter(f => {
+    const artist = (f.artist || "").toLowerCase();
+    const title = (f.title || "").toLowerCase();
+    const year = (f.year || "").toString();
+
+    return (
+      artist.includes(search) ||
+      title.includes(search) ||
+      year.includes(search)
+    );
+  });
 
   renderLibrary(filtered);
 }
