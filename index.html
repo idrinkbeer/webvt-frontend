@@ -1225,10 +1225,9 @@ ${row.type === "SONG" || row.type === "SWP" ? `
       tableBody.appendChild(recorderRow);
       // 🎧 Init waveform
 setTimeout(() => {
-  const vtContainer = document.getElementById("vtWaveform");
-  const songContainer = document.getElementById("songWaveform");
+const vtContainer = document.getElementById("vtWaveform");
 
-  if (!vtContainer || !songContainer) return;
+if (!vtContainer) return;
 
 vtWave = WaveSurfer.create({
   container: "#vtWaveform",
@@ -1240,6 +1239,13 @@ vtWave = WaveSurfer.create({
   barRadius: 2,
   height: 60,
   normalize: true
+});
+
+songWave = WaveSurfer.create({
+  container: "#inWaveform", // or remove entirely if not needed
+  waveColor: "#1e3a8a",
+  progressColor: "#00ff88",
+  height: 60
 });
 
   const rowData = filteredLog[selectedIndex];
@@ -1258,20 +1264,13 @@ vtWave = WaveSurfer.create({
     const songUrl = nextSong.type === "SWP"
   ? `${API_BASE}/audio/sweeper/${encodeURIComponent(nextSong.filename)}`
   : `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
-    songWave.load(songUrl);
   }
 
   // ✅ Track readiness
   let vtReady = false;
-  let songReady = false;
 
   vtWave.once("ready", () => {
     vtReady = true;
-    checkReady();
-  });
-
-  songWave.once("ready", () => {
-    songReady = true;
     checkReady();
   });
 
@@ -1281,7 +1280,7 @@ const btn = document.querySelector("button[onclick='previewBreak()']");
 if (btn) btn.disabled = true;
 
 function checkReady() {
-  if (vtReady && songReady) {
+  if (vtReady) {
     window.isAudioReady = true;
 
     if (btn) btn.disabled = false;
@@ -1499,16 +1498,13 @@ async function toggleRecording() {
       });
     }
 
-    outWave.stop();
-    outWave.load(url);
 
-    outWave.once("ready", () => {
-      const duration = outWave.getDuration();
-      const start = Math.max(0, duration - 10);
+if (!outWave) {
+  console.error("outWave not preloaded");
+  return;
+}
 
-      outWave.setTime(start);
-      outWave.play();
-    });
+outWave.play();
 
     document.getElementById("recordBtn").textContent = "Start Recording";
     vtStage = 1;
@@ -1764,7 +1760,6 @@ async function stopRecording() {
     vtWave.load(URL.createObjectURL(recordedBlob));
 
 let vtReady = false;
-let songReady = false;
 
 window.isAudioReady = false;
 
@@ -1773,13 +1768,8 @@ vtWave.once("ready", () => {
   checkReady();
 });
 
-songWave.once("ready", () => {
-  songReady = true;
-  checkReady();
-});
-
 function checkReady() {
-  if (vtReady && songReady) {
+  if (vtReady ) {
     console.log("🔥 BOTH READY after recording");
     window.isAudioReady = true;
   }
@@ -1945,12 +1935,6 @@ previewTimeout = setTimeout(() => {
   vtWave.once("finish", () => {
     vtFinished = true;
     songWave.setVolume(1);
-    checkPreviewEnd();
-  });
-
-  // 🎵 SONG finished
-  songWave.once("finish", () => {
-    songFinished = true;
     checkPreviewEnd();
   });
 }
@@ -2811,7 +2795,7 @@ async function preloadVT(selectedIndex) {
   outWave.load(prevUrl);
   outWave.once("ready", () => {
   const duration = outWave.getDuration();
-  const start = Math.max(0, duration - 15);
+  const start = Math.max(0, duration - 10);
 
   outWave.setTime(start);
 
