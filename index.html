@@ -625,6 +625,23 @@ select {
 }
 
 
+.wave-block {
+  margin-top: 8px;
+}
+
+.wave-label {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #001a66;
+  border: 1px solid #000;
+  margin-bottom: 2px;
+  color: #ccc;
+}
+
+#wave-block strong {
+  color: #fff;
+}
+
 #libSpinner {
   display: none;
 }
@@ -1203,9 +1220,20 @@ ${row.type === "SONG" || row.type === "SWP" ? `
 
             <div id="status"></div>
             <div id="recordTime">0:00</div>
-            <div id="vtWaveform" style="margin-top:5px;"></div>
-            <div id="outWaveform"></div>
-            <div id="inWaveform"></div>
+<div class="wave-block">
+  <div class="wave-label">🎵 OUTGOING (RAMP)</div>
+  <div id="outWaveform"></div>
+</div>
+
+<div class="wave-block">
+  <div class="wave-label">🎙 VOICETRACK</div>
+  <div id="vtWaveform"></div>
+</div>
+
+<div class="wave-block">
+  <div class="wave-label">🎵 NEXT SONG</div>
+  <div id="inWaveform"></div>
+</div>
             <div class="audio-player">
 <div style="margin-top:10px;">
   <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
@@ -1382,6 +1410,7 @@ function selectRow(i) {
   // 🔥 wait for DOM to render, then preload
   setTimeout(() => {
     preloadVT(i);
+    updateWaveLabels();
   }, 50);
 }
 
@@ -2804,6 +2833,21 @@ async function preloadVT(selectedIndex) {
 
   inWave.load(nextUrl);
   inWave.once("ready", checkReady);
+}
+
+function updateWaveLabels() {
+  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+
+  const outLabel = document.querySelector("#outWaveform")?.previousElementSibling;
+  const inLabel = document.querySelector("#inWaveform")?.previousElementSibling;
+
+  if (outLabel && prevSong) {
+    outLabel.textContent = `🎵 OUT: ${prevSong.artist || ""} - ${prevSong.title || prevSong.filename}`;
+  }
+
+  if (inLabel && nextSong) {
+    inLabel.textContent = `🎵 NEXT: ${nextSong.artist || ""} - ${nextSong.title || nextSong.filename}`;
+  }
 }
 
 
