@@ -1876,97 +1876,37 @@ function getPrevNextSongs(index) {
 }
 
 
-function previewBreak() {
+async function previewBreak() {
 
-  if (!vtWave || !songWave) {
-    alert("Audio not ready yet");
+  if (!vtReady || !outWave || !inWave) {
+    console.log("⏳ Not ready for preview");
     return;
   }
 
-  if (!window.isAudioReady) {
-    alert("Still loading audio...");
-    return;
-  }
+  console.log("🎧 Previewing break...");
 
-  if (selectedIndex === null) return;
+  // reset positions
+  const outDuration = outWave.getDuration();
+  const start = Math.max(0, outDuration - 10);
 
-  const { nextSong } = getPrevNextSongs(selectedIndex);
-  const row = filteredLog[selectedIndex];
+  outWave.setTime(start);
+  outWave.setVolume(1);
+  outWave.play();
 
-  const vtBlob = recordings[row.cart];
+  // simulate segue timing (use your secTone if available)
+  const segueTime = secToneTime || 2; // fallback
 
-  if (!vtBlob) {
-    alert("No VT recorded");
-    return;
-  }
+  setTimeout(() => {
+    console.log("🔴 Preview segue");
 
-  // 🧼 reset state
-  vtFinished = false;
-  songFinished = false;
+    inWave.setTime(0);
+    inWave.setVolume(0.3);
+    inWave.play();
 
-  // 🛑 stop anything already playing
-  if (vtWave) vtWave.stop();
-  if (songWave) songWave.stop();
+    // duck outgoing
+    outWave.setVolume(0.3);
 
-let vtDuration = 0;
-
-// 🔥 HARD CHECK (not just null)
-if (!vtWave || !vtWave.backend || !vtWave.backend.buffer) {
-  alert("VT not loaded yet");
-  return;
-}
-
-vtDuration = vtWave.getDuration();
-
-if (!vtDuration || isNaN(vtDuration)) {
-  alert("Invalid VT duration");
-  return;
-}
-
-// 🎯 USE MANUAL SEC TONE IF AVAILABLE
-let songDelay = 0;
-
-if (secToneTime !== null) {
-  songDelay = secToneTime;
-  console.log("🎯 Preview using manual Sec Tone:", songDelay);
-} else {
-  // 🔁 fallback to old logic
-  const intro = nextSong.intro || 0;
-
-  if (vtDuration > intro) {
-    songDelay = vtDuration - intro;
-  } else {
-    songDelay = vtDuration;
-  }
-
-  console.log("🤖 Preview using auto timing:", songDelay);
-}
-
-  //console.log("VT:", vtDuration, "Intro:", intro, "Delay:", songDelay);
-
-  // ▶ start VT immediately
-  vtWave.play();
-
-  isPreviewPlaying = true;
-
-  const btn = document.querySelector("button[onclick='previewBreak()']");
-  if (btn) btn.textContent = "Stop Preview";
-
-  // ▶ start song
-previewTimeout = setTimeout(() => {
-  // 🛑 don't run if preview was stopped
-  if (!isPreviewPlaying) return;
-
-  songWave.play();
-  songWave.setVolume(0.3);
-}, songDelay * 1000);
-
-  // 🎙 VT finished
-  vtWave.once("finish", () => {
-    vtFinished = true;
-    songWave.setVolume(1);
-    checkPreviewEnd();
-  });
+  }, segueTime * 1000);
 }
 
 
