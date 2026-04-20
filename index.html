@@ -1,4 +1,4 @@
-          <!DOCTYPE html>
+           <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -850,6 +850,18 @@ function processASC(text) {
         };
       }
 
+      if (line.includes("\\SWP\\")) {
+  return {
+    type: "SWP",
+    time: parts[0],
+    title: parts[5] || "SWEEPER",
+    artist: "SWP",
+    filename: parts[12]?.trim(),
+    intro: parseInt(parts[10]) || 0,
+    end: parts[11]
+  };
+}
+
       if (line.includes("\\VTX\\")) {
         return {
           type: "VTX",
@@ -907,6 +919,8 @@ function renderTable() {
   filteredLog.forEach((row, i) => {
     const tr = document.createElement("tr");
 
+    if (row.type === "SWP") tr.classList.add("swp");
+
     if (row.type === "VTX") tr.classList.add("vtx");
     if (i === selectedIndex) tr.classList.add("active");
 
@@ -914,9 +928,9 @@ function renderTable() {
       <td>${row.time}</td>
       <td>${row.type}</td>
       <td>
-        ${row.type === "SONG" ? `
-          <button onclick="playSong('${row.filename}', this)">▶</button>
-        ` : ""}
+${row.type === "SONG" || row.type === "SWP" ? `
+  <button onclick="playSong('${row.filename}', this)">▶</button>
+` : ""}
         ${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}
       </td>
       <td>${row.artist || ""}</td>
@@ -1945,29 +1959,20 @@ function closeLibrary() {
 }
 
 async function loadLibrarySongs() {
-  const list = document.getElementById("songList");
-  list.innerHTML = "<li>Loading...</li>";
+  const [musicRes, swpRes] = await Promise.all([
+    fetch(`${API_BASE}/music`, { headers: { Authorization: "Bearer " + token }}),
+    fetch(`${API_BASE}/sweepers`, { headers: { Authorization: "Bearer " + token }})
+  ]);
 
-  try {
-    const res = await fetch(`${API_BASE}/music`, {
-      headers: {
-        Authorization: "Bearer " + token
-      }
-    });
+  const music = await musicRes.json();
+  const swp = await swpRes.json();
 
-    const data = await res.json();
+  allSongs = [
+    ...music.map(name => ({ name, type: "MUS" })),
+    ...swp.map(name => ({ name, type: "SWP" }))
+  ];
 
-    // 🔥 since API returns just filenames
-    allSongs = (data || [])
-  .filter(name => typeof name === "string" && name.toLowerCase().endsWith(".mp3"))
-  .map(name => ({ name }));
-
-    renderLibrary(allSongs);
-
-  } catch (err) {
-    console.error(err);
-    list.innerHTML = "<li>Error loading songs</li>";
-  }
+  renderLibrary(allSongs);
 }
 
 function renderLibrary(songs) {
@@ -1986,13 +1991,20 @@ function renderLibrary(songs) {
       title = parts[1];
     }
 
-    const row = document.createElement("div");
-    row.className = "lib-row";
+const row = document.createElement("div");
+row.className = "lib-row";
 
-    row.innerHTML = `
-      <div>${artist}</div>
-      <div>${title}</div>
-    `;
+if (file.type === "SWP") {
+  row.classList.add("swp");
+}
+
+row.innerHTML = `
+  <div>${artist}</div>
+  <div>
+    ${title}
+    ${file.type === "SWP" ? '<span style="font-size:10px; margin-left:5px;">[SWP]</span>' : ''}
+  </div>
+`;
 
     row.onclick = () => loadLibPreview(file);
 
@@ -2021,7 +2033,9 @@ async function loadLibPreview(file) {
     label.innerHTML = `🎵 <strong>${artist}</strong> - ${title}`;
   }
 
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+  const url = file.type === "SWP"
+  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
+  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   // 🔥 DESTROY OLD INSTANCE
   if (libWave) libWave.destroy();
@@ -2109,7 +2123,9 @@ function filterSongs() {
 
 // 🔥 USE YOUR EXISTING PLAYER SYSTEM (UNCHANGED)
 function playLibrarySong(file) {
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
+  const url = file.type === "SWP"
+  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(file.name)}`
+  : `${API_BASE}/audio/song/${encodeURIComponent(file.name)}`;
 
   if (previewAudio) {
     previewAudio.pause();
