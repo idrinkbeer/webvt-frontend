@@ -1881,7 +1881,9 @@ function getPrevNextSongs(index) {
 
 function previewBreak() {
 
-  // 🔴 TOGGLE: stop if already playing
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+
+  // 🔴 toggle
   if (previewPlaying) {
     stopPreview();
     return;
@@ -1895,39 +1897,38 @@ function previewBreak() {
   console.log("🎧 Previewing break...");
   previewPlaying = true;
 
-  // 🔹 reset all
+  if (btn) btn.textContent = "Stop Preview";
+
   const outDuration = outWave.getDuration();
   const start = Math.max(0, outDuration - 10);
 
+  // 🎵 outgoing
   outWave.setTime(start);
-  outWave.setVolume(1);
+  outWave.setVolume(0.4);
 
+  // 🎙 VT (force restart)
+  vtWave.stop();
   vtWave.setTime(0);
   vtWave.setVolume(1);
 
+  // 🎵 incoming
   inWave.setTime(0);
   inWave.setVolume(0.3);
 
-  // ▶ start outgoing + VT together
+  // ▶ start
   outWave.play();
   vtWave.play();
 
-  // 🔴 fire incoming at segue time
   const segueTime = secToneTime || 2;
 
   const t1 = setTimeout(() => {
     console.log("🔴 Preview segue");
 
     inWave.play();
-
-    // duck outgoing under VT + next song
-    outWave.setVolume(0.3);
-
   }, segueTime * 1000);
 
   previewTimers.push(t1);
 
-  // ⏹ auto stop after VT ends
   const vtDuration = vtWave.getDuration();
 
   const t2 = setTimeout(() => {
