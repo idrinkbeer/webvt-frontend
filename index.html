@@ -929,7 +929,7 @@ function renderTable() {
       <td>${row.type}</td>
       <td>
 ${row.type === "SONG" || row.type === "SWP" ? `
-  <button onclick="playSong('${row.filename}', this)">▶</button>
+  <button onclick="playSong('${row.filename}', this, '${row.type}')">▶</button>
 ` : ""}
         ${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}
       </td>
@@ -1028,7 +1028,9 @@ songWave = WaveSurfer.create({
 
   // 🎵 preload next song
   if (nextSong) {
-    const songUrl = `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+    const songUrl = nextSong.type === "SWP"
+  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(nextSong.filename)}`
+  : `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
     songWave.load(songUrl);
   }
 
@@ -1567,17 +1569,16 @@ function previewBreak() {
 
 let vtDuration = 0;
 
-try {
-  vtDuration = vtWave.getDuration();
+// 🔥 HARD CHECK (not just null)
+if (!vtWave || !vtWave.backend || !vtWave.backend.buffer) {
+  alert("VT not loaded yet");
+  return;
+}
 
-  if (!vtDuration || isNaN(vtDuration)) {
-    alert("VT not ready yet");
-    return;
-  }
+vtDuration = vtWave.getDuration();
 
-} catch (e) {
-  console.warn("VT duration error:", e);
-  alert("Audio not ready yet");
+if (!vtDuration || isNaN(vtDuration)) {
+  alert("Invalid VT duration");
   return;
 }
 
