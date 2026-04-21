@@ -1187,9 +1187,9 @@ function renderTable() {
       <td>${row.time}</td>
       <td>${row.type}</td>
       <td>
-        ${row.type === "SONG" || row.type === "SWP" ? `
-          <button onclick="playSong('${row.filename}', this, '${row.type}')">▶</button>
-        ` : ""}
+${row.type === "SONG" || row.type === "SWP" ? `
+  <button onclick="playSong(${JSON.stringify(row.filename)}, this, ${JSON.stringify(row.type)})">▶</button>
+` : ""}
         ${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}
       </td>
       <td>${row.artist || ""}</td>
