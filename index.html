@@ -1,4 +1,4 @@
-             <!DOCTYPE html>
+            <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1900,7 +1900,7 @@ function previewBreak() {
     return;
   }
 
-  stopPreview(); // 👈 add this line
+  stopPreview(); // ensure clean state
 
   if (!vtReady || !outWave || !inWave || !vtWave) {
     console.log("⏳ Not ready for preview");
@@ -1912,82 +1912,48 @@ function previewBreak() {
 
   if (btn) btn.textContent = "Stop Preview";
 
-  const outDuration = outWave.getDuration();
-  const start = Math.max(0, outDuration - 10);
+  const PREVIEW_LEAD = 5; // seconds before VT starts
 
-  // 🎵 outgoing
+  const outDuration = outWave.getDuration();
+  const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
+
+  // 🎵 OUTGOING (start early)
   outWave.setTime(start);
   outWave.setVolume(0.4);
+  outWave.play();
 
-  // 🎙 VT (force restart)
+  // 🎙 VT (prepare)
   vtWave.stop();
   vtWave.setTime(0);
   vtWave.setVolume(1);
 
-  // 🎵 incoming
-  inWave.setTime(0);
-  inWave.setVolume(0.3);
+  // 🎙 start VT after lead
+  const t0 = setTimeout(() => {
+    vtWave.play();
+  }, PREVIEW_LEAD * 1000);
 
-  // ▶ start
-const PREVIEW_LEAD = 5; // 👈 tweak this (2–5 sec feels best)
+  previewTimers.push(t0);
 
-// 🎵 calculate ramp start EARLIER than before
-const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
-
-// 🎵 outgoing starts FIRST
-outWave.setTime(start);
-outWave.setVolume(0.4);
-outWave.play();
-
-// 🎙 VT starts AFTER lead time
-vtWave.stop();
-vtWave.setTime(0);
-vtWave.setVolume(1);
-
-const t0 = setTimeout(() => {
-  vtWave.play();
-}, PREVIEW_LEAD * 1000);
-
-previewTimers.push(t0);
-
-// 🔴 segue timing (relative to VT start)
-const segueTime = secToneTime || 2;
-
-const t1 = setTimeout(() => {
-  console.log("🔴 Preview segue");
-
-  inWave.setTime(0);
-  inWave.setVolume(0.3);
-  inWave.play();
-
-}, (PREVIEW_LEAD + segueTime) * 1000);
-
-previewTimers.push(t1);
-
-// ⏹ auto stop after VT finishes
-const vtDuration = vtWave.getDuration();
-
-const t2 = setTimeout(() => {
-  stopPreview();
-}, (PREVIEW_LEAD + vtDuration) * 1000 + 500);
-
-previewTimers.push(t2);
-
+  // 🔴 segue (relative to VT start)
   const segueTime = secToneTime || 2;
 
   const t1 = setTimeout(() => {
     console.log("🔴 Preview segue");
 
+    inWave.setTime(0);
+    inWave.setVolume(0.3);
     inWave.play();
-  }, segueTime * 1000);
+
+  }, (PREVIEW_LEAD + segueTime) * 1000);
 
   previewTimers.push(t1);
 
+  // ⏹ stop everything after VT finishes
   const vtDuration = vtWave.getDuration();
 
   const t2 = setTimeout(() => {
     stopPreview();
-  }, vtDuration * 1000 + 500);
+  }, (PREVIEW_LEAD + vtDuration) * 1000 + 500);
 
   previewTimers.push(t2);
 }
