@@ -1428,46 +1428,55 @@ async function toggleRecording() {
 
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
-  // 🟣 STEP 0 — PLAY OUTGOING SONG (last 10s)
-  if (vtStage === 0) {
+// 🟣 STEP 0 — PLAY OUTGOING SONG (last 10s)
+if (vtStage === 0) {
 
-    if (!prevSong) {
-      alert("No previous song");
-      return;
-    }
-
-    let filename = prevSong.filename;
-    if (!filename.toLowerCase().endsWith(".mp3")) {
-      filename += ".mp3";
-    }
-
-    const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
-
-    // 🔥 HARD RESET audio
-    outAudio.pause();
-    outAudio.currentTime = 0;
-
-    outAudio.src = url;
-    outAudio.preload = "auto";
-    outAudio.load();
-
-    // 🔥 USE canplay (not metadata)
-    outAudio.oncanplay = () => {
-      const start = Math.max(0, outAudio.duration - 10);
-
-      outAudio.currentTime = start;
-
-      // 🔥 small delay ensures seek sticks
-      setTimeout(() => {
-        outAudio.volume = 1;
-        outAudio.play();
-      }, 50);
-    };
-
-    document.getElementById("recordBtn").textContent = "Start Recording";
-    vtStage = 1;
+  if (!prevSong) {
+    alert("No previous song");
     return;
   }
+
+  let filename = prevSong.filename;
+  if (!filename.toLowerCase().endsWith(".mp3")) {
+    filename += ".mp3";
+  }
+
+  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+
+  // 🔥 FULL RESET (important)
+  outAudio.pause();
+  outAudio.removeAttribute("src");
+  outAudio.load();
+
+  outAudio.src = url;
+  outAudio.preload = "auto";
+
+  // 🔥 wait until SEEKABLE (this is the key fix)
+  outAudio.addEventListener("loadedmetadata", () => {
+
+    const start = Math.max(0, outAudio.duration - 10);
+
+    // 🔥 FORCE SEEK LOOP (this fixes your issue)
+    const trySeek = () => {
+      if (Math.abs(outAudio.currentTime - start) > 0.5) {
+        outAudio.currentTime = start;
+        setTimeout(trySeek, 30);
+      } else {
+        console.log("✅ OUT ready at:", outAudio.currentTime);
+
+        outAudio.volume = 1;
+        outAudio.play().catch(err => console.warn(err));
+      }
+    };
+
+    trySeek();
+
+  }, { once: true });
+
+  document.getElementById("recordBtn").textContent = "Start Recording";
+  vtStage = 1;
+  return;
+}
 
   // 🎙 STEP 1 — START RECORD + SET MRK1
   if (vtStage === 1) {
