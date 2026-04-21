@@ -1422,9 +1422,9 @@ function setupPlayer(player, blob) {
 async function toggleRecording() {
 
   if (!vtReady) {
-  console.log("⏳ Not ready yet");
-  return;
-}
+    console.log("⏳ Not ready yet");
+    return;
+  }
 
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
@@ -1443,14 +1443,26 @@ async function toggleRecording() {
 
     const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
-outAudio.src = url;
+    // 🔥 HARD RESET audio
+    outAudio.pause();
+    outAudio.currentTime = 0;
 
-outAudio.onloadedmetadata = () => {
-  const start = Math.max(0, outAudio.duration - 10);
-  outAudio.currentTime = start;
-  outAudio.volume = 1;
-  outAudio.play();
-};
+    outAudio.src = url;
+    outAudio.preload = "auto";
+    outAudio.load();
+
+    // 🔥 USE canplay (not metadata)
+    outAudio.oncanplay = () => {
+      const start = Math.max(0, outAudio.duration - 10);
+
+      outAudio.currentTime = start;
+
+      // 🔥 small delay ensures seek sticks
+      setTimeout(() => {
+        outAudio.volume = 1;
+        outAudio.play();
+      }, 50);
+    };
 
     document.getElementById("recordBtn").textContent = "Start Recording";
     vtStage = 1;
@@ -1489,14 +1501,17 @@ outAudio.onloadedmetadata = () => {
       ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
       : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
+    // 🔥 reset + play incoming
+    inAudio.pause();
+    inAudio.currentTime = 0;
 
-// 🔥 instant start (already preloaded)
-inAudio.src = url;
-inAudio.currentTime = 0;
-inAudio.volume = 0.3;
-inAudio.play();
+    inAudio.src = url;
+    inAudio.currentTime = 0;
+    inAudio.volume = 0.3;
+    inAudio.play();
 
-outAudio.volume = 0.3;
+    // 🔥 duck outgoing
+    outAudio.volume = 0.3;
 
     // 🎯 mark segue
     secToneTime = (performance.now() - vtStartTime) / 1000;
