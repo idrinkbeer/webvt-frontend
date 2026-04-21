@@ -1202,10 +1202,12 @@ ${row.type === "SONG" || row.type === "SWP" ? `
     tableBody.appendChild(tr);
 
     
-    setTimeout(() => {
-  setVTReady(true);
-  updateLabels();
-  console.log("✅ VT READY");
+setTimeout(() => {
+  if (selectedIndex !== null) {
+    setVTReady(true);
+    updateLabels();
+    console.log("✅ VT READY");
+  }
 }, 50);
       const recorderRow = document.createElement("tr");
 
@@ -1847,7 +1849,6 @@ vtAudio.onloadedmetadata = () => {
   previewTimers.push(t2);
 };
 
-  previewTimers.push(t2);
 }
 
 
