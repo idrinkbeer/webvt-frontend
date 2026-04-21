@@ -1298,7 +1298,7 @@ setTimeout(() => {
   });
 
 outWave.on("ready", () => {
-  const buffer = outWave.backend.buffer;
+  const buffer = outWave.getDecodedData(); // ✅ FIX
   if (!buffer) return;
 
   const trim = detectSilence(buffer);
@@ -1323,25 +1323,22 @@ outWave.on("ready", () => {
     height: 60
   });
 inWave.on("ready", () => {
-  const buffer = inWave.backend.buffer;
+  const buffer = inWave.getDecodedData(); // ✅ FIX
   if (!buffer) return;
 
-  const trim = detectSilence(buffer, 0.02); // slightly higher threshold works better
+  const trim = detectSilence(buffer, 0.02);
 
-  // 💾 store trim
   inWave.trimStart = trim.startOffset;
   inWave.trimEnd = trim.endOffset;
 
   console.log("IN trim:", trim);
 
-  // 🎯 VISUAL TRIM LINE
   const duration = inWave.getDuration();
   const percent = duration ? (trim.startOffset / duration) : 0;
 
   const container = document.getElementById("inWaveform");
   let line = document.getElementById("inTrimLine");
 
-  // create line if it doesn't exist
   if (!line && container) {
     line = document.createElement("div");
     line.id = "inTrimLine";
