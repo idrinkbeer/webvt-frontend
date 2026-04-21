@@ -909,6 +909,8 @@ let previewTimers = [];
 
 const waveCache = {};
 
+let stoppingPreview = false;
+
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1300,7 +1302,7 @@ setTimeout(() => {
   const saved = recordings[rowData.cart];
 
   if (saved) {
-    vtWave.load(URL.createObjectURL(saved));
+    safeLoad(vtWave, URL.createObjectURL(saved));
   }
 
   // 🔥 wait for ALL 3 waves
@@ -1409,12 +1411,6 @@ function selectRow(i) {
   setVTReady(false);
 
   renderTable();
-
-  // 🔥 wait for DOM to render, then preload
-  setTimeout(() => {
-    preloadVT(i);
-    updateWaveLabels();
-  }, 50);
 }
 
   // TRIM SILENCE ON WAV VT
@@ -1943,43 +1939,43 @@ function previewBreak() {
 }
 
 
+let stoppingPreview = false;
+
 function stopPreview() {
-  console.log("⏹ FORCE stopping preview");
+  if (stoppingPreview) return; // 🔥 prevent spam
+  stoppingPreview = true;
+
+  console.log("⏹ STOP preview");
 
   previewPlaying = false;
 
-  // 🧨 kill all timers FIRST
+  // 🧨 kill timers
   previewTimers.forEach(t => clearTimeout(t));
   previewTimers = [];
 
-  // 🔊 HARD STOP all waves
+  // 🔊 clean stop (NO seeking, NO suspend)
   [outWave, inWave, vtWave].forEach(w => {
     if (!w) return;
 
     try {
-      w.pause();          // 🔥 important
-      w.stop();
-      w.setTime(0);
-      w.setVolume(1);
+      w.pause();   // enough to stop audio immediately
+      w.stop();    // reset internally
     } catch (e) {
       console.warn("Wave stop error:", e);
     }
   });
 
-  // 🔥 ALSO suspend audio context (extra safety)
-  try {
-    if (outWave?.backend?.ac) outWave.backend.ac.suspend();
-    if (inWave?.backend?.ac) inWave.backend.ac.suspend();
-    if (vtWave?.backend?.ac) vtWave.backend.ac.suspend();
-  } catch (e) {}
+  // 🔁 reset buttons
+  const breakBtn = document.querySelector("button[onclick='previewBreak()']");
+  if (breakBtn) breakBtn.textContent = "Preview Break";
 
-// 🔁 reset Preview Break button
-const breakBtn = document.querySelector("button[onclick='previewBreak()']");
-if (breakBtn) breakBtn.textContent = "Preview Break";
+  const vtBtn = document.querySelector("button[onclick='previewVT()']");
+  if (vtBtn) vtBtn.textContent = "Preview VT";
 
-// 🔁 reset Preview VT button
-const vtBtn = document.querySelector("button[onclick='previewVT()']");
-if (vtBtn) vtBtn.textContent = "Preview VT";
+  // 🔓 release lock
+  setTimeout(() => {
+    stoppingPreview = false;
+  }, 100);
 }
 
 function checkPreviewEnd() {
@@ -2776,21 +2772,19 @@ function preloadVT(index) {
   const cart = row.cart;
 
   // 🔥 if cached, reuse instantly
-  if (waveCache[cart]) {
-    console.log("⚡ Using cached audio:", cart);
+if (waveCache[cart]) {
+  console.log("⚡ Using cached audio:", cart);
 
-    const cache = waveCache[cart];
+  const cache = waveCache[cart];
 
-    if (cache.vtBlob) {
-      vtWave.load(URL.createObjectURL(cache.vtBlob));
-    }
-
-    outWave.load(cache.prevUrl);
-    inWave.load(cache.nextUrl);
-
-    setVTReady(true);
-    return;
+  if (cache.vtBlob) {
+    safeLoad(vtWave, URL.createObjectURL(cache.vtBlob));
   }
+
+  // 🔥 DO NOT reload out/in if already loaded
+  setVTReady(true);
+  return;
+}
 
   // 🔄 otherwise build cache
   const { prevSong, nextSong } = getPrevNextSongs(index);
@@ -2851,6 +2845,17 @@ function updateWaveLabels() {
   }
 }
 
+
+function safeLoad(wave, urlOrBlob) {
+  if (!wave) return;
+
+  try {
+    wave.stop();
+    wave.empty(); // 🔥 THIS prevents AbortError
+  } catch (e) {}
+
+  wave.load(urlOrBlob);
+}
 
 </script>
 
