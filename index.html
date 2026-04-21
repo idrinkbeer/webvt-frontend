@@ -1790,6 +1790,10 @@ function previewBreak() {
     return;
   }
 
+
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+if (btn) btn.textContent = "Stop Preview";
+
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
   if (!prevSong || !nextSong) return;
 
