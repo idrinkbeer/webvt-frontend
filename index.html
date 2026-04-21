@@ -1255,67 +1255,66 @@ ${row.type === "SONG" || row.type === "SWP" ? `
       tableBody.appendChild(recorderRow);
       // 🎧 Init waveform
 setTimeout(() => {
-const vtContainer = document.getElementById("vtWaveform");
 
-if (!vtContainer) return;
+  // 🔥 destroy old waves
+  if (outWave) { outWave.destroy(); outWave = null; }
+  if (inWave) { inWave.destroy(); inWave = null; }
+  if (vtWave) { vtWave.destroy(); vtWave = null; }
 
-vtWave = WaveSurfer.create({
-  container: "#vtWaveform",
-  waveColor: "#1e3a8a",       // same as songWave
-  progressColor: "#00ff88",   // same green
-  cursorColor: "#ffffff",
-  barWidth: 2,
-  barGap: 1,
-  barRadius: 2,
-  height: 60,
-  normalize: true
-});
+  const vtContainer = document.getElementById("vtWaveform");
+  if (!vtContainer) return;
 
-songWave = WaveSurfer.create({
-  container: "#inWaveform", // or remove entirely if not needed
-  waveColor: "#1e3a8a",
-  progressColor: "#00ff88",
-  height: 60
-});
+  // 🔥 recreate waves
+  vtWave = WaveSurfer.create({
+    container: "#vtWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 60,
+    normalize: true
+  });
 
+  outWave = WaveSurfer.create({
+    container: "#outWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 60
+  });
+
+  inWave = WaveSurfer.create({
+    container: "#inWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 60
+  });
+
+  // 🔒 disable UI until ready
+  setVTReady(false);
+
+  // 🔥 preload ALL audio (this loads OUT + IN)
+  preloadVT(selectedIndex);
+
+  // 🔥 load VT recording if exists
   const rowData = filteredLog[selectedIndex];
-  if (!rowData) return;
-
-  const { nextSong } = getPrevNextSongs(selectedIndex);
-
-  // 🎙 preload VT
   const saved = recordings[rowData.cart];
+
   if (saved) {
     vtWave.load(URL.createObjectURL(saved));
   }
 
-  // 🎵 preload next song
-  if (nextSong) {
-    const songUrl = nextSong.type === "SWP"
-  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(nextSong.filename)}`
-  : `${API_BASE}/audio/song/${encodeURIComponent(nextSong.filename)}`;
+  // 🔥 wait for ALL 3 waves
+  let readyCount = 0;
+
+  function onReady() {
+    readyCount++;
+    if (readyCount === 3) {
+      console.log("🔥 ALL WAVES READY");
+      setVTReady(true);
+    }
   }
 
-  // ✅ Track readiness
-  let vtReady = false;
-
-  vtWave.once("ready", () => {
-    vtReady = true;
-    checkReady();
-  });
-
-window.isAudioReady = false;
-
-const btn = document.querySelector("button[onclick='previewBreak()']");
-if (btn) btn.disabled = true;
-
-function checkReady() {
-  if (vtReady) {
-    window.isAudioReady = true;
-
-    if (btn) btn.disabled = false;
-  }
-}
+  vtWave.once("ready", onReady);
+  outWave.once("ready", onReady);
+  inWave.once("ready", onReady);
 
 }, 50);
 
