@@ -1,4 +1,4 @@
-               <!DOCTYPE html>
+            <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1929,8 +1929,50 @@ function previewBreak() {
   inWave.setVolume(0.3);
 
   // ▶ start
-  outWave.play();
+const PREVIEW_LEAD = 5; // 👈 tweak this (2–5 sec feels best)
+
+// 🎵 calculate ramp start EARLIER than before
+const outDuration = outWave.getDuration();
+const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
+
+// 🎵 outgoing starts FIRST
+outWave.setTime(start);
+outWave.setVolume(0.4);
+outWave.play();
+
+// 🎙 VT starts AFTER lead time
+vtWave.stop();
+vtWave.setTime(0);
+vtWave.setVolume(1);
+
+const t0 = setTimeout(() => {
   vtWave.play();
+}, PREVIEW_LEAD * 1000);
+
+previewTimers.push(t0);
+
+// 🔴 segue timing (relative to VT start)
+const segueTime = secToneTime || 2;
+
+const t1 = setTimeout(() => {
+  console.log("🔴 Preview segue");
+
+  inWave.setTime(0);
+  inWave.setVolume(0.3);
+  inWave.play();
+
+}, (PREVIEW_LEAD + segueTime) * 1000);
+
+previewTimers.push(t1);
+
+// ⏹ auto stop after VT finishes
+const vtDuration = vtWave.getDuration();
+
+const t2 = setTimeout(() => {
+  stopPreview();
+}, (PREVIEW_LEAD + vtDuration) * 1000 + 500);
+
+previewTimers.push(t2);
 
   const segueTime = secToneTime || 2;
 
