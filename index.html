@@ -1,4 +1,4 @@
-            <!DOCTYPE html>
+             <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1892,6 +1892,11 @@ function getPrevNextSongs(index) {
 
 function previewBreak() {
 
+  if (!outWave.getDuration()) {
+  console.log("⏳ Outgoing not loaded yet");
+  return;
+}
+
   const btn = document.querySelector("button[onclick='previewBreak()']");
 
   // 🔴 toggle
@@ -2797,11 +2802,14 @@ if (waveCache[cart]) {
 
   const cache = waveCache[cart];
 
+  // 🔥 ALWAYS load into NEW waves
+  if (cache.prevUrl) outWave.load(cache.prevUrl);
+  if (cache.nextUrl) inWave.load(cache.nextUrl);
+
   if (cache.vtBlob) {
-    safeLoad(vtWave, URL.createObjectURL(cache.vtBlob));
+    vtWave.load(URL.createObjectURL(cache.vtBlob));
   }
 
-  // 🔥 DO NOT reload out/in if already loaded
   setVTReady(true);
   return;
 }
