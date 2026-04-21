@@ -1970,9 +1970,13 @@ function stopPreview() {
     if (vtWave?.backend?.ac) vtWave.backend.ac.suspend();
   } catch (e) {}
 
-  // 🔁 reset button
-  const btn = document.querySelector("button[onclick='previewBreak()']");
-  if (btn) btn.textContent = "Preview Break";
+// 🔁 reset Preview Break button
+const breakBtn = document.querySelector("button[onclick='previewBreak()']");
+if (breakBtn) breakBtn.textContent = "Preview Break";
+
+// 🔁 reset Preview VT button
+const vtBtn = document.querySelector("button[onclick='previewVT()']");
+if (vtBtn) vtBtn.textContent = "Preview VT";
 }
 
 function checkPreviewEnd() {
