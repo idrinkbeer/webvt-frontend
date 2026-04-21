@@ -907,6 +907,8 @@ let vtReady = false;
 let previewPlaying = false;
 let previewTimers = [];
 
+const waveCache = {};
+
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1772,6 +1774,10 @@ async function stopRecording() {
 
   recordings[row.cart] = recordedBlob;
 
+// 🔥 update cache with new VT
+if (waveCache[row.cart]) {
+  waveCache[row.cart].vtBlob = recordedBlob;
+}
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
 
@@ -1789,8 +1795,6 @@ async function stopRecording() {
 
     // load final waveform
     vtWave.load(URL.createObjectURL(recordedBlob));
-
-let vtReady = false;
 
 window.isAudioReady = false;
 
@@ -2764,15 +2768,35 @@ btn.textContent = state ? "Start" : "Loading...";
   btn.style.opacity = state ? "1" : "0.5";
 }
 
-async function preloadVT(selectedIndex) {
+function preloadVT(index) {
 
-  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+  const row = filteredLog[index];
+  if (!row) return;
+
+  const cart = row.cart;
+
+  // 🔥 if cached, reuse instantly
+  if (waveCache[cart]) {
+    console.log("⚡ Using cached audio:", cart);
+
+    const cache = waveCache[cart];
+
+    if (cache.vtBlob) {
+      vtWave.load(URL.createObjectURL(cache.vtBlob));
+    }
+
+    outWave.load(cache.prevUrl);
+    inWave.load(cache.nextUrl);
+
+    setVTReady(true);
+    return;
+  }
+
+  // 🔄 otherwise build cache
+  const { prevSong, nextSong } = getPrevNextSongs(index);
 
   if (!prevSong || !nextSong) return;
 
-  setVTReady(false);
-
-  // 🔧 fix filenames
   function fixName(file) {
     let name = file.filename;
     if (!name.toLowerCase().endsWith(".mp3")) name += ".mp3";
@@ -2784,45 +2808,29 @@ async function preloadVT(selectedIndex) {
     ? `${API_BASE}/audio/sweeper/${fixName(nextSong)}`
     : `${API_BASE}/audio/song/${fixName(nextSong)}`;
 
-  // 🔥 create players if needed
-  if (!outWave) {
-    outWave = WaveSurfer.create({
-      container: "#outWaveform",
-      waveColor: "#1e3a8a",
-      progressColor: "#00ff88",
-      height: 60
-    });
-  }
+  // 🔒 disable until ready
+  setVTReady(false);
 
-  if (!inWave) {
-    inWave = WaveSurfer.create({
-      container: "#inWaveform",
-      waveColor: "#1e3a8a",
-      progressColor: "#00ff88",
-      height: 60
-    });
-  }
-
-  let loaded = 0;
+  let readyCount = 0;
 
   function checkReady() {
-    loaded++;
-    if (loaded === 2) {
-      console.log("✅ VT preloaded");
+    readyCount++;
+    if (readyCount === 2) {
+      console.log("✅ Cached + ready:", cart);
+
+      // 🔥 save cache
+      waveCache[cart] = {
+        vtBlob: recordings[cart] || null,
+        prevUrl,
+        nextUrl
+      };
+
       setVTReady(true);
     }
   }
 
-  // 🔥 load BOTH
   outWave.load(prevUrl);
-  outWave.once("ready", () => {
-  const duration = outWave.getDuration();
-  const start = Math.max(0, duration - 10);
-
-  outWave.setTime(start);
-
-  checkReady();
-});
+  outWave.once("ready", checkReady);
 
   inWave.load(nextUrl);
   inWave.once("ready", checkReady);
