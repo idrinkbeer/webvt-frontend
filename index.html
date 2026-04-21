@@ -925,6 +925,13 @@ let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
 
+function normalize(str) {
+  return (str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+
 // =====================
 // LOGIN SYSTEM 
 // =====================
@@ -1298,10 +1305,14 @@ setTimeout(() => {
   });
 
 outWave.on("ready", () => {
-  const buffer = outWave.getDecodedData(); // ✅ FIX
-  if (!buffer) return;
+  const buffer = outWave.getDecodedData();
 
-  const trim = detectSilence(buffer);
+  if (!buffer || !buffer.getChannelData) {
+    console.warn("⚠️ OUT no buffer yet");
+    return;
+  }
+
+  const trim = detectSilence(buffer, 0.02);
 
   outWave.trimStart = trim.startOffset;
 
@@ -1314,6 +1325,8 @@ outWave.on("ready", () => {
   if (container && line) {
     line.style.left = (percent * container.clientWidth) + "px";
   }
+
+  console.log("OUT trim:", trim);
 });
 
   inWave = WaveSurfer.create({
@@ -1322,33 +1335,31 @@ outWave.on("ready", () => {
     progressColor: "#00ff88",
     height: 60
   });
+
 inWave.on("ready", () => {
-  const buffer = inWave.getDecodedData(); // ✅ FIX
-  if (!buffer) return;
+  const buffer = inWave.getDecodedData();
+
+  if (!buffer || !buffer.getChannelData) {
+    console.warn("⚠️ IN no buffer yet");
+    return;
+  }
 
   const trim = detectSilence(buffer, 0.02);
 
   inWave.trimStart = trim.startOffset;
   inWave.trimEnd = trim.endOffset;
 
-  console.log("IN trim:", trim);
-
   const duration = inWave.getDuration();
-  const percent = duration ? (trim.startOffset / duration) : 0;
+  const percent = trim.startOffset / duration;
 
   const container = document.getElementById("inWaveform");
-  let line = document.getElementById("inTrimLine");
-
-  if (!line && container) {
-    line = document.createElement("div");
-    line.id = "inTrimLine";
-    line.className = "trim-line";
-    container.appendChild(line);
-  }
+  const line = document.getElementById("inTrimLine");
 
   if (container && line) {
     line.style.left = (percent * container.clientWidth) + "px";
   }
+
+  console.log("IN trim:", trim);
 });
 
 
@@ -1597,8 +1608,9 @@ if (!outWave) {
 const duration = outWave.getDuration();
 const start = Math.max(0, duration - 10);
 
-const adjustedStart = start + (outWave.trimStart || 0);
-outWave.setTime(adjustedStart);   // 🔥 jump to ramp
+const trim = outWave.trimStart ?? 0;
+const adjustedStart = Math.max(trim, duration - 10);
+outWave.setTime(adjustedStart);
 outWave.setVolume(1);
 outWave.play();
 
@@ -1655,8 +1667,8 @@ if (!inWave) {
 }
 
 // 🔥 instant start (already preloaded)
-const adjustedStart = inWave.trimStart || 0;
-inWave.setTime(adjustedStart);
+const inStart = inWave.trimStart ?? 0;
+inWave.setTime(inStart);
 inWave.setVolume(0.3);
 inWave.play();
 
@@ -2015,8 +2027,8 @@ outWave.setTime(adjustedStart);
   const t1 = setTimeout(() => {
     console.log("🔴 Preview segue");
 
-    const adjustedStart = inWave.trimStart || 0;
-inWave.setTime(adjustedStart);
+const inStart = inWave.trimStart ?? 0;
+inWave.setTime(inStart);
     inWave.setVolume(0.3);
     inWave.play();
 
@@ -2247,7 +2259,7 @@ function jumpToCurrentTime() {
   }
 
   const now = new Date();
-  const currentHourStr = now.getHours().toString(); // 🔥 FIXED (no padding)
+  const currentHourStr = now.getHours().toString().padStart(2, "0"); // 🔥 FIXED (no padding)
 
   console.log("🕒 Current hour:", currentHourStr);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
@@ -2299,10 +2311,14 @@ if (old) old.remove();
 
       const text = tr.textContent.toLowerCase();
 
-      if (
-        text.includes(currentTitle) &&
-        text.includes(currentArtist)
-      ) {
+const normText = normalize(text);
+const normTitle = normalize(currentTitle);
+const normArtist = normalize(currentArtist);
+
+if (
+  normText.includes(normTitle) &&
+  normText.includes(normArtist)
+) {
         console.log("✅ MATCH FOUND:", text);
 
         tr.classList.add("active");
