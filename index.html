@@ -91,9 +91,9 @@ button:hover {
 
 /* RECORDER PANEL */
 .recorder {
-  background: #001a66;
+  background: #000;
   padding: 15px;
-  border: 2px solid #000;
+  border: 2px solid #001a66;
 }
 
 /* VU METER */
@@ -624,9 +624,19 @@ select {
   min-height: 140px;   /* 🔥 prevents collapse */
 }
 
+.wave-block {
+  margin-top: 6px;
+}
+
+.wave-block:first-child {
+  margin-top: 0;
+}
 
 .wave-block {
   margin-top: 8px;
+  background: #000;
+  border: 2px solid #001a66;
+  padding: 6px;
 }
 
 .wave-label {
@@ -634,12 +644,12 @@ select {
   padding: 2px 6px;
   background: #001a66;
   border: 1px solid #000;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
   color: #ccc;
 }
 
-#wave-block strong {
-  color: #fff;
+.wave-block + .wave-block {
+  border-top: 2px solid #000;
 }
 
 #libSpinner {
@@ -1271,24 +1281,38 @@ setTimeout(() => {
   // 🔥 recreate waves
   vtWave = WaveSurfer.create({
     container: "#vtWaveform",
-    waveColor: "#1e3a8a",
-    progressColor: "#00ff88",
-    height: 60,
-    normalize: true
+waveColor: "#0b3d91",
+progressColor: "#00cc33",
+height: 60,
+barWidth: 2,
+barGap: 1,
+barRadius: 0,
+normalize: true,
+cursorWidth: 0
   });
 
   outWave = WaveSurfer.create({
     container: "#outWaveform",
-    waveColor: "#1e3a8a",
-    progressColor: "#00ff88",
-    height: 60
+waveColor: "#0b3d91",
+progressColor: "#00cc33",
+height: 60,
+barWidth: 2,
+barGap: 1,
+barRadius: 0,
+normalize: true,
+cursorWidth: 0
   });
 
   inWave = WaveSurfer.create({
     container: "#inWaveform",
-    waveColor: "#1e3a8a",
-    progressColor: "#00ff88",
-    height: 60
+waveColor: "#0b3d91",
+progressColor: "#00cc33",
+height: 60,
+barWidth: 2,
+barGap: 1,
+barRadius: 0,
+normalize: true,
+cursorWidth: 0
   });
 
   // 🔒 disable UI until ready
