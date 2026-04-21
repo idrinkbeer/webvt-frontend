@@ -1,4 +1,4 @@
-            <!DOCTYPE html>
+               <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1296,6 +1296,7 @@ setTimeout(() => {
 
   // 🔥 preload ALL audio (this loads OUT + IN)
   preloadVT(selectedIndex);
+  updateWaveLabels();
 
   // 🔥 load VT recording if exists
   const rowData = filteredLog[selectedIndex];
@@ -1532,6 +1533,11 @@ if (!outWave) {
   return;
 }
 
+const duration = outWave.getDuration();
+const start = Math.max(0, duration - 10);
+
+outWave.setTime(start);   // 🔥 jump to ramp
+outWave.setVolume(1);
 outWave.play();
 
     document.getElementById("recordBtn").textContent = "Start Recording";
@@ -1818,6 +1824,13 @@ function checkReady() {
   }
 
   document.getElementById("recordBtn").textContent = "Start";
+  // 🔥 reset preview state cleanly
+previewPlaying = false;
+previewTimers = [];
+stoppingPreview = false;
+
+// 🔥 ensure VT wave is ready before preview
+vtReady = true;
 
   // 🔊 stop song + restore volume
   if (songWave) {
@@ -2014,7 +2027,9 @@ function previewVT() {
   songFinished = false;
 
   // ▶ play VT only
-  vtWave.play();
+  vtWave.stop();
+vtWave.setTime(0);
+vtWave.play();
 
   previewPlaying = true;
 
@@ -2835,11 +2850,11 @@ function updateWaveLabels() {
   const inLabel = document.querySelector("#inWaveform")?.previousElementSibling;
 
   if (outLabel && prevSong) {
-    outLabel.textContent = `🎵 OUT: ${prevSong.artist || ""} - ${prevSong.title || prevSong.filename}`;
+    outLabel.innerHTML = `🎵 OUTGOING: ${prevSong.artist} - ${prevSong.title}`;
   }
 
   if (inLabel && nextSong) {
-    inLabel.textContent = `🎵 NEXT: ${nextSong.artist || ""} - ${nextSong.title || nextSong.filename}`;
+    inLabel.innerHTML = `🎵 NEXT: ${nextSong.artist} - ${nextSong.title}`;
   }
 }
 
