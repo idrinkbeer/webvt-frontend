@@ -1201,7 +1201,12 @@ ${row.type === "SONG" || row.type === "SWP" ? `
     tr.onclick = () => selectRow(i);
     tableBody.appendChild(tr);
 
-    if (i === selectedIndex && row.type === "VTX") {
+    
+    setTimeout(() => {
+  setVTReady(true);
+  updateLabels();
+  console.log("✅ VT READY");
+}, 50);
       const recorderRow = document.createElement("tr");
 
       recorderRow.innerHTML = `
