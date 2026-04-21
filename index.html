@@ -642,6 +642,15 @@ select {
   color: #fff;
 }
 
+.trim-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: orange;
+  z-index: 20;
+}
+
 #libSpinner {
   display: none;
 }
@@ -1228,7 +1237,9 @@ ${row.type === "SONG" || row.type === "SWP" ? `
             <div id="recordTime">0:00</div>
 <div class="wave-block">
   <div class="wave-label">🎵 OUTGOING (RAMP)</div>
-  <div id="outWaveform"></div>
+  <div id="outWaveform">
+  <div class="trim-line" id="outTrimLine"></div>
+</div>
 </div>
 
 <div class="wave-block">
@@ -1238,7 +1249,9 @@ ${row.type === "SONG" || row.type === "SWP" ? `
 
 <div class="wave-block">
   <div class="wave-label">🎵 NEXT SONG</div>
-  <div id="inWaveform"></div>
+  <div id="inWaveform">
+  <div class="trim-line" id="inTrimLine"></div>
+</div>
 </div>
             <div class="audio-player">
 <div style="margin-top:10px;">
@@ -1284,16 +1297,23 @@ setTimeout(() => {
     height: 60
   });
 
-  outWave.on("ready", () => {
+outWave.on("ready", () => {
   const buffer = outWave.backend.buffer;
   if (!buffer) return;
 
   const trim = detectSilence(buffer);
 
   outWave.trimStart = trim.startOffset;
-  outWave.trimEnd = trim.endOffset;
 
-  console.log("OUT trim:", trim);
+  const duration = outWave.getDuration();
+  const percent = trim.startOffset / duration;
+
+  const container = document.getElementById("outWaveform");
+  const line = document.getElementById("outTrimLine");
+
+  if (container && line) {
+    line.style.left = (percent * container.clientWidth) + "px";
+  }
 });
 
   inWave = WaveSurfer.create({
@@ -1302,19 +1322,38 @@ setTimeout(() => {
     progressColor: "#00ff88",
     height: 60
   });
-
-  inWave.on("ready", () => {
+inWave.on("ready", () => {
   const buffer = inWave.backend.buffer;
   if (!buffer) return;
 
-  const trim = detectSilence(buffer);
+  const trim = detectSilence(buffer, 0.02); // slightly higher threshold works better
 
+  // 💾 store trim
   inWave.trimStart = trim.startOffset;
   inWave.trimEnd = trim.endOffset;
 
   console.log("IN trim:", trim);
+
+  // 🎯 VISUAL TRIM LINE
+  const duration = inWave.getDuration();
+  const percent = duration ? (trim.startOffset / duration) : 0;
+
+  const container = document.getElementById("inWaveform");
+  let line = document.getElementById("inTrimLine");
+
+  // create line if it doesn't exist
+  if (!line && container) {
+    line = document.createElement("div");
+    line.id = "inTrimLine";
+    line.className = "trim-line";
+    container.appendChild(line);
+  }
+
+  if (container && line) {
+    line.style.left = (percent * container.clientWidth) + "px";
+  }
 });
-  
+
 
   // 🔒 disable UI until ready
   setVTReady(false);
@@ -1619,7 +1658,8 @@ if (!inWave) {
 }
 
 // 🔥 instant start (already preloaded)
-inWave.setTime(0);
+const adjustedStart = inWave.trimStart || 0;
+inWave.setTime(adjustedStart);
 inWave.setVolume(0.3);
 inWave.play();
 
@@ -1978,7 +2018,8 @@ outWave.setTime(adjustedStart);
   const t1 = setTimeout(() => {
     console.log("🔴 Preview segue");
 
-    inWave.setTime(0);
+    const adjustedStart = inWave.trimStart || 0;
+inWave.setTime(adjustedStart);
     inWave.setVolume(0.3);
     inWave.play();
 
