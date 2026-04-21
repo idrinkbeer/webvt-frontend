@@ -1,4 +1,4 @@
-            <!DOCTYPE html>
+             <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -642,15 +642,6 @@ select {
   color: #fff;
 }
 
-.trim-line {
-  position: absolute;
-  top: 0;
-  width: 2px;
-  height: 100%;
-  background: orange;
-  z-index: 20;
-}
-
 #libSpinner {
   display: none;
 }
@@ -924,13 +915,6 @@ let stoppingPreview = false;
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
 const tableBody = document.querySelector("#logTable tbody");
-
-function normalize(str) {
-  return (str || "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
-}
-
 
 // =====================
 // LOGIN SYSTEM 
@@ -1244,9 +1228,7 @@ ${row.type === "SONG" || row.type === "SWP" ? `
             <div id="recordTime">0:00</div>
 <div class="wave-block">
   <div class="wave-label">🎵 OUTGOING (RAMP)</div>
-  <div id="outWaveform">
-  <div class="trim-line" id="outTrimLine"></div>
-</div>
+  <div id="outWaveform"></div>
 </div>
 
 <div class="wave-block">
@@ -1256,9 +1238,7 @@ ${row.type === "SONG" || row.type === "SWP" ? `
 
 <div class="wave-block">
   <div class="wave-label">🎵 NEXT SONG</div>
-  <div id="inWaveform">
-  <div class="trim-line" id="inTrimLine"></div>
-</div>
+  <div id="inWaveform"></div>
 </div>
             <div class="audio-player">
 <div style="margin-top:10px;">
@@ -1304,64 +1284,12 @@ setTimeout(() => {
     height: 60
   });
 
-outWave.on("ready", () => {
-  const buffer = outWave.getDecodedData();
-
-  if (!buffer || !buffer.getChannelData) {
-    console.warn("⚠️ OUT no buffer yet");
-    return;
-  }
-
-  const trim = detectSilence(buffer, 0.02);
-
-  outWave.trimStart = trim.startOffset;
-
-  const duration = outWave.getDuration();
-  const percent = trim.startOffset / duration;
-
-  const container = document.getElementById("outWaveform");
-  const line = document.getElementById("outTrimLine");
-
-  if (container && line) {
-    line.style.left = (percent * container.clientWidth) + "px";
-  }
-
-  console.log("OUT trim:", trim);
-});
-
   inWave = WaveSurfer.create({
     container: "#inWaveform",
     waveColor: "#1e3a8a",
     progressColor: "#00ff88",
     height: 60
   });
-
-inWave.on("ready", () => {
-  const buffer = inWave.getDecodedData();
-
-  if (!buffer || !buffer.getChannelData) {
-    console.warn("⚠️ IN no buffer yet");
-    return;
-  }
-
-  const trim = detectSilence(buffer, 0.02);
-
-  inWave.trimStart = trim.startOffset;
-  inWave.trimEnd = trim.endOffset;
-
-  const duration = inWave.getDuration();
-  const percent = trim.startOffset / duration;
-
-  const container = document.getElementById("inWaveform");
-  const line = document.getElementById("inTrimLine");
-
-  if (container && line) {
-    line.style.left = (percent * container.clientWidth) + "px";
-  }
-
-  console.log("IN trim:", trim);
-});
-
 
   // 🔒 disable UI until ready
   setVTReady(false);
@@ -1608,9 +1536,7 @@ if (!outWave) {
 const duration = outWave.getDuration();
 const start = Math.max(0, duration - 10);
 
-const trim = outWave.trimStart ?? 0;
-const adjustedStart = Math.max(trim, duration - 10);
-outWave.setTime(adjustedStart);
+outWave.setTime(start);   // 🔥 jump to ramp
 outWave.setVolume(1);
 outWave.play();
 
@@ -1667,8 +1593,7 @@ if (!inWave) {
 }
 
 // 🔥 instant start (already preloaded)
-const inStart = inWave.trimStart ?? 0;
-inWave.setTime(inStart);
+inWave.setTime(0);
 inWave.setVolume(0.3);
 inWave.play();
 
@@ -1967,14 +1892,8 @@ function getPrevNextSongs(index) {
 
 function previewBreak() {
 
-if (
-  !outWave ||
-  !inWave ||
-  !vtWave ||
-  !outWave.getDuration() ||
-  !inWave.getDuration()
-) {
-  console.log("⏳ Waves not ready yet");
+  if (!outWave.getDuration()) {
+  console.log("⏳ Outgoing not loaded yet");
   return;
 }
 
@@ -2004,13 +1923,7 @@ if (
   const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
 
   // 🎵 OUTGOING (start early)
-  const trim = outWave.trimStart ?? 0;
-
-// start 10s from END but NEVER before trim
-const adjustedStart = Math.max(trim, outDuration - 10 - PREVIEW_LEAD);
-
-outWave.setTime(adjustedStart);
-outWave.setTime(adjustedStart);
+  outWave.setTime(start);
   outWave.setVolume(0.4);
   outWave.play();
 
@@ -2032,11 +1945,9 @@ outWave.setTime(adjustedStart);
   const t1 = setTimeout(() => {
     console.log("🔴 Preview segue");
 
-const inStart = inWave.trimStart ?? 0;
-inWave.stop(); // 🔥 ensures clean start
-inWave.setTime(inStart);
-inWave.setVolume(0.3);
-inWave.play();
+    inWave.setTime(0);
+    inWave.setVolume(0.3);
+    inWave.play();
 
   }, (PREVIEW_LEAD + segueTime) * 1000);
 
@@ -2265,7 +2176,7 @@ function jumpToCurrentTime() {
   }
 
   const now = new Date();
-  const currentHourStr = now.getHours().toString().padStart(2, "0"); // 🔥 FIXED (no padding)
+  const currentHourStr = now.getHours().toString(); // 🔥 FIXED (no padding)
 
   console.log("🕒 Current hour:", currentHourStr);
   console.log("🎵 Looking for:", currentTitle, currentArtist);
@@ -2317,14 +2228,10 @@ if (old) old.remove();
 
       const text = tr.textContent.toLowerCase();
 
-const normText = normalize(text);
-const normTitle = normalize(currentTitle);
-const normArtist = normalize(currentArtist);
-
-if (
-  normText.includes(normTitle) &&
-  normText.includes(normArtist)
-) {
+      if (
+        text.includes(currentTitle) &&
+        text.includes(currentArtist)
+      ) {
         console.log("✅ MATCH FOUND:", text);
 
         tr.classList.add("active");
@@ -2903,32 +2810,8 @@ if (waveCache[cart]) {
     vtWave.load(URL.createObjectURL(cache.vtBlob));
   }
 
-let readyCount = 0;
-
-function checkReady() {
-  readyCount++;
-  if (readyCount === 3) {
-    console.log("🔥 Cached waves ready");
-    setVTReady(true);
-  }
-}
-
-if (cache.prevUrl) {
-  outWave.load(cache.prevUrl);
-  outWave.once("ready", checkReady);
-}
-
-if (cache.nextUrl) {
-  inWave.load(cache.nextUrl);
-  inWave.once("ready", checkReady);
-}
-
-if (cache.vtBlob) {
-  vtWave.load(URL.createObjectURL(cache.vtBlob));
-  vtWave.once("ready", checkReady);
-}
-
-return;
+  setVTReady(true);
+  return;
 }
 
   // 🔄 otherwise build cache
@@ -3000,33 +2883,6 @@ function safeLoad(wave, urlOrBlob) {
   } catch (e) {}
 
   wave.load(urlOrBlob);
-}
-
-function detectSilence(buffer, threshold = 0.01) {
-  const data = buffer.getChannelData(0);
-  let start = 0;
-  let end = data.length - 1;
-
-  // find start
-  for (let i = 0; i < data.length; i++) {
-    if (Math.abs(data[i]) > threshold) {
-      start = i;
-      break;
-    }
-  }
-
-  // find end
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (Math.abs(data[i]) > threshold) {
-      end = i;
-      break;
-    }
-  }
-
-  return {
-    startOffset: start / buffer.sampleRate,
-    endOffset: (data.length - end) / buffer.sampleRate
-  };
 }
 
 </script>
