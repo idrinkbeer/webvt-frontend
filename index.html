@@ -1180,7 +1180,6 @@ function renderTable() {
     const tr = document.createElement("tr");
 
     if (row.type === "SWP") tr.classList.add("swp");
-
     if (row.type === "VTX") tr.classList.add("vtx");
     if (i === selectedIndex) tr.classList.add("active");
 
@@ -1188,9 +1187,9 @@ function renderTable() {
       <td>${row.time}</td>
       <td>${row.type}</td>
       <td>
-${row.type === "SONG" || row.type === "SWP" ? `
-  <button onclick="playSong('${row.filename}', this, '${row.type}')">▶</button>
-` : ""}
+        ${row.type === "SONG" || row.type === "SWP" ? `
+          <button onclick="playSong('${row.filename}', this, '${row.type}')">▶</button>
+        ` : ""}
         ${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}
       </td>
       <td>${row.artist || ""}</td>
@@ -1201,14 +1200,9 @@ ${row.type === "SONG" || row.type === "SWP" ? `
     tr.onclick = () => selectRow(i);
     tableBody.appendChild(tr);
 
-    
-setTimeout(() => {
-  if (selectedIndex !== null) {
-    setVTReady(true);
-    updateLabels();
-    console.log("✅ VT READY");
-  }
-}, 50);
+    // ✅ ONLY render recorder for selected VTX row
+    if (row.type === "VTX" && i === selectedIndex) {
+
       const recorderRow = document.createElement("tr");
 
       recorderRow.innerHTML = `
@@ -1216,48 +1210,49 @@ setTimeout(() => {
           <div class="recorder">
             Recording VT Cart: ${row.cart}<br><br>
 
-<div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+            <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+              <button id="recordBtn" onclick="toggleRecording()">Start</button>
 
-  <button id="recordBtn" onclick="toggleRecording()">Start</button>
+              <button id="uploadBtn" onclick="uploadToAIR()" disabled>
+                Upload to AIR
+              </button>
 
-  <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-    Upload to AIR
-  </button>
-
-  <div class="vu-container">
-    <div id="vuBar"></div>
-  </div>
-
-</div>
+              <div class="vu-container">
+                <div id="vuBar"></div>
+              </div>
+            </div>
 
             <div id="status"></div>
             <div id="recordTime">0:00</div>
-            <div style="margin-top:10px; font-size:13px;">
-  <div>🎵 OUTGOING: <span id="outLabel">---</span></div>
-  <div>🎙 VOICETRACK: <span id="vtStatus">Idle</span></div>
-  <div>🎵 NEXT: <span id="inLabel">---</span></div>
-</div>
-            <div class="audio-player">
-<div style="margin-top:10px;">
-  <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
-  <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
-</div>
-  <div class="progress">
-    <div id="progressBar"></div>
-  </div>
-  <span id="time">0:00</span>
-</div>
 
-<audio id="player"></audio>
+            <div style="margin-top:10px; font-size:13px;">
+              <div>🎵 OUTGOING: <span id="outLabel">---</span></div>
+              <div>🎙 VOICETRACK: <span id="vtStatus">Idle</span></div>
+              <div>🎵 NEXT: <span id="inLabel">---</span></div>
+            </div>
+
+            <div class="audio-player">
+              <div style="margin-top:10px;">
+                <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
+                <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
+              </div>
+
+              <div class="progress">
+                <div id="progressBar"></div>
+              </div>
+
+              <span id="time">0:00</span>
+            </div>
+
+            <audio id="player"></audio>
           </div>
         </td>
       `;
 
       tableBody.appendChild(recorderRow);
 
-      // 🔁 Restore previous recording if exists
-      const rowData = filteredLog[selectedIndex];
-      const saved = recordings[rowData.cart];
+      // 🔁 Restore previous recording
+      const saved = recordings[row.cart];
 
       if (saved) {
         const player = document.getElementById("player");
@@ -1270,7 +1265,7 @@ setTimeout(() => {
       }
 
       // 🔁 Restore upload state
-      if (uploaded[rowData.cart]) {
+      if (uploaded[row.cart]) {
         const btn = document.getElementById("uploadBtn");
         const status = document.getElementById("status");
 
@@ -1278,6 +1273,13 @@ setTimeout(() => {
         btn.disabled = true;
         status.textContent = "✅ Already uploaded";
       }
+
+      // ✅ READY STATE (ONLY HERE)
+      setTimeout(() => {
+        setVTReady(true);
+        updateLabels();
+        console.log("✅ VT READY");
+      }, 50);
     }
   });
 }
