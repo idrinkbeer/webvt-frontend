@@ -1247,39 +1247,6 @@ ${row.type === "SONG" || row.type === "SWP" ? `
       `;
 
       tableBody.appendChild(recorderRow);
-      // 🎧 Init waveform
-setTimeout(() => {
-
-  const vtContainer = document.getElementById("vtWaveform");
-  if (!vtContainer) return;
-
-  // 🔒 disable UI until ready
-  setVTReady(false);
-  updateLabels();
-
-  // 🔥 preload ALL audio (this loads OUT + IN)
-  preloadVT(selectedIndex);
-
-  // 🔥 load VT recording if exists
-  const rowData = filteredLog[selectedIndex];
-  const saved = recordings[rowData.cart];
-
-  if (saved) {
-    safeLoad(vtWave, URL.createObjectURL(saved));
-  }
-
-  // 🔥 wait for ALL 3 waves
-  let readyCount = 0;
-
-  function onReady() {
-    readyCount++;
-    if (readyCount === 3) {
-      console.log("🔥 ALL WAVES READY");
-      setVTReady(true);
-    }
-  }
-
-}, 50);
 
       // 🔁 Restore previous recording if exists
       const rowData = filteredLog[selectedIndex];
@@ -1529,10 +1496,7 @@ inAudio.currentTime = 0;
 inAudio.volume = 0.3;
 inAudio.play();
 
-    // 🔥 duck outgoing song (KEY FOR FLOW)
-    if (outWave) {
-      outWave.setVolume(0.3);
-    }
+outAudio.volume = 0.3;
 
     // 🎯 mark segue
     secToneTime = (performance.now() - vtStartTime) / 1000;
@@ -1656,7 +1620,6 @@ async function stopRecording() {
     recordInterval = null;
   }
 
-  isDrawingLive = false;
   isRecording = false;
 
   const { samples, processor } = window._recorder;
@@ -1698,52 +1661,19 @@ async function stopRecording() {
     console.log("🤖 Using auto Sec Tone:", secToneSeconds);
   }
 
-  const remaining = duration - secToneSeconds;
-  const secTone = remaining;
   secToneTime = secToneSeconds;
 
+  // 💾 SAVE
   recordings[row.cart] = recordedBlob;
 
-// 🔥 update cache with new VT
-if (waveCache[row.cart]) {
-  waveCache[row.cart].vtBlob = recordedBlob;
-}
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
 
-  // =========================
-  // 🔥 RESTORE WAVESURFER STYLE
-  // =========================
-  if (vtWave) {
-    window.isAudioReady = false;
-
-    // back to normal colors (match songWave)
-    vtWave.setOptions({
-      waveColor: "#1e3a8a",
-      progressColor: "#00ff88"
-    });
-
-    // load final waveform
-    vtWave.load(URL.createObjectURL(recordedBlob));
-
-window.isAudioReady = false;
-
-vtWave.once("ready", () => {
-  vtReady = true;
-  checkReady();
-});
-
-function checkReady() {
-  if (vtReady ) {
-    console.log("🔥 BOTH READY after recording");
-    window.isAudioReady = true;
-  }
-}
-  }
-
+  // ✅ UI updates
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
 
+  // 🧹 stop mic
   mediaStream.getTracks().forEach(track => track.stop());
 
   if (audioContext) {
@@ -1752,26 +1682,28 @@ function checkReady() {
   }
 
   document.getElementById("recordBtn").textContent = "Start";
-  // 🔥 reset preview state cleanly
-previewPlaying = false;
-previewTimers = [];
-stoppingPreview = false;
 
-// 🔥 ensure VT wave is ready before preview
-vtReady = true;
+  // 🔥 reset preview system
+  previewPlaying = false;
+  previewTimers = [];
+  stoppingPreview = false;
 
-  // 🔊 stop song + restore volume
-  if (songWave) {
-    songWave.setVolume(1);
-    songWave.stop();
-  }
+  vtReady = true;
 
+  // 🔊 STOP AUDIO CLEANLY
+  outAudio.pause();
+  outAudio.currentTime = 0;
+  outAudio.volume = 1;
+
+  inAudio.pause();
+  inAudio.currentTime = 0;
+  inAudio.volume = 1;
+
+  // 🔊 reset VU
   isVUActive = false;
 
-// reset meter visually
-const bar = document.getElementById("vuBar");
-if (bar) bar.style.width = "0%";
-
+  const bar = document.getElementById("vuBar");
+  if (bar) bar.style.width = "0%";
 }
 
 // =====================
@@ -2698,74 +2630,6 @@ btn.textContent = state ? "Start" : "Loading...";
   btn.style.opacity = state ? "1" : "0.5";
 }
 
-function preloadVT(index) {
-
-  const row = filteredLog[index];
-  if (!row) return;
-
-  const cart = row.cart;
-
-  // 🔥 if cached, reuse instantly
-if (waveCache[cart]) {
-  console.log("⚡ Using cached audio:", cart);
-
-  const cache = waveCache[cart];
-
-  // 🔥 ALWAYS load into NEW waves
-  if (cache.prevUrl) outWave.load(cache.prevUrl);
-  if (cache.nextUrl) inWave.load(cache.nextUrl);
-
-  if (cache.vtBlob) {
-    vtWave.load(URL.createObjectURL(cache.vtBlob));
-  }
-
-  setVTReady(true);
-  return;
-}
-
-  // 🔄 otherwise build cache
-  const { prevSong, nextSong } = getPrevNextSongs(index);
-
-  if (!prevSong || !nextSong) return;
-
-  function fixName(file) {
-    let name = file.filename;
-    if (!name.toLowerCase().endsWith(".mp3")) name += ".mp3";
-    return encodeURIComponent(name);
-  }
-
-  const prevUrl = `${API_BASE}/audio/song/${fixName(prevSong)}`;
-  const nextUrl = nextSong.type === "SWP"
-    ? `${API_BASE}/audio/sweeper/${fixName(nextSong)}`
-    : `${API_BASE}/audio/song/${fixName(nextSong)}`;
-
-  // 🔒 disable until ready
-  setVTReady(false);
-
-  let readyCount = 0;
-
-  function checkReady() {
-    readyCount++;
-    if (readyCount === 2) {
-      console.log("✅ Cached + ready:", cart);
-
-      // 🔥 save cache
-      waveCache[cart] = {
-        vtBlob: recordings[cart] || null,
-        prevUrl,
-        nextUrl
-      };
-
-      setVTReady(true);
-    }
-  }
-
-  outWave.load(prevUrl);
-  outWave.once("ready", checkReady);
-
-  inWave.load(nextUrl);
-  inWave.once("ready", checkReady);
-}
 
 function updateLabels() {
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
@@ -2781,17 +2645,6 @@ function updateLabels() {
   }
 }
 
-
-function safeLoad(wave, urlOrBlob) {
-  if (!wave) return;
-
-  try {
-    wave.stop();
-    wave.empty(); // 🔥 THIS prevents AbortError
-  } catch (e) {}
-
-  wave.load(urlOrBlob);
-}
 
 </script>
 
