@@ -880,12 +880,16 @@ let recordSeconds = 0;
 let recordInterval = null;
 let recordings = {};
 let uploaded = {};
+let vtWave;
+let songWave;
 let vtFinished = false;
 let songFinished = false;
 // VT state machine
 let vtStage = 0;
 let vtStartTime = 0;
 let vtMRK1 = 0;
+let outWave;
+let inWave;
 let secToneTime = null;
 let currentTitle = "";
 let currentArtist = "";
@@ -903,12 +907,9 @@ let vtReady = false;
 let previewPlaying = false;
 let previewTimers = [];
 
+const waveCache = {};
 
 let stoppingPreview = false;
-
-let outAudio = new Audio();
-let inAudio = new Audio();
-let vtAudio = new Audio();
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -1180,6 +1181,7 @@ function renderTable() {
     const tr = document.createElement("tr");
 
     if (row.type === "SWP") tr.classList.add("swp");
+
     if (row.type === "VTX") tr.classList.add("vtx");
     if (i === selectedIndex) tr.classList.add("active");
 
@@ -1188,7 +1190,7 @@ function renderTable() {
       <td>${row.type}</td>
       <td>
 ${row.type === "SONG" || row.type === "SWP" ? `
-  <button onclick="playSong(${JSON.stringify(row.filename)}, this, ${JSON.stringify(row.type)})">▶</button>
+  <button onclick="playSong('${row.filename}', this, '${row.type}')">▶</button>
 ` : ""}
         ${row.type === "VTX" ? row.title + " (" + row.cart + ")" : row.title}
       </td>
@@ -1200,9 +1202,7 @@ ${row.type === "SONG" || row.type === "SWP" ? `
     tr.onclick = () => selectRow(i);
     tableBody.appendChild(tr);
 
-    // ✅ ONLY render recorder for selected VTX row
-    if (row.type === "VTX" && i === selectedIndex) {
-
+    if (i === selectedIndex && row.type === "VTX") {
       const recorderRow = document.createElement("tr");
 
       recorderRow.innerHTML = `
@@ -1210,49 +1210,122 @@ ${row.type === "SONG" || row.type === "SWP" ? `
           <div class="recorder">
             Recording VT Cart: ${row.cart}<br><br>
 
-            <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
-              <button id="recordBtn" onclick="toggleRecording()">Start</button>
+<div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
 
-              <button id="uploadBtn" onclick="uploadToAIR()" disabled>
-                Upload to AIR
-              </button>
+  <button id="recordBtn" onclick="toggleRecording()">Start</button>
 
-              <div class="vu-container">
-                <div id="vuBar"></div>
-              </div>
-            </div>
+  <button id="uploadBtn" onclick="uploadToAIR()" disabled>
+    Upload to AIR
+  </button>
+
+  <div class="vu-container">
+    <div id="vuBar"></div>
+  </div>
+
+</div>
 
             <div id="status"></div>
             <div id="recordTime">0:00</div>
+<div class="wave-block">
+  <div class="wave-label">🎵 OUTGOING (RAMP)</div>
+  <div id="outWaveform"></div>
+</div>
 
-            <div style="margin-top:10px; font-size:13px;">
-              <div>🎵 OUTGOING: <span id="outLabel">---</span></div>
-              <div>🎙 VOICETRACK: <span id="vtStatus">Idle</span></div>
-              <div>🎵 NEXT: <span id="inLabel">---</span></div>
-            </div>
+<div class="wave-block">
+  <div class="wave-label">🎙 VOICETRACK</div>
+  <div id="vtWaveform"></div>
+</div>
 
+<div class="wave-block">
+  <div class="wave-label">🎵 NEXT SONG</div>
+  <div id="inWaveform"></div>
+</div>
             <div class="audio-player">
-              <div style="margin-top:10px;">
-                <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
-                <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
-              </div>
+<div style="margin-top:10px;">
+  <button class="air-btn air-btn-green" onclick="previewVT()">Preview VT</button>
+  <button class="air-btn air-btn-green" onclick="previewBreak()">Preview Break</button>
+</div>
+  <div class="progress">
+    <div id="progressBar"></div>
+  </div>
+  <span id="time">0:00</span>
+</div>
 
-              <div class="progress">
-                <div id="progressBar"></div>
-              </div>
-
-              <span id="time">0:00</span>
-            </div>
-
-            <audio id="player"></audio>
+<audio id="player"></audio>
           </div>
         </td>
       `;
 
       tableBody.appendChild(recorderRow);
+      // 🎧 Init waveform
+setTimeout(() => {
 
-      // 🔁 Restore previous recording
-      const saved = recordings[row.cart];
+  // 🔥 destroy old waves
+  if (outWave) { outWave.destroy(); outWave = null; }
+  if (inWave) { inWave.destroy(); inWave = null; }
+  if (vtWave) { vtWave.destroy(); vtWave = null; }
+
+  const vtContainer = document.getElementById("vtWaveform");
+  if (!vtContainer) return;
+
+  // 🔥 recreate waves
+  vtWave = WaveSurfer.create({
+    container: "#vtWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 60,
+    normalize: true
+  });
+
+  outWave = WaveSurfer.create({
+    container: "#outWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 60
+  });
+
+  inWave = WaveSurfer.create({
+    container: "#inWaveform",
+    waveColor: "#1e3a8a",
+    progressColor: "#00ff88",
+    height: 60
+  });
+
+  // 🔒 disable UI until ready
+  setVTReady(false);
+
+  // 🔥 preload ALL audio (this loads OUT + IN)
+  preloadVT(selectedIndex);
+  updateWaveLabels();
+
+  // 🔥 load VT recording if exists
+  const rowData = filteredLog[selectedIndex];
+  const saved = recordings[rowData.cart];
+
+  if (saved) {
+    safeLoad(vtWave, URL.createObjectURL(saved));
+  }
+
+  // 🔥 wait for ALL 3 waves
+  let readyCount = 0;
+
+  function onReady() {
+    readyCount++;
+    if (readyCount === 3) {
+      console.log("🔥 ALL WAVES READY");
+      setVTReady(true);
+    }
+  }
+
+  vtWave.once("ready", onReady);
+  outWave.once("ready", onReady);
+  inWave.once("ready", onReady);
+
+}, 50);
+
+      // 🔁 Restore previous recording if exists
+      const rowData = filteredLog[selectedIndex];
+      const saved = recordings[rowData.cart];
 
       if (saved) {
         const player = document.getElementById("player");
@@ -1265,7 +1338,7 @@ ${row.type === "SONG" || row.type === "SWP" ? `
       }
 
       // 🔁 Restore upload state
-      if (uploaded[row.cart]) {
+      if (uploaded[rowData.cart]) {
         const btn = document.getElementById("uploadBtn");
         const status = document.getElementById("status");
 
@@ -1273,13 +1346,6 @@ ${row.type === "SONG" || row.type === "SWP" ? `
         btn.disabled = true;
         status.textContent = "✅ Already uploaded";
       }
-
-      // ✅ READY STATE (ONLY HERE)
-      setTimeout(() => {
-        setVTReady(true);
-        updateLabels();
-        console.log("✅ VT READY");
-      }, 50);
     }
   });
 }
@@ -1431,61 +1497,53 @@ function setupPlayer(player, blob) {
 async function toggleRecording() {
 
   if (!vtReady) {
-    console.log("⏳ Not ready yet");
-    return;
-  }
+  console.log("⏳ Not ready yet");
+  return;
+}
 
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
-// 🟣 STEP 0 — PLAY OUTGOING SONG (last 10s)
-if (vtStage === 0) {
+  // 🟣 STEP 0 — PLAY OUTGOING SONG (last 10s)
+  if (vtStage === 0) {
 
-  if (!prevSong) {
-    alert("No previous song");
-    return;
-  }
+    if (!prevSong) {
+      alert("No previous song");
+      return;
+    }
 
-  let filename = prevSong.filename;
-  if (!filename.toLowerCase().endsWith(".mp3")) {
-    filename += ".mp3";
-  }
+    let filename = prevSong.filename;
+    if (!filename.toLowerCase().endsWith(".mp3")) {
+      filename += ".mp3";
+    }
 
-  const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+    const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
-  // 🔥 FULL RESET (important)
-  outAudio.pause();
-  outAudio.removeAttribute("src");
-  outAudio.load();
+    if (!outWave) {
+      outWave = WaveSurfer.create({
+        container: "#outWaveform",
+        waveColor: "#1e3a8a",
+        progressColor: "#00ff88",
+        height: 60
+      });
+    }
 
-  outAudio.src = url;
-  outAudio.preload = "auto";
 
-  // 🔥 wait until SEEKABLE (this is the key fix)
-  outAudio.addEventListener("loadedmetadata", () => {
-
-    const start = Math.max(0, outAudio.duration - 10);
-
-    // 🔥 FORCE SEEK LOOP (this fixes your issue)
-    const trySeek = () => {
-      if (Math.abs(outAudio.currentTime - start) > 0.5) {
-        outAudio.currentTime = start;
-        setTimeout(trySeek, 30);
-      } else {
-        console.log("✅ OUT ready at:", outAudio.currentTime);
-
-        outAudio.volume = 1;
-        outAudio.play().catch(err => console.warn(err));
-      }
-    };
-
-    trySeek();
-
-  }, { once: true });
-
-  document.getElementById("recordBtn").textContent = "Start Recording";
-  vtStage = 1;
+if (!outWave) {
+  console.error("outWave not preloaded");
   return;
 }
+
+const duration = outWave.getDuration();
+const start = Math.max(0, duration - 10);
+
+outWave.setTime(start);   // 🔥 jump to ramp
+outWave.setVolume(1);
+outWave.play();
+
+    document.getElementById("recordBtn").textContent = "Start Recording";
+    vtStage = 1;
+    return;
+  }
 
   // 🎙 STEP 1 — START RECORD + SET MRK1
   if (vtStage === 1) {
@@ -1519,17 +1577,30 @@ if (vtStage === 0) {
       ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
       : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
-    // 🔥 reset + play incoming
-    inAudio.pause();
-    inAudio.currentTime = 0;
+    // 🔥 create incoming player
+    if (!inWave) {
+      inWave = WaveSurfer.create({
+        container: "#inWaveform",
+        waveColor: "#1e3a8a",
+        progressColor: "#00ff88",
+        height: 60
+      });
+    }
 
-    inAudio.src = url;
-    inAudio.currentTime = 0;
-    inAudio.volume = 0.3;
-    inAudio.play();
+if (!inWave) {
+  console.error("inWave not ready");
+  return;
+}
 
-    // 🔥 duck outgoing
-    outAudio.volume = 0.3;
+// 🔥 instant start (already preloaded)
+inWave.setTime(0);
+inWave.setVolume(0.3);
+inWave.play();
+
+    // 🔥 duck outgoing song (KEY FOR FLOW)
+    if (outWave) {
+      outWave.setVolume(0.3);
+    }
 
     // 🎯 mark segue
     secToneTime = (performance.now() - vtStartTime) / 1000;
@@ -1547,6 +1618,10 @@ if (vtStage === 0) {
     await stopRecording();
 
     console.log("⏹ VT finished");
+
+    // 🔥 clean up audio
+    if (outWave) outWave.stop();
+    if (inWave) inWave.stop();
 
     vtStage = 0;
     document.getElementById("recordBtn").textContent = "Start";
@@ -1653,6 +1728,7 @@ async function stopRecording() {
     recordInterval = null;
   }
 
+  isDrawingLive = false;
   isRecording = false;
 
   const { samples, processor } = window._recorder;
@@ -1694,19 +1770,52 @@ async function stopRecording() {
     console.log("🤖 Using auto Sec Tone:", secToneSeconds);
   }
 
+  const remaining = duration - secToneSeconds;
+  const secTone = remaining;
   secToneTime = secToneSeconds;
 
-  // 💾 SAVE
   recordings[row.cart] = recordedBlob;
 
+// 🔥 update cache with new VT
+if (waveCache[row.cart]) {
+  waveCache[row.cart].vtBlob = recordedBlob;
+}
   const player = document.getElementById("player");
   setupPlayer(player, recordedBlob);
 
-  // ✅ UI updates
+  // =========================
+  // 🔥 RESTORE WAVESURFER STYLE
+  // =========================
+  if (vtWave) {
+    window.isAudioReady = false;
+
+    // back to normal colors (match songWave)
+    vtWave.setOptions({
+      waveColor: "#1e3a8a",
+      progressColor: "#00ff88"
+    });
+
+    // load final waveform
+    vtWave.load(URL.createObjectURL(recordedBlob));
+
+window.isAudioReady = false;
+
+vtWave.once("ready", () => {
+  vtReady = true;
+  checkReady();
+});
+
+function checkReady() {
+  if (vtReady ) {
+    console.log("🔥 BOTH READY after recording");
+    window.isAudioReady = true;
+  }
+}
+  }
+
   document.getElementById("uploadBtn").disabled = false;
   document.getElementById("status").textContent = "Ready to upload";
 
-  // 🧹 stop mic
   mediaStream.getTracks().forEach(track => track.stop());
 
   if (audioContext) {
@@ -1715,28 +1824,26 @@ async function stopRecording() {
   }
 
   document.getElementById("recordBtn").textContent = "Start";
+  // 🔥 reset preview state cleanly
+previewPlaying = false;
+previewTimers = [];
+stoppingPreview = false;
 
-  // 🔥 reset preview system
-  previewPlaying = false;
-  previewTimers = [];
-  stoppingPreview = false;
+// 🔥 ensure VT wave is ready before preview
+vtReady = true;
 
-  vtReady = true;
+  // 🔊 stop song + restore volume
+  if (songWave) {
+    songWave.setVolume(1);
+    songWave.stop();
+  }
 
-  // 🔊 STOP AUDIO CLEANLY
-  outAudio.pause();
-  outAudio.currentTime = 0;
-  outAudio.volume = 1;
-
-  inAudio.pause();
-  inAudio.currentTime = 0;
-  inAudio.volume = 1;
-
-  // 🔊 reset VU
   isVUActive = false;
 
-  const bar = document.getElementById("vuBar");
-  if (bar) bar.style.width = "0%";
+// reset meter visually
+const bar = document.getElementById("vuBar");
+if (bar) bar.style.width = "0%";
+
 }
 
 // =====================
@@ -1785,76 +1892,104 @@ function getPrevNextSongs(index) {
 
 function previewBreak() {
 
+  const btn = document.querySelector("button[onclick='previewBreak()']");
+
+  // 🔴 toggle
   if (previewPlaying) {
     stopPreview();
     return;
   }
 
+  stopPreview(); // 👈 add this line
 
-  const btn = document.querySelector("button[onclick='previewBreak()']");
-if (btn) btn.textContent = "Stop Preview";
+  if (!vtReady || !outWave || !inWave || !vtWave) {
+    console.log("⏳ Not ready for preview");
+    return;
+  }
 
-  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
-  if (!prevSong || !nextSong) return;
-
+  console.log("🎧 Previewing break...");
   previewPlaying = true;
 
-  const PREVIEW_LEAD = 5;
+  if (btn) btn.textContent = "Stop Preview";
 
-  // 🎵 OUT
-  let outFile = prevSong.filename;
-  if (!outFile.toLowerCase().endsWith(".mp3")) outFile += ".mp3";
+  const outDuration = outWave.getDuration();
+  const start = Math.max(0, outDuration - 10);
 
-  outAudio.src = `${API_BASE}/audio/song/${encodeURIComponent(outFile)}`;
+  // 🎵 outgoing
+  outWave.setTime(start);
+  outWave.setVolume(0.4);
 
-  outAudio.onloadedmetadata = () => {
-    const start = Math.max(0, outAudio.duration - 10 - PREVIEW_LEAD);
-    outAudio.currentTime = start;
-    outAudio.volume = 0.4;
-    outAudio.play();
-  };
+  // 🎙 VT (force restart)
+  vtWave.stop();
+  vtWave.setTime(0);
+  vtWave.setVolume(1);
 
-  // 🎙 VT
-  const row = filteredLog[selectedIndex];
-  const blob = recordings[row.cart];
-  if (!blob) return;
+  // 🎵 incoming
+  inWave.setTime(0);
+  inWave.setVolume(0.3);
 
-  vtAudio.src = URL.createObjectURL(blob);
+  // ▶ start
+const PREVIEW_LEAD = 5; // 👈 tweak this (2–5 sec feels best)
 
-  const t0 = setTimeout(() => {
-    vtAudio.currentTime = 0;
-    vtAudio.play();
-  }, PREVIEW_LEAD * 1000);
+// 🎵 calculate ramp start EARLIER than before
+const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
 
-  previewTimers.push(t0);
+// 🎵 outgoing starts FIRST
+outWave.setTime(start);
+outWave.setVolume(0.4);
+outWave.play();
 
-  // 🔴 segue
+// 🎙 VT starts AFTER lead time
+vtWave.stop();
+vtWave.setTime(0);
+vtWave.setVolume(1);
+
+const t0 = setTimeout(() => {
+  vtWave.play();
+}, PREVIEW_LEAD * 1000);
+
+previewTimers.push(t0);
+
+// 🔴 segue timing (relative to VT start)
+const segueTime = secToneTime || 2;
+
+const t1 = setTimeout(() => {
+  console.log("🔴 Preview segue");
+
+  inWave.setTime(0);
+  inWave.setVolume(0.3);
+  inWave.play();
+
+}, (PREVIEW_LEAD + segueTime) * 1000);
+
+previewTimers.push(t1);
+
+// ⏹ auto stop after VT finishes
+const vtDuration = vtWave.getDuration();
+
+const t2 = setTimeout(() => {
+  stopPreview();
+}, (PREVIEW_LEAD + vtDuration) * 1000 + 500);
+
+previewTimers.push(t2);
+
   const segueTime = secToneTime || 2;
 
-  let inFile = nextSong.filename;
-  if (!inFile.toLowerCase().endsWith(".mp3")) inFile += ".mp3";
-
   const t1 = setTimeout(() => {
-    inAudio.src = nextSong.type === "SWP"
-      ? `${API_BASE}/audio/sweeper/${encodeURIComponent(inFile)}`
-      : `${API_BASE}/audio/song/${encodeURIComponent(inFile)}`;
+    console.log("🔴 Preview segue");
 
-    inAudio.currentTime = 0;
-    inAudio.volume = 0.3;
-    inAudio.play();
-
-  }, (PREVIEW_LEAD + segueTime) * 1000);
+    inWave.play();
+  }, segueTime * 1000);
 
   previewTimers.push(t1);
 
-vtAudio.onloadedmetadata = () => {
+  const vtDuration = vtWave.getDuration();
+
   const t2 = setTimeout(() => {
     stopPreview();
-  }, (PREVIEW_LEAD + vtAudio.duration) * 1000 + 500);
+  }, vtDuration * 1000 + 500);
 
   previewTimers.push(t2);
-};
-
 }
 
 
@@ -1870,12 +2005,17 @@ function stopPreview() {
   previewTimers.forEach(t => clearTimeout(t));
   previewTimers = [];
 
-[outAudio, inAudio, vtAudio].forEach(a => {
-  try {
-    a.pause();
-    a.currentTime = 0;
-  } catch(e){}
-});
+  // 🔊 clean stop (NO seeking, NO suspend)
+  [outWave, inWave, vtWave].forEach(w => {
+    if (!w) return;
+
+    try {
+      w.pause();   // enough to stop audio immediately
+      w.stop();    // reset internally
+    } catch (e) {
+      console.warn("Wave stop error:", e);
+    }
+  });
 
   // 🔁 reset buttons
   const breakBtn = document.querySelector("button[onclick='previewBreak()']");
@@ -1904,6 +2044,7 @@ function checkPreviewEnd() {
 
 
 function previewVT() {
+  // 🔁 toggle behavior (same as previewBreak)
   if (previewPlaying) {
     stopPreview();
     return;
@@ -1919,19 +2060,30 @@ function previewVT() {
     return;
   }
 
-  vtAudio.src = URL.createObjectURL(vtBlob);
-  vtAudio.currentTime = 0;
-  vtAudio.play();
+  // 🛑 stop anything else
+  if (songWave) songWave.stop();
+  if (vtWave) vtWave.stop();
+
+  vtFinished = false;
+  songFinished = false;
+
+  // ▶ play VT only
+  vtWave.stop();
+vtWave.setTime(0);
+vtWave.play();
 
   previewPlaying = true;
 
+  // 🎛 update button text
   const vtBtn = document.querySelector("button[onclick='previewVT()']");
   if (vtBtn) vtBtn.textContent = "Stop VT";
 
-  vtAudio.onended = () => {
+  // reset when done
+  vtWave.once("finish", () => {
     previewPlaying = false;
+
     if (vtBtn) vtBtn.textContent = "Preview VT";
-  };
+  });
 }
 
 
@@ -2666,21 +2818,98 @@ btn.textContent = state ? "Start" : "Loading...";
   btn.style.opacity = state ? "1" : "0.5";
 }
 
+function preloadVT(index) {
 
-function updateLabels() {
-  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+  const row = filteredLog[index];
+  if (!row) return;
 
-  if (prevSong) {
-    document.getElementById("outLabel").textContent =
-      `${prevSong.artist} - ${prevSong.title}`;
+  const cart = row.cart;
+
+  // 🔥 if cached, reuse instantly
+if (waveCache[cart]) {
+  console.log("⚡ Using cached audio:", cart);
+
+  const cache = waveCache[cart];
+
+  if (cache.vtBlob) {
+    safeLoad(vtWave, URL.createObjectURL(cache.vtBlob));
   }
 
-  if (nextSong) {
-    document.getElementById("inLabel").textContent =
-      `${nextSong.artist} - ${nextSong.title}`;
+  // 🔥 DO NOT reload out/in if already loaded
+  setVTReady(true);
+  return;
+}
+
+  // 🔄 otherwise build cache
+  const { prevSong, nextSong } = getPrevNextSongs(index);
+
+  if (!prevSong || !nextSong) return;
+
+  function fixName(file) {
+    let name = file.filename;
+    if (!name.toLowerCase().endsWith(".mp3")) name += ".mp3";
+    return encodeURIComponent(name);
+  }
+
+  const prevUrl = `${API_BASE}/audio/song/${fixName(prevSong)}`;
+  const nextUrl = nextSong.type === "SWP"
+    ? `${API_BASE}/audio/sweeper/${fixName(nextSong)}`
+    : `${API_BASE}/audio/song/${fixName(nextSong)}`;
+
+  // 🔒 disable until ready
+  setVTReady(false);
+
+  let readyCount = 0;
+
+  function checkReady() {
+    readyCount++;
+    if (readyCount === 2) {
+      console.log("✅ Cached + ready:", cart);
+
+      // 🔥 save cache
+      waveCache[cart] = {
+        vtBlob: recordings[cart] || null,
+        prevUrl,
+        nextUrl
+      };
+
+      setVTReady(true);
+    }
+  }
+
+  outWave.load(prevUrl);
+  outWave.once("ready", checkReady);
+
+  inWave.load(nextUrl);
+  inWave.once("ready", checkReady);
+}
+
+function updateWaveLabels() {
+  const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
+
+  const outLabel = document.querySelector("#outWaveform")?.previousElementSibling;
+  const inLabel = document.querySelector("#inWaveform")?.previousElementSibling;
+
+  if (outLabel && prevSong) {
+    outLabel.innerHTML = `🎵 OUTGOING: ${prevSong.artist} - ${prevSong.title}`;
+  }
+
+  if (inLabel && nextSong) {
+    inLabel.innerHTML = `🎵 NEXT: ${nextSong.artist} - ${nextSong.title}`;
   }
 }
 
+
+function safeLoad(wave, urlOrBlob) {
+  if (!wave) return;
+
+  try {
+    wave.stop();
+    wave.empty(); // 🔥 THIS prevents AbortError
+  } catch (e) {}
+
+  wave.load(urlOrBlob);
+}
 
 </script>
 
