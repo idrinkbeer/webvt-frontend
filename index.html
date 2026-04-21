@@ -2004,7 +2004,12 @@ if (
   const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
 
   // 🎵 OUTGOING (start early)
-  const adjustedStart = start + (outWave.trimStart || 0);
+  const trim = outWave.trimStart ?? 0;
+
+// start 10s from END but NEVER before trim
+const adjustedStart = Math.max(trim, outDuration - 10 - PREVIEW_LEAD);
+
+outWave.setTime(adjustedStart);
 outWave.setTime(adjustedStart);
   outWave.setVolume(0.4);
   outWave.play();
@@ -2028,9 +2033,10 @@ outWave.setTime(adjustedStart);
     console.log("🔴 Preview segue");
 
 const inStart = inWave.trimStart ?? 0;
+inWave.stop(); // 🔥 ensures clean start
 inWave.setTime(inStart);
-    inWave.setVolume(0.3);
-    inWave.play();
+inWave.setVolume(0.3);
+inWave.play();
 
   }, (PREVIEW_LEAD + segueTime) * 1000);
 
