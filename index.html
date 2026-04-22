@@ -659,6 +659,30 @@ select {
   display: flex;
 }
 
+
+#outMRK1, #vtSEG {
+  position: absolute;
+  top: 0;
+  height: 60px;
+  width: 2px;
+  z-index: 10;
+}
+
+#outMRK1 { background: yellow; } /* MRK1 */
+#vtSEG { background: red; }      /* Segue */
+
+/* BIG grab area */
+#outMRK1::before,
+#vtSEG::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  width: 16px;
+  height: 100%;
+  cursor: ew-resize;
+}
+
+
 /* spacing between dropdowns */
 select + select {
   margin-left: 5px;
@@ -920,6 +944,9 @@ let previewTimers = [];
 const waveCache = {};
 
 let stoppingPreview = false;
+
+let vtSEGTime = 0;   // replaces secToneTime visually
+let outMRK1Time = 0; // MRK1 marker
 
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
@@ -1238,12 +1265,16 @@ ${row.type === "SONG" || row.type === "SWP" ? `
             <div id="recordTime">0:00</div>
 <div class="wave-block">
   <div class="wave-label">🎵 OUTGOING (RAMP)</div>
-  <div id="outWaveform"></div>
+  <div id="outWaveform" style="position:relative;">
+  <div id="outMRK1"></div>
+</div>
 </div>
 
 <div class="wave-block">
   <div class="wave-label">🎙 VOICETRACK</div>
-  <div id="vtWaveform"></div>
+  <div id="vtWaveform" style="position:relative;">
+  <div id="vtSEG"></div>
+</div>
 </div>
 
 <div class="wave-block">
@@ -1344,6 +1375,24 @@ cursorWidth: 0
   vtWave.once("ready", onReady);
   outWave.once("ready", onReady);
   inWave.once("ready", onReady);
+
+  outWave.once("ready", () => {
+  const duration = outWave.getDuration();
+
+  // default = ramp start
+  const defaultMRK1 = Math.max(0, duration - 10);
+
+  moveOutMarker(defaultMRK1);
+});
+
+
+  vtWave.once("ready", () => {
+  const duration = vtWave.getDuration();
+
+  const defaultSeg = secToneTime || duration;
+
+  moveVTSegMarker(defaultSeg);
+});
 
 }, 50);
 
@@ -2908,6 +2957,109 @@ function safeLoad(wave, urlOrBlob) {
 
   wave.load(urlOrBlob);
 }
+
+
+function moveOutMarker(time) {
+  if (!outWave) return;
+
+  const duration = outWave.getDuration();
+  if (!duration) return;
+
+  const percent = time / duration;
+
+  const marker = document.getElementById("outMRK1");
+  const container = document.getElementById("outWaveform");
+
+  const width = container.clientWidth;
+
+  marker.style.left = (percent * width) + "px";
+
+  outMRK1Time = time;
+
+  console.log("🟡 MRK1:", outMRK1Time);
+}
+
+
+function moveVTSegMarker(time) {
+  if (!vtWave) return;
+
+  const duration = vtWave.getDuration();
+  if (!duration) return;
+
+  const percent = time / duration;
+
+  const marker = document.getElementById("vtSEG");
+  const container = document.getElementById("vtWaveform");
+
+  const width = container.clientWidth;
+
+  marker.style.left = (percent * width) + "px";
+
+  vtSEGTime = time;
+  secToneTime = time; // 🔥 keep your existing system working
+
+  console.log("🔴 VT Segue:", vtSEGTime);
+}
+
+// =====================
+// 🎯 VT MARKER DRAG SYSTEM
+// =====================
+
+let draggingOut = false;
+let draggingVT = false;
+
+// 🟡 MOUSE DOWN
+document.addEventListener("mousedown", (e) => {
+  if (e.target.closest("#outMRK1")) draggingOut = true;
+  if (e.target.closest("#vtSEG")) draggingVT = true;
+
+  if (draggingOut || draggingVT) {
+    document.body.style.userSelect = "none"; // smoother drag
+  }
+});
+
+// 🟡 MOVE
+document.addEventListener("mousemove", (e) => {
+
+  // 🟡 OUTGOING (MRK1)
+  if (draggingOut && outWave) {
+    const container = document.getElementById("outWaveform");
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+
+    let x = e.clientX - rect.left;
+    x = Math.max(0, Math.min(rect.width, x));
+
+    const percent = x / rect.width;
+    const time = percent * outWave.getDuration();
+
+    moveOutMarker(time);
+  }
+
+  // 🔴 VT SEGUE
+  if (draggingVT && vtWave) {
+    const container = document.getElementById("vtWaveform");
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+
+    let x = e.clientX - rect.left;
+    x = Math.max(0, Math.min(rect.width, x));
+
+    const percent = x / rect.width;
+    const time = percent * vtWave.getDuration();
+
+    moveVTSegMarker(time);
+  }
+});
+
+// 🟡 MOUSE UP
+document.addEventListener("mouseup", () => {
+  draggingOut = false;
+  draggingVT = false;
+  document.body.style.userSelect = "";
+});
 
 </script>
 
