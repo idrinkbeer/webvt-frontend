@@ -1401,6 +1401,13 @@ vtWave.once("ready", () => {
   const cache = waveCache[rowData.cart];
 
 const saved = cache?.vtSEG;
+const offset = cache?.trimOffset || 0;
+
+const time = saved !== undefined
+  ? Math.max(0, saved)
+  : (vtSEGTime || duration);
+
+moveVTSegMarker(time);
 
 const time = saved !== undefined
   ? saved
@@ -1504,7 +1511,6 @@ outMRK1Time = 0;
   renderTable();
 }
 
-  // TRIM SILENCE ON WAV VT
 function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
   let start = 0;
   let end = samples.length - 1;
@@ -1518,7 +1524,6 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
     return Math.sqrt(sum / windowSize);
   }
 
-  // find start
   for (let i = 0; i < samples.length - windowSize; i += windowSize) {
     if (rms(i) > threshold) {
       start = i;
@@ -1526,7 +1531,6 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
     }
   }
 
-  // find end
   for (let i = samples.length - windowSize; i > 0; i -= windowSize) {
     if (rms(i) > threshold) {
       end = i;
@@ -1534,13 +1538,15 @@ function trimSilence(samples, sampleRate, threshold = 0.01, windowSize = 1024) {
     }
   }
 
-  // padding (keeps natural feel)
-  const padding = sampleRate * 0.1; // 100ms
+  const padding = sampleRate * 0.1;
 
   start = Math.max(0, start - padding);
   end = Math.min(samples.length - 1, end + padding);
 
-  return samples.slice(start, end);
+  return {
+    samples: samples.slice(start, end),
+    startOffset: start / sampleRate // 🔥 KEY FIX
+  };
 }
 
 
@@ -1842,7 +1848,10 @@ async function stopRecording() {
     offset += s.length;
   }
 
-  const trimmed = trimSilence(flat, audioContext.sampleRate, 0.01);
+ const trim = trimSilence(flat, audioContext.sampleRate, 0.01);
+
+const trimmed = trim.samples;
+const trimOffset = trim.startOffset;
 
   let rawBlob = encodeMP3(trimmed, audioContext.sampleRate);
   recordedBlob = rawBlob;
@@ -1871,12 +1880,23 @@ async function stopRecording() {
   const remaining = duration - secToneSeconds;
   const secTone = remaining;
   secToneTime = secToneSeconds;
+  // 🔥 adjust for trimmed audio
+vtSEGTime = secToneSeconds;
+
+if (trimOffset) {
+  vtSEGTime -= trimOffset;
+  vtSEGTime = Math.max(0, vtSEGTime);
+}
+
+// keep compatibility
+secToneTime = vtSEGTime;
 
   recordings[row.cart] = recordedBlob;
 if (!waveCache[row.cart]) waveCache[row.cart] = {};
 
 waveCache[row.cart].vtSEG = vtSEGTime;
 waveCache[row.cart].outMRK1 = outMRK1Time;
+waveCache[row.cart].trimOffset = trimOffset;
 
 console.log("💾 Saved markers:", waveCache[row.cart]);
 
