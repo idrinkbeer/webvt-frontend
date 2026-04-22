@@ -1057,6 +1057,8 @@ async function uploadToAIR() {
   const row = filteredLog[selectedIndex];
   const status = document.getElementById("status");
   const btn = document.getElementById("uploadBtn");
+  const mrk1 = Math.floor(outMRK1Time * 100); // centiseconds
+  const seg  = Math.floor(vtSEGTime * 100);
 
   try {
     const res = await fetch(`${API_BASE}/upload`, {
@@ -1376,22 +1378,35 @@ cursorWidth: 0
   outWave.once("ready", onReady);
   inWave.once("ready", onReady);
 
-  outWave.once("ready", () => {
+outWave.once("ready", () => {
   const duration = outWave.getDuration();
 
-  // default = ramp start
-  const defaultMRK1 = Math.max(0, duration - 10);
+  const rowData = filteredLog[selectedIndex];
+  const cache = waveCache[rowData.cart];
 
-  moveOutMarker(defaultMRK1);
+  const saved = cache?.outMRK1;
+
+  const time = saved !== undefined
+    ? saved
+    : Math.max(0, duration - 10);
+
+  moveOutMarker(time);
 });
 
 
-  vtWave.once("ready", () => {
+vtWave.once("ready", () => {
   const duration = vtWave.getDuration();
 
-  const defaultSeg = secToneTime || duration;
+  const rowData = filteredLog[selectedIndex];
+  const cache = waveCache[rowData.cart];
 
-  moveVTSegMarker(defaultSeg);
+  const saved = cache?.vtSEG;
+
+  const time = saved !== undefined
+    ? saved
+    : (secToneTime || duration);
+
+  moveVTSegMarker(time);
 });
 
 }, 50);
@@ -1483,6 +1498,8 @@ function selectRow(i) {
 
   // 🔥 disable button immediately
   setVTReady(false);
+  vtSEGTime = 0;
+outMRK1Time = 0;
 
   renderTable();
 }
@@ -1848,6 +1865,12 @@ async function stopRecording() {
   secToneTime = secToneSeconds;
 
   recordings[row.cart] = recordedBlob;
+if (!waveCache[row.cart]) waveCache[row.cart] = {};
+
+waveCache[row.cart].vtSEG = vtSEGTime;
+waveCache[row.cart].outMRK1 = outMRK1Time;
+
+console.log("💾 Saved markers:", waveCache[row.cart]);
 
 // 🔥 update cache with new VT
 if (waveCache[row.cart]) {
@@ -2976,6 +2999,11 @@ function moveOutMarker(time) {
 
   outMRK1Time = time;
 
+    const row = filteredLog[selectedIndex];
+  if (row && waveCache[row.cart]) {
+    waveCache[row.cart].outMRK1 = time;
+  }
+
   console.log("🟡 MRK1:", outMRK1Time);
 }
 
@@ -2997,6 +3025,11 @@ function moveVTSegMarker(time) {
 
   vtSEGTime = time;
   secToneTime = time; // 🔥 keep your existing system working
+
+    const row = filteredLog[selectedIndex];
+  if (row && waveCache[row.cart]) {
+    waveCache[row.cart].vtSEG = time;
+  }
 
   console.log("🔴 VT Segue:", vtSEGTime);
 }
