@@ -1965,73 +1965,73 @@ function getPrevNextSongs(index) {
 
 function previewBreak() {
 
-  if (!outWave.getDuration()) {
-  console.log("⏳ Outgoing not loaded yet");
-  return;
-}
-
   const btn = document.querySelector("button[onclick='previewBreak()']");
 
-  // 🔴 toggle
   if (previewPlaying) {
     stopPreview();
     return;
   }
 
-  stopPreview(); // ensure clean state
+  stopPreview();
 
   if (!vtReady || !outWave || !inWave || !vtWave) {
     console.log("⏳ Not ready for preview");
     return;
   }
 
-  console.log("🎧 Previewing break...");
+  console.log("🎧 Previewing break (MARKER MODE)");
   previewPlaying = true;
 
   if (btn) btn.textContent = "Stop Preview";
 
-  const PREVIEW_LEAD = 5; // seconds before VT starts
+  // =========================
+  // 🎯 1. START OUTGOING AT MRK1
+  // =========================
+  const start = outMRK1Time || 0;
 
-  const outDuration = outWave.getDuration();
-  const start = Math.max(0, outDuration - 10 - PREVIEW_LEAD);
-
-  // 🎵 OUTGOING (start early)
   outWave.setTime(start);
   outWave.setVolume(0.4);
   outWave.play();
 
-  // 🎙 VT (prepare)
+  // =========================
+  // 🎯 2. START VT (immediately or slight delay)
+  // =========================
   vtWave.stop();
   vtWave.setTime(0);
   vtWave.setVolume(1);
 
-  // 🎙 start VT after lead
+  const VT_START_DELAY = 0.2; // optional (feels more natural)
+
   const t0 = setTimeout(() => {
     vtWave.play();
-  }, PREVIEW_LEAD * 1000);
+  }, VT_START_DELAY * 1000);
 
   previewTimers.push(t0);
 
-  // 🔴 segue (relative to VT start)
-  const segueTime = secToneTime || 2;
+  // =========================
+  // 🎯 3. FIRE NEXT SONG AT RED MARKER
+  // =========================
+  const segueTime = vtSEGTime || secToneTime || 2;
 
   const t1 = setTimeout(() => {
-    console.log("🔴 Preview segue");
+    console.log("🔴 Segue fired (marker)");
 
     inWave.setTime(0);
     inWave.setVolume(0.3);
     inWave.play();
 
-  }, (PREVIEW_LEAD + segueTime) * 1000);
+  }, (VT_START_DELAY + segueTime) * 1000);
 
   previewTimers.push(t1);
 
-  // ⏹ stop everything after VT finishes
+  // =========================
+  // 🎯 4. STOP AFTER VT ENDS
+  // =========================
   const vtDuration = vtWave.getDuration();
 
   const t2 = setTimeout(() => {
     stopPreview();
-  }, (PREVIEW_LEAD + vtDuration) * 1000 + 500);
+  }, (VT_START_DELAY + vtDuration) * 1000 + 500);
 
   previewTimers.push(t2);
 }
