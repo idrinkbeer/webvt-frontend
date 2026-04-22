@@ -1,4 +1,4 @@
-             <!DOCTYPE html>
+                <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1058,7 +1058,7 @@ async function uploadToAIR() {
   const status = document.getElementById("status");
   const btn = document.getElementById("uploadBtn");
   const mrk1 = Math.floor(outMRK1Time * 100); // centiseconds
-  const seg  = Math.floor(vtSEGTime * 100);
+const seg  = Math.floor(vtSEGTime * 100);
 
   try {
     const res = await fetch(`${API_BASE}/upload`, {
@@ -2641,13 +2641,12 @@ async function saveSecTone() {
   const spinner = document.getElementById("libSpinner");
 
   const artist = document.getElementById("editArtist").value;
-const title = document.getElementById("editTitle").value;
-const year = document.getElementById("editYear").value;
+  const title  = document.getElementById("editTitle").value;
+  const year   = document.getElementById("editYear").value;
 
   try {
     spinner.classList.add("active");
 
-    // ✅ build AIR string FIRST
     const duration = libWave.getDuration();
 
     const airString = buildAIRString({
@@ -2656,7 +2655,11 @@ const year = document.getElementById("editYear").value;
       duration
     });
 
-    // ✅ then send it
+    // 🟡 GET MRK1 (fallback safe)
+    const mrk1 = typeof outMRK1Time !== "undefined"
+      ? outMRK1Time
+      : 0;
+
     await fetch(`${API_BASE}/sectone`, {
       method: "POST",
       headers: {
@@ -2671,7 +2674,10 @@ const year = document.getElementById("editYear").value;
         air: airString,
         artist,
         title,
-        year
+        year,
+
+        // 🔥 ADD THIS
+        mrk1: mrk1
       })
     });
 
