@@ -1,4 +1,4 @@
-                <!DOCTYPE html>
+             <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1067,7 +1067,7 @@ const seg  = Math.floor(vtSEGTime * 100);
         Authorization: "Bearer " + token,
         "Content-Type": "application/octet-stream",
         "X-Filename": `${row.cart}.mp3`,
-        "X-SecTone": secToneTime || 0,
+        "X-SecTone": vtSEGTime || 0,
         "X-Intro": 0
       },
       body: recordedBlob
@@ -1400,11 +1400,11 @@ vtWave.once("ready", () => {
   const rowData = filteredLog[selectedIndex];
   const cache = waveCache[rowData.cart];
 
-  const saved = cache?.vtSEG;
+const saved = cache?.vtSEG;
 
-  const time = saved !== undefined
-    ? saved
-    : (secToneTime || duration);
+const time = saved !== undefined
+  ? saved
+  : (vtSEGTime || duration);
 
   moveVTSegMarker(time);
 });
@@ -1642,6 +1642,8 @@ outWave.play();
 
     vtStartTime = performance.now();
     vtMRK1 = 0;
+outMRK1Time = outWave.getCurrentTime(); // capture ramp position
+moveOutMarker(outMRK1Time);
 
     console.log("🎙 Recording started (MRK1)");
 
@@ -1693,7 +1695,13 @@ inWave.play();
     }
 
     // 🎯 mark segue
-    secToneTime = (performance.now() - vtStartTime) / 1000;
+vtSEGTime = (performance.now() - vtStartTime) / 1000;
+secToneTime = vtSEGTime; // keep compatibility
+
+console.log("🔴 Segue marked:", vtSEGTime);
+
+// 🔥 MOVE RED MARKER IMMEDIATELY
+moveVTSegMarker(vtSEGTime);
 
     console.log("🔴 Segue marked:", secToneTime);
 
