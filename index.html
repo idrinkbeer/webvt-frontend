@@ -1400,18 +1400,11 @@ vtWave.once("ready", () => {
   const rowData = filteredLog[selectedIndex];
   const cache = waveCache[rowData.cart];
 
-const saved = cache?.vtSEG;
-const offset = cache?.trimOffset || 0;
+  const saved = cache?.vtSEG;
 
-const time = saved !== undefined
-  ? Math.max(0, saved)
-  : (vtSEGTime || duration);
-
-moveVTSegMarker(time);
-
-const time = saved !== undefined
-  ? saved
-  : (vtSEGTime || duration);
+  const time = saved !== undefined
+    ? Math.max(0, Math.min(saved, duration)) // 🔥 clamp saved
+    : Math.min(vtSEGTime || duration, duration);
 
   moveVTSegMarker(time);
 });
@@ -3046,7 +3039,9 @@ function moveVTSegMarker(time) {
   if (!vtWave) return;
 
   const duration = vtWave.getDuration();
-  if (!duration) return;
+
+  // 🔥 HARD CLAMP
+  time = Math.max(0, Math.min(time, duration));
 
   const percent = time / duration;
 
@@ -3058,14 +3053,6 @@ function moveVTSegMarker(time) {
   marker.style.left = (percent * width) + "px";
 
   vtSEGTime = time;
-  secToneTime = time; // 🔥 keep your existing system working
-
-    const row = filteredLog[selectedIndex];
-  if (row && waveCache[row.cart]) {
-    waveCache[row.cart].vtSEG = time;
-  }
-
-  console.log("🔴 VT Segue:", vtSEGTime);
 }
 
 // =====================
