@@ -937,6 +937,8 @@ let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
 let vtReady = false;
+let vtStarted = false;
+let nextStarted = false;
 
 let previewPlaying = false;
 let previewTimers = [];
@@ -2051,6 +2053,7 @@ function previewBreak() {
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
 
+  // 🔴 toggle
   if (previewPlaying) {
     stopPreview();
     return;
@@ -2068,65 +2071,101 @@ function previewBreak() {
 
   if (btn) btn.textContent = "Stop Preview";
 
+  // 🔥 reset marker triggers
+  vtStarted = false;
+  nextStarted = false;
+
+// 🔥 ALSO reset VT position cleanly
+vtWave.stop();
+vtWave.setTime(0);
+
+  // 🔥 REMOVE old listeners (prevents stacking bugs)
+  outWave.un("audioprocess");
+  vtWave.un("audioprocess");
+
   // =========================
-  // 🎯 1. START OUTGOING AT MRK1
+  // 🟡 MRK1 → START VT
   // =========================
-  const duration = outWave.getDuration();
-const PREVIEW_WINDOW = 30;
+  outWave.on("audioprocess", () => {
+    if (!outWave.isPlaying()) return;
+
+    const outTime = outWave.getCurrentTime();
+
+    if (!vtStarted && outTime >= outMRK1Time) {
+      vtStarted = true;
+
+      console.log("🟡 MRK1 HIT → START VT");
+
+      vtWave.stop();
+      vtWave.setTime(0);
+      vtWave.play();
+    }
+  });
+
+  // =========================
+  // 🔴 SEG → START NEXT
+  // =========================
+  vtWave.on("audioprocess", () => {
+    if (!vtWave.isPlaying()) return;
+
+    const vtTime = vtWave.getCurrentTime();
+    const segTime = vtSEGTime || 0.1; // minimal fallback
+
+    if (!nextStarted && vtTime >= segTime) {
+      nextStarted = true;
+
+      console.log("🔴 SEG HIT → START NEXT");
+
+      inWave.setTime(0);
+      inWave.setVolume(0.3);
+      inWave.play();
+
+      // optional duck
+      outWave.setVolume(0.3);
+    }
+  });
+
+const duration = outWave.getDuration();
+const windowStart = Math.max(0, duration - 30);
+
+// 🔥 ensure MRK1 is reachable
+if (outMRK1Time < windowStart) {
+  console.warn("⚠️ MRK1 outside preview window — adjusting");
+
+  outMRK1Time = windowStart + 1; // or just windowStart
+  moveOutMarker(outMRK1Time);
+}
+
+  // =========================
+  // 🎵 START OUTGOING (LAST 30s)
+  // =========================
+const duration = outWave.getDuration();
+const PREVIEW_WINDOW = OUT_WINDOW;
 
 const start = Math.max(0, duration - PREVIEW_WINDOW);
 
   outWave.setTime(start);
-  //outWave.setVolume(0.4);
+  outWave.setVolume(1);
   outWave.play();
 
   // =========================
-  // 🎯 2. START VT (immediately or slight delay)
+  // 🎙 PREP VT
   // =========================
   vtWave.stop();
   vtWave.setTime(0);
-  //vtWave.setVolume(1);
 
-  const VT_START_DELAY = 0.2; // optional (feels more natural)
-
-  const t0 = setTimeout(() => {
-    vtWave.play();
-  }, VT_START_DELAY * 1000);
-
-  previewTimers.push(t0);
-
-  // =========================
-  // 🎯 3. FIRE NEXT SONG AT RED MARKER
-  // =========================
-  const segueTime = vtSEGTime || secToneTime || 2;
-
-  const t1 = setTimeout(() => {
-    console.log("🔴 Segue fired (marker)");
-
-    inWave.setTime(0);
-    inWave.setVolume(0.3);
-    inWave.play();
-
-  }, (VT_START_DELAY + segueTime) * 1000);
-
-  previewTimers.push(t1);
-
-  // =========================
-  // 🎯 4. STOP AFTER VT ENDS
-  // =========================
-  const vtDuration = vtWave.getDuration();
-
-  const t2 = setTimeout(() => {
-    stopPreview();
-  }, (VT_START_DELAY + vtDuration) * 1000 + 500);
-
-  previewTimers.push(t2);
 }
 
 
 function stopPreview() {
   if (stoppingPreview) return; // 🔥 prevent spam
   stoppingPreview = true;
+
+  vtStarted = false;
+nextStarted = false;
+
+outWave.un("audioprocess");
+vtWave.un("audioprocess");
 
   console.log("⏹ STOP preview");
 
@@ -2139,6 +2178,11 @@ function stopPreview() {
   // 🔊 clean stop (NO seeking, NO suspend)
   [outWave, inWave, vtWave].forEach(w => {
     if (!w) return;
+
+    if (vtWave) {
+  vtWave.stop();
+  vtWave.setTime(0);
+}
 
     try {
       w.pause();   // enough to stop audio immediately
@@ -3111,6 +3155,7 @@ function moveVTSegMarker(time) {
 
   vtSEGTime = time;
 }
+
 
 // =====================
 // 🎯 VT MARKER DRAG SYSTEM
