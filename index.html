@@ -3118,26 +3118,19 @@ function moveOutMarker(time) {
   if (!outWave) return;
 
   const container = document.getElementById("outWaveform");
+  const marker = document.getElementById("outMRK1");
+
   const width = container.clientWidth;
 
-  const visibleDuration = OUT_WINDOW;
+  // 🔥 KEY FIX (THIS IS WHAT YOU ASKED ABOUT)
+  const relativeTime = Math.max(0, Math.min(OUT_WINDOW, time - outVisibleStart));
 
-  const relativeTime = time - outVisibleStart;
-  const clamped = Math.max(0, Math.min(relativeTime, visibleDuration));
+  const percent = relativeTime / OUT_WINDOW;
 
-  const percent = clamped / visibleDuration;
-
-  const marker = document.getElementById("outMRK1");
   marker.style.left = (percent * width) + "px";
 
+  // 🔥 keep actual timing intact
   outMRK1Time = time;
-
-  const row = filteredLog[selectedIndex];
-  if (row && waveCache[row.cart]) {
-    waveCache[row.cart].outMRK1 = time;
-  }
-
-  console.log("🟡 MRK1:", outMRK1Time);
 }
 
 function moveVTSegMarker(time) {
