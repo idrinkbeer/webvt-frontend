@@ -1661,64 +1661,49 @@ async function toggleRecording() {
   // =========================
   // 🟣 STEP 0 — PLAY OUTGOING (LAST 30s)
   // =========================
-  if (vtStage === 0) {
+if (vtStage === 0) {
 
-    if (!prevSong) {
-      alert("No previous song");
-      return;
-    }
-
-    if (!outWave) {
-      console.error("outWave not preloaded");
-      return;
-    }
-
-    const duration = outWave.getDuration();
-    const PREVIEW_WINDOW = 30;
-
-    const start = Math.max(0, duration - PREVIEW_WINDOW);
-
-    // 🎯 start playback correctly
-    outWave.setTime(start);
-    outWave.setVolume(1);
-    outWave.play();
-
-    document.getElementById("recordBtn").textContent = "Start Recording";
-    vtStage = 1;
+  if (!outWave) {
+    console.error("outWave not ready");
     return;
   }
+
+  const duration = outWave.getDuration();
+  const PREVIEW_WINDOW = 30;
+
+  const start = Math.max(0, duration - PREVIEW_WINDOW);
+
+  outWave.setTime(start);
+  outWave.setVolume(1);
+  outWave.play();
+
+  document.getElementById("recordBtn").textContent = "Start Recording";
+  vtStage = 1;
+  return;
+}
 
   // =========================
   // 🎙 STEP 1 — START RECORD + SET MRK1
   // =========================
-  if (vtStage === 1) {
+// 🎙 STEP 1 — START RECORD
+if (vtStage === 1) {
 
-    await startRecording();
+  await startRecording();
 
-    // 🟡 TRUE MRK1 (audio clock)
-const currentTime = outWave.getCurrentTime();
-
-// 🔥 force visible window to follow playback
-outVisibleStart = Math.max(0, currentTime - (OUT_WINDOW * 0.7));
-
-// 🔥 move waveform view
-outWave.setTime(outVisibleStart);
-
-// 🎯 NOW place marker (correct relative position)
-outMRK1Time = currentTime;
-moveOutMarker(outMRK1Time);
-
-console.log("🟡 MRK1 set at:", outMRK1Time);
-
-    // 🔥 MASTER CLOCK START (human timing)
-    vtStartTime = performance.now();
-
-    console.log("🎙 Recording started (MRK1):", outMRK1Time);
-
-    document.getElementById("recordBtn").textContent = "Fire Song";
-    vtStage = 2;
-    return;
+  // 🔥 ALWAYS start outgoing at MRK1
+  if (outWave && outMRK1Time !== undefined) {
+    outWave.setTime(outMRK1Time);
   }
+
+  // 🔥 start VT clock
+  vtStartTime = performance.now();
+
+  console.log("🎙 Recording started at MRK1:", outMRK1Time);
+
+  document.getElementById("recordBtn").textContent = "Fire Song";
+  vtStage = 2;
+  return;
+}
 
   // =========================
   // 🔴 STEP 2 — FIRE NEXT SONG + MARK SEG
