@@ -175,13 +175,23 @@ button:hover {
 
 /* LOADER */
 .loader {
-  border: 4px solid #222;
-  border-top: 4px solid #00cc33;
+  width: 40px;
+  height: 40px;
+
+  border: 4px solid #002266;   /* dark AIR blue base */
+  border-top: 4px solid #00cc33; /* green */
+  border-right: 4px solid #ffcc00; /* yellow */
+  border-bottom: 4px solid #cc0000; /* red */
+
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto;
+  animation: airSpin 0.8s linear infinite;
+
+  box-shadow: 0 0 8px #00cc33;
+}
+
+@keyframes airSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 #spinner {
@@ -1056,7 +1066,8 @@ async function uploadToAIR() {
 
   const row = filteredLog[selectedIndex];
   const status = document.getElementById("status");
-  const btn = document.getElementById("uploadBtn");
+const spinner = document.getElementById("libSpinner");
+spinner.classList.add("active");
 
   const mrk1 = Math.floor(outMRK1Time * 100); // centiseconds
   const seg  = Math.floor(vtSEGTime * 100);
@@ -1129,6 +1140,7 @@ if (prevSong) {
     status.textContent = "✅ VT + MRK1 Saved to AIR";
     btn.textContent = "Uploaded ✓";
     btn.disabled = true;
+    spinner.classList.remove("active");
 
     uploaded[row.cart] = true;
 
