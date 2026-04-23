@@ -1682,23 +1682,20 @@ if (vtStage === 0) {
   return;
 }
 
-  // =========================
-  // 🎙 STEP 1 — START RECORD + SET MRK1
-  // =========================
-// 🎙 STEP 1 — START RECORD
+// 🎙 STEP 1 — START RECORD + SET MRK1 FROM PLAYHEAD
 if (vtStage === 1) {
 
   await startRecording();
 
-  // 🔥 ALWAYS start outgoing at MRK1
-  if (outWave && outMRK1Time !== undefined) {
-    outWave.setTime(outMRK1Time);
-  }
+  // 🎯 SET MRK1 BASED ON WHERE AUDIO IS RIGHT NOW
+  outMRK1Time = outWave.getCurrentTime();
+
+  moveOutMarker(outMRK1Time);
 
   // 🔥 start VT clock
   vtStartTime = performance.now();
 
-  console.log("🎙 Recording started at MRK1:", outMRK1Time);
+  console.log("🎙 Recording started (MRK1):", outMRK1Time);
 
   document.getElementById("recordBtn").textContent = "Fire Song";
   vtStage = 2;
