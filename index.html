@@ -1666,9 +1666,10 @@ if (!outWave) {
 }
 
 const duration = outWave.getDuration();
-const start = Math.max(0, duration - 10);
+const PREVIEW_WINDOW = 30;
 
-outWave.setTime(start);   // 🔥 jump to ramp
+const start = Math.max(0, duration - PREVIEW_WINDOW);
+
 outWave.setVolume(1);
 outWave.play();
 
