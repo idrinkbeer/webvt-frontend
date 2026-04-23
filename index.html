@@ -2043,6 +2043,7 @@ function previewBreak() {
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
 
+  // 🔴 toggle
   if (previewPlaying) {
     stopPreview();
     return;
@@ -2055,61 +2056,86 @@ function previewBreak() {
     return;
   }
 
-  console.log("🎧 Previewing break (MARKER MODE)");
+  console.log("🎧 Previewing break (REAL MARKER MODE)");
   previewPlaying = true;
 
   if (btn) btn.textContent = "Stop Preview";
 
   // =========================
-  // 🎯 1. START OUTGOING AT MRK1
+  // 🔥 RESET STATE
   // =========================
-  const start = outMRK1Time || 0;
+  vtStarted = false;
+  nextStarted = false;
 
-  outWave.setTime(start);
-  outWave.setVolume(0.4);
-  outWave.play();
-
-  // =========================
-  // 🎯 2. START VT (immediately or slight delay)
-  // =========================
   vtWave.stop();
   vtWave.setTime(0);
-  vtWave.setVolume(1);
 
-  const VT_START_DELAY = 0.2; // optional (feels more natural)
+  // 🔥 remove old listeners
+  outWave.un("audioprocess");
+  vtWave.un("audioprocess");
 
-  const t0 = setTimeout(() => {
+  // =========================
+  // 🟡 MRK1 → START VT
+  // =========================
+  outWave.on("audioprocess", () => {
+    if (!outWave.isPlaying()) return;
+
+    const outTime = outWave.getCurrentTime();
+
+    if (!vtStarted && outTime >= outMRK1Time) {
+      vtStarted = true;
+
+      console.log("🟡 MRK1 HIT → START VT");
+
+      vtWave.setTime(0);
+      vtWave.play();
+    }
+  });
+
+  // =========================
+  // 🔴 SEG → START NEXT SONG
+  // =========================
+  vtWave.on("audioprocess", () => {
+    if (!vtWave.isPlaying()) return;
+
+    const vtTime = vtWave.getCurrentTime();
+    const segTime = vtSEGTime || 0.1;
+
+    if (!nextStarted && vtTime >= segTime) {
+      nextStarted = true;
+
+      console.log("🔴 SEG HIT → START NEXT");
+
+      inWave.setTime(0);
+      inWave.setVolume(0.3);
+      inWave.play();
+
+      // 🔉 duck outgoing
+      outWave.setVolume(0.3);
+    }
+  });
+
+  // =========================
+  // 🎵 START OUTGOING (MRK1 - 10s)
+  // =========================
+  const duration = outWave.getDuration();
+
+  // 🔥 THIS IS THE KEY CHANGE
+  let start = outMRK1Time - 10;
+
+  // clamp safely
+  start = Math.max(0, Math.min(start, duration));
+
+  outWave.setTime(start);
+  outWave.setVolume(1);
+  outWave.play();
+
+  // 🔥 if MRK1 already passed → fire VT instantly
+  if (outMRK1Time <= start) {
+    vtStarted = true;
+    vtWave.setTime(0);
     vtWave.play();
-  }, VT_START_DELAY * 1000);
-
-  previewTimers.push(t0);
-
-  // =========================
-  // 🎯 3. FIRE NEXT SONG AT RED MARKER
-  // =========================
-  const segueTime = vtSEGTime || secToneTime || 2;
-
-  const t1 = setTimeout(() => {
-    console.log("🔴 Segue fired (marker)");
-
-    inWave.setTime(0);
-    inWave.setVolume(0.3);
-    inWave.play();
-
-  }, (VT_START_DELAY + segueTime) * 1000);
-
-  previewTimers.push(t1);
-
-  // =========================
-  // 🎯 4. STOP AFTER VT ENDS
-  // =========================
-  const vtDuration = vtWave.getDuration();
-
-  const t2 = setTimeout(() => {
-    stopPreview();
-  }, (VT_START_DELAY + vtDuration) * 1000 + 500);
-
-  previewTimers.push(t2);
+  }
 }
 
 
