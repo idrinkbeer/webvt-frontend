@@ -2069,10 +2069,13 @@ function previewBreak() {
   // =========================
   // 🎯 1. START OUTGOING AT MRK1
   // =========================
-  const start = outMRK1Time || 0;
+  const duration = outWave.getDuration();
+const PREVIEW_WINDOW = 30;
+
+const start = Math.max(0, duration - PREVIEW_WINDOW);
 
   outWave.setTime(start);
-  outWave.setVolume(0.4);
+  //outWave.setVolume(0.4);
   outWave.play();
 
   // =========================
@@ -2080,7 +2083,7 @@ function previewBreak() {
   // =========================
   vtWave.stop();
   vtWave.setTime(0);
-  vtWave.setVolume(1);
+  //vtWave.setVolume(1);
 
   const VT_START_DELAY = 0.2; // optional (feels more natural)
 
