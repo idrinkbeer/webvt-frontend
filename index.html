@@ -2139,7 +2139,7 @@ function previewBreak() {
   // 🎵 START OUTGOING (SMART START)
   // =========================
   const duration = outWave.getDuration();
-  const PREVIEW_WINDOW = OUT_WINDOW;
+  let PREVIEW_WINDOW = OUT_WINDOW;
 
   const windowStart = Math.max(0, duration - PREVIEW_WINDOW);
 
