@@ -2107,11 +2107,11 @@ function previewBreak() {
       console.log("🔴 SEG HIT → START NEXT");
 
       inWave.setTime(0);
-      inWave.setVolume(0.3);
+      //inWave.setVolume(0.3);
       inWave.play();
 
       // 🔉 duck outgoing
-      outWave.setVolume(0.3);
+      //outWave.setVolume(0.3);
     }
   });
 
@@ -2127,7 +2127,7 @@ function previewBreak() {
   start = Math.max(0, Math.min(start, duration));
 
   outWave.setTime(start);
-  outWave.setVolume(1);
+  //outWave.setVolume(1);
   outWave.play();
 
   // 🔥 if MRK1 already passed → fire VT instantly
