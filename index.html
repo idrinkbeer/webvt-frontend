@@ -1696,8 +1696,19 @@ async function toggleRecording() {
     await startRecording();
 
     // 🟡 TRUE MRK1 (audio clock)
-    outMRK1Time = outWave.getCurrentTime();
-    moveOutMarker(outMRK1Time);
+const currentTime = outWave.getCurrentTime();
+
+// 🔥 force visible window to follow playback
+outVisibleStart = Math.max(0, currentTime - (OUT_WINDOW * 0.7));
+
+// 🔥 move waveform view
+outWave.setTime(outVisibleStart);
+
+// 🎯 NOW place marker (correct relative position)
+outMRK1Time = currentTime;
+moveOutMarker(outMRK1Time);
+
+console.log("🟡 MRK1 set at:", outMRK1Time);
 
     // 🔥 MASTER CLOCK START (human timing)
     vtStartTime = performance.now();
