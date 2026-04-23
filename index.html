@@ -1066,23 +1066,25 @@ async function uploadToAIR() {
 
   const row = filteredLog[selectedIndex];
   const status = document.getElementById("status");
-const spinner = document.getElementById("libSpinner");
-spinner.classList.add("active");
+  const btn = document.getElementById("uploadBtn"); // 🔥 FIX ADDED
+  const spinner = document.getElementById("libSpinner");
 
-  const mrk1 = Math.floor(outMRK1Time * 100); // centiseconds
+  spinner.classList.add("active");
+  btn.disabled = true;
+  status.textContent = "⏳ Uploading to AIR...";
+
+  const mrk1 = Math.floor(outMRK1Time * 100);
   const seg  = Math.floor(vtSEGTime * 100);
 
   try {
-    // =========================
-    // 🎙 1. UPLOAD VOICETRACK
-    // =========================
+    // 🎙 1. Upload VT
     const res = await fetch(`${API_BASE}/upload`, {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token,
         "Content-Type": "application/octet-stream",
         "X-Filename": `${row.cart}.mp3`,
-        "X-SecTone": vtSEGTime || 0, // 🔴 SEG → VT AIR
+        "X-SecTone": vtSEGTime || 0,
         "X-Intro": 0
       },
       body: recordedBlob
@@ -1090,53 +1092,40 @@ spinner.classList.add("active");
 
     if (!res.ok) throw new Error("Upload failed");
 
-    // =========================
-    // 🟡 2. SAVE MRK1 TO OUTGOING SONG
-    // =========================
-const { prevSong } = getPrevNextSongs(selectedIndex);
+    // 🟡 2. Save MRK1
+    const { prevSong } = getPrevNextSongs(selectedIndex);
 
-if (prevSong) {
+    if (prevSong) {
+      const tagRes = await fetch(
+        `${API_BASE}/music/tag/${encodeURIComponent(prevSong.filename)}`,
+        {
+          headers: { Authorization: "Bearer " + token }
+        }
+      );
 
-  console.log("🟡 Fetching existing AIR:", prevSong.filename);
+      const tagData = await tagRes.json();
 
-  const tagRes = await fetch(
-    `${API_BASE}/music/tag/${encodeURIComponent(prevSong.filename)}`,
-    {
-      headers: {
-        Authorization: "Bearer " + token
-      }
+      const existingAir = tagData.air ||
+        "AIR#000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+
+      const mrkRes = await fetch(`${API_BASE}/sectone`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + token
+        },
+        body: JSON.stringify({
+          filename: prevSong.filename,
+          type: prevSong.type,
+          air: existingAir,
+          mrk1: outMRK1Time
+        })
+      });
+
+      if (!mrkRes.ok) throw new Error("MRK1 save failed");
     }
-  );
 
-  const tagData = await tagRes.json();
-
-  const existingAir = tagData.air || 
-    "AIR#000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
-
-  console.log("📦 Existing AIR:", existingAir);
-
-  const mrkRes = await fetch(`${API_BASE}/sectone`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: "Bearer " + token
-    },
-    body: JSON.stringify({
-      filename: prevSong.filename,
-      type: prevSong.type,
-      air: existingAir,
-      mrk1: outMRK1Time
-    })
-  });
-
-  if (!mrkRes.ok) throw new Error("MRK1 save failed");
-
-  console.log("✅ MRK1 saved correctly");
-}
-
-    // =========================
-    // ✅ UI UPDATE
-    // =========================
+    // ✅ SUCCESS UI
     status.textContent = "✅ VT + MRK1 Saved to AIR";
     btn.textContent = "Uploaded ✓";
     btn.disabled = true;
@@ -1146,8 +1135,10 @@ if (prevSong) {
 
   } catch (err) {
     console.error(err);
+
     status.textContent = "❌ Upload failed";
     btn.disabled = false;
+    spinner.classList.remove("active"); // 🔥 FIX ADDED
   }
 }
 
