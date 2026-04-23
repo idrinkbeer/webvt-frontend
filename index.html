@@ -1668,34 +1668,36 @@ if (vtStage === 0) {
     return;
   }
 
-  const duration = outWave.getDuration();
-  const PREVIEW_WINDOW = 30;
+const duration = outWave.getDuration();
+const start = Math.max(0, duration - 30);
 
-  const start = Math.max(0, duration - PREVIEW_WINDOW);
-
-  outWave.setTime(start);
-  outWave.setVolume(1);
-  outWave.play();
+outWave.setTime(start);
+outWave.play();
 
   document.getElementById("recordBtn").textContent = "Start Recording";
   vtStage = 1;
   return;
 }
 
-// 🎙 STEP 1 — START RECORD + SET MRK1 FROM PLAYHEAD
+// 🎙 STEP 1 — START RECORD (MRK1 = HUMAN CLICK)
 if (vtStage === 1) {
 
   await startRecording();
 
-  // 🎯 SET MRK1 BASED ON WHERE AUDIO IS RIGHT NOW
+  // 🎯 capture exact human timing
   outMRK1Time = outWave.getCurrentTime();
 
+  // 🔥 APPLY LATENCY COMP HERE
+  const LATENCY = 0.05; // tweak if needed
+  outMRK1Time -= LATENCY;
+  outMRK1Time = Math.max(0, outMRK1Time);
+
+  // 🎯 NOW place marker (after correction)
   moveOutMarker(outMRK1Time);
 
-  // 🔥 start VT clock
   vtStartTime = performance.now();
 
-  console.log("🎙 Recording started (MRK1):", outMRK1Time);
+  console.log("🟡 MRK1 (human):", outMRK1Time);
 
   document.getElementById("recordBtn").textContent = "Fire Song";
   vtStage = 2;
