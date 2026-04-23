@@ -1686,20 +1686,23 @@ if (vtStage === 1) {
 
   await startRecording();
 
-  // 🎯 capture exact human timing
-  outMRK1Time = outWave.getCurrentTime();
+  // 🎯 GET EXACT PLAYHEAD POSITION
+  const currentTime = outWave.getCurrentTime();
 
-  // 🔥 APPLY LATENCY COMP HERE
-  const LATENCY = 0.05; // tweak if needed
-  outMRK1Time -= LATENCY;
-  outMRK1Time = Math.max(0, outMRK1Time);
+  // 🔥 OPTIONAL latency correction
+  const LATENCY = 0.05;
+  outMRK1Time = Math.max(0, currentTime - LATENCY);
 
-  // 🎯 NOW place marker (after correction)
+  // 🔥 CRITICAL: ensure window is correct BEFORE placing marker
+  const duration = outWave.getDuration();
+  outVisibleStart = Math.max(0, duration - OUT_WINDOW);
+
+  // 🎯 PLACE MARKER (this now uses correct window math)
   moveOutMarker(outMRK1Time);
 
   vtStartTime = performance.now();
 
-  console.log("🟡 MRK1 (human):", outMRK1Time);
+  console.log("🟡 MRK1 set at:", outMRK1Time);
 
   document.getElementById("recordBtn").textContent = "Fire Song";
   vtStage = 2;
