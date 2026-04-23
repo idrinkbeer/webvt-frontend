@@ -1629,13 +1629,15 @@ function setupPlayer(player, blob) {
 async function toggleRecording() {
 
   if (!vtReady) {
-  console.log("⏳ Not ready yet");
-  return;
-}
+    console.log("⏳ Not ready yet");
+    return;
+  }
 
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
-  // 🟣 STEP 0 — PLAY OUTGOING SONG (last 10s)
+  // =========================
+  // 🟣 STEP 0 — PLAY OUTGOING (LAST 30s)
+  // =========================
   if (vtStage === 0) {
 
     if (!prevSong) {
@@ -1643,61 +1645,50 @@ async function toggleRecording() {
       return;
     }
 
-    let filename = prevSong.filename;
-    if (!filename.toLowerCase().endsWith(".mp3")) {
-      filename += ".mp3";
-    }
-
-    const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
-
     if (!outWave) {
-      outWave = WaveSurfer.create({
-        container: "#outWaveform",
-        waveColor: "#1e3a8a",
-        progressColor: "#00ff88",
-        height: 60
-      });
+      console.error("outWave not preloaded");
+      return;
     }
 
+    const duration = outWave.getDuration();
+    const PREVIEW_WINDOW = 30;
 
-if (!outWave) {
-  console.error("outWave not preloaded");
-  return;
-}
+    const start = Math.max(0, duration - PREVIEW_WINDOW);
 
-const duration = outWave.getDuration();
-const PREVIEW_WINDOW = 30;
-
-const start = Math.max(0, duration - PREVIEW_WINDOW);
-
-// 🔥 THIS LINE IS MISSING
-outWave.setTime(start);
-
-outWave.setVolume(1);
-outWave.play();
+    // 🎯 start playback correctly
+    outWave.setTime(start);
+    outWave.setVolume(1);
+    outWave.play();
 
     document.getElementById("recordBtn").textContent = "Start Recording";
     vtStage = 1;
     return;
   }
 
+  // =========================
   // 🎙 STEP 1 — START RECORD + SET MRK1
+  // =========================
   if (vtStage === 1) {
 
     await startRecording();
 
-    vtMRK1 = 0;
-outMRK1Time = outWave.getCurrentTime(); // capture ramp position
-moveOutMarker(outMRK1Time);
+    // 🟡 TRUE MRK1 (audio clock)
+    outMRK1Time = outWave.getCurrentTime();
+    moveOutMarker(outMRK1Time);
 
-    console.log("🎙 Recording started (MRK1)");
+    // 🔥 MASTER CLOCK START (human timing)
+    vtStartTime = performance.now();
+
+    console.log("🎙 Recording started (MRK1):", outMRK1Time);
 
     document.getElementById("recordBtn").textContent = "Fire Song";
     vtStage = 2;
     return;
   }
 
-  // 🔴 STEP 2 — FIRE NEXT SONG + OVERLAP
+  // =========================
+  // 🔴 STEP 2 — FIRE NEXT SONG + MARK SEG
+  // =========================
   if (vtStage === 2) {
 
     if (!nextSong) {
@@ -1705,64 +1696,50 @@ moveOutMarker(outMRK1Time);
       return;
     }
 
-    let filename = nextSong.filename;
-    if (!filename.toLowerCase().endsWith(".mp3")) {
-      filename += ".mp3";
-    }
-
-    const url = nextSong.type === "SWP"
-      ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
-      : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
-
-    // 🔥 create incoming player
     if (!inWave) {
-      inWave = WaveSurfer.create({
-        container: "#inWaveform",
-        waveColor: "#1e3a8a",
-        progressColor: "#00ff88",
-        height: 60
-      });
+      console.error("inWave not ready");
+      return;
     }
 
-if (!inWave) {
-  console.error("inWave not ready");
-  return;
-}
+    // 🔥 fire next song instantly
+    inWave.setTime(0);
+    inWave.setVolume(0.3);
+    inWave.play();
 
-// 🔥 instant start (already preloaded)
-inWave.setTime(0);
-inWave.setVolume(0.3);
-inWave.play();
-
-    // 🔥 duck outgoing song (KEY FOR FLOW)
+    // 🔥 duck outgoing
     if (outWave) {
       outWave.setVolume(0.3);
     }
 
-    // 🎯 mark segue
-vtSEGTime = vtWave.getCurrentTime();
-secToneTime = vtSEGTime; // keep compatibility
+    // 🎯 SEG = HUMAN TIMING (NOT waveform)
+    const now = performance.now();
 
-console.log("🔴 Segue marked:", vtSEGTime);
+    const LATENCY = 0.08; // 🔥 tweak if needed (50–120ms range)
+    vtSEGTime = ((now - vtStartTime) / 1000) - LATENCY;
 
-// 🔥 MOVE RED MARKER IMMEDIATELY
-moveVTSegMarker(vtSEGTime);
+    vtSEGTime = Math.max(0, vtSEGTime);
 
-    console.log("🔴 Segue marked:", secToneTime);
+    secToneTime = vtSEGTime;
+
+    console.log("🔴 Segue marked:", vtSEGTime);
+
+    // 🔥 move marker immediately
+    moveVTSegMarker(vtSEGTime);
 
     document.getElementById("recordBtn").textContent = "Stop & Save";
     vtStage = 3;
     return;
   }
 
+  // =========================
   // ⏹ STEP 3 — STOP + SAVE
+  // =========================
   if (vtStage === 3) {
 
     await stopRecording();
 
     console.log("⏹ VT finished");
 
-    // 🔥 clean up audio
     if (outWave) outWave.stop();
     if (inWave) inWave.stop();
 
@@ -1770,7 +1747,6 @@ moveVTSegMarker(vtSEGTime);
     document.getElementById("recordBtn").textContent = "Start";
   }
 }
-
   
 async function startRecording() {
   mediaStream = await navigator.mediaDevices.getUserMedia({
