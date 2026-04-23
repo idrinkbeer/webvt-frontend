@@ -1686,7 +1686,6 @@ outWave.play();
 
     await startRecording();
 
-    vtStartTime = performance.now();
     vtMRK1 = 0;
 outMRK1Time = outWave.getCurrentTime(); // capture ramp position
 moveOutMarker(outMRK1Time);
@@ -1741,7 +1740,7 @@ inWave.play();
     }
 
     // 🎯 mark segue
-vtSEGTime = (performance.now() - vtStartTime) / 1000;
+vtSEGTime = vtWave.getCurrentTime();
 secToneTime = vtSEGTime; // keep compatibility
 
 console.log("🔴 Segue marked:", vtSEGTime);
