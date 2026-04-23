@@ -1658,7 +1658,7 @@ const duration = outWave.getDuration();
 const start = Math.max(0, duration - 30);
 
 outWave.setTime(start);   // 🔥 jump to ramp
-outWave.setVolume(1);
+//outWave.setVolume(1);
 outWave.play();
 
     document.getElementById("recordBtn").textContent = "Start Recording";
@@ -1717,12 +1717,12 @@ if (!inWave) {
 
 // 🔥 instant start (already preloaded)
 inWave.setTime(0);
-inWave.setVolume(0.3);
+//inWave.setVolume(0.3);
 inWave.play();
 
     // 🔥 duck outgoing song (KEY FOR FLOW)
     if (outWave) {
-      outWave.setVolume(0.3);
+      //outWave.setVolume(0.3);
     }
 
     // 🎯 mark segue
@@ -1983,7 +1983,7 @@ vtReady = true;
 
   // 🔊 stop song + restore volume
   if (songWave) {
-    songWave.setVolume(1);
+    //songWave.setVolume(1);
     songWave.stop();
   }
 
