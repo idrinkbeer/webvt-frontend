@@ -3072,35 +3072,25 @@ function safeLoad(wave, urlOrBlob) {
 function moveOutMarker(time) {
   if (!outWave) return;
 
-  const duration = outWave.getDuration();
-  if (!duration) return;
-
   const marker = document.getElementById("outMRK1");
   const container = document.getElementById("outWaveform");
 
   const width = container.clientWidth;
 
-  // 🎯 visible window (last 60s)
-  const visibleDuration = OUT_WINDOW;
   const relativeTime = time - outVisibleStart;
 
-  // 🔥 CLAMP (THIS WAS MISSING)
-  const clamped = Math.max(0, Math.min(relativeTime, visibleDuration));
-  const percent = clamped / visibleDuration;
+  const clamped = Math.max(0, Math.min(relativeTime, OUT_WINDOW));
+  const percent = clamped / OUT_WINDOW;
 
   marker.style.left = (percent * width) + "px";
 
-  // ✅ keep true time (not clamped!)
   outMRK1Time = time;
 
-  // 💾 persist per cart
   const row = filteredLog[selectedIndex];
   if (row) {
     if (!waveCache[row.cart]) waveCache[row.cart] = {};
     waveCache[row.cart].outMRK1 = time;
   }
-
-  console.log("🟡 MRK1:", outMRK1Time);
 }
 
 
@@ -3184,6 +3174,38 @@ document.addEventListener("mouseup", () => {
   document.body.style.userSelect = "";
 });
 
+
+let draggingOut = false;
+
+// 🟡 MOUSE DOWN
+document.addEventListener("mousedown", (e) => {
+  if (e.target.closest("#outMRK1")) {
+    draggingOut = true;
+  }
+});
+
+// 🟡 MOUSE MOVE
+document.addEventListener("mousemove", (e) => {
+  if (!draggingOut || !outWave) return;
+
+  const container = document.getElementById("outWaveform");
+  const rect = container.getBoundingClientRect();
+
+  let x = e.clientX - rect.left;
+  x = Math.max(0, Math.min(rect.width, x));
+
+  const percent = x / rect.width;
+
+  // 🔥 KEY FIX — convert from visible window → real time
+  const time = outVisibleStart + (percent * OUT_WINDOW);
+
+  moveOutMarker(time);
+});
+
+// 🟡 MOUSE UP
+document.addEventListener("mouseup", () => {
+  draggingOut = false;
+});
 
 </script>
 
