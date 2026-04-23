@@ -3175,18 +3175,16 @@ document.addEventListener("mouseup", () => {
 });
 
 
-let draggingOut = false;
+let draggingOutMarker = false;
 
-// 🟡 MOUSE DOWN
 document.addEventListener("mousedown", (e) => {
   if (e.target.closest("#outMRK1")) {
-    draggingOut = true;
+    draggingOutMarker = true;
   }
 });
 
-// 🟡 MOUSE MOVE
 document.addEventListener("mousemove", (e) => {
-  if (!draggingOut || !outWave) return;
+  if (!draggingOutMarker || !outWave) return;
 
   const container = document.getElementById("outWaveform");
   const rect = container.getBoundingClientRect();
@@ -3196,15 +3194,13 @@ document.addEventListener("mousemove", (e) => {
 
   const percent = x / rect.width;
 
-  // 🔥 KEY FIX — convert from visible window → real time
   const time = outVisibleStart + (percent * OUT_WINDOW);
 
   moveOutMarker(time);
 });
 
-// 🟡 MOUSE UP
 document.addEventListener("mouseup", () => {
-  draggingOut = false;
+  draggingOutMarker = false;
 });
 
 </script>
