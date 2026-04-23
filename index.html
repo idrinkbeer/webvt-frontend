@@ -1051,6 +1051,27 @@ function logout() {
   location.reload();
 }
   
+
+function cleanFilename(name) {
+  if (!name) return "";
+
+  // normalize spacing
+  name = name.trim();
+
+  // remove duplicate dots before extension
+  name = name.replace(/\.{2,}mp3$/i, ".mp3");
+
+  // remove trailing dots
+  name = name.replace(/\.+$/, "");
+
+  // ensure extension
+  if (!name.toLowerCase().endsWith(".mp3")) {
+    name += ".mp3";
+  }
+
+  return name;
+}
+
 // =====================
 // UPLOAD VOICETRACK 
 // =====================
@@ -1486,9 +1507,11 @@ let previewAudio = null;
 let currentPlayBtn = null;
 
 function playSong(filename, btn, type = "SONG") {
-  const url = type === "SWP"
-    ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
-    : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+filename = cleanFilename(filename);
+
+const url = type === "SWP"
+  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
+  : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
   // 🔴 stop VT preview if playing
   if (previewPlaying) {
@@ -2947,9 +2970,25 @@ if (waveCache[cart]) {
 
   const cache = waveCache[cart];
 
-  // 🔥 ALWAYS load into NEW waves
-  if (cache.prevUrl) outWave.load(cache.prevUrl);
-  if (cache.nextUrl) inWave.load(cache.nextUrl);
+  // 🎯 CLEAN FILENAMES (NOT URLs)
+  const cleanPrev = cache.prevFilename
+    ? cleanFilename(cache.prevFilename)
+    : null;
+
+  const cleanNext = cache.nextFilename
+    ? cleanFilename(cache.nextFilename)
+    : null;
+
+  // 🔁 rebuild URLs correctly
+  if (cleanPrev) {
+    const prevUrl = `${API_BASE}/audio/song/${encodeURIComponent(cleanPrev)}`;
+    outWave.load(prevUrl);
+  }
+
+  if (cleanNext) {
+    const nextUrl = `${API_BASE}/audio/song/${encodeURIComponent(cleanNext)}`;
+    inWave.load(nextUrl);
+  }
 
   if (cache.vtBlob) {
     vtWave.load(URL.createObjectURL(cache.vtBlob));
@@ -2958,7 +2997,6 @@ if (waveCache[cart]) {
   setVTReady(true);
   return;
 }
-
   // 🔄 otherwise build cache
   const { prevSong, nextSong } = getPrevNextSongs(index);
 
@@ -2988,8 +3026,8 @@ if (waveCache[cart]) {
       // 🔥 save cache
       waveCache[cart] = {
         vtBlob: recordings[cart] || null,
-        prevUrl,
-        nextUrl
+  prevFilename: prevSong.filename,
+  nextFilename: nextSong.filename
       };
 
       setVTReady(true);
@@ -3145,6 +3183,7 @@ document.addEventListener("mouseup", () => {
   draggingVT = false;
   document.body.style.userSelect = "";
 });
+
 
 </script>
 
