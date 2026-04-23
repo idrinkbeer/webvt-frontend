@@ -948,6 +948,9 @@ let stoppingPreview = false;
 let vtSEGTime = 0;   // replaces secToneTime visually
 let outMRK1Time = 0; // MRK1 marker
 
+let outVisibleStart = 0;
+const OUT_WINDOW = 60; // seconds
+
 
 let API_BASE = "https://web-vt-api.miup3p.easypanel.host";
 
@@ -1395,6 +1398,14 @@ if (saved) {
 
 outWave.once("ready", () => {
   const duration = outWave.getDuration();
+
+// 🎯 define visible window
+outVisibleStart = Math.max(0, duration - OUT_WINDOW);
+  // 🔥 important: place marker AFTER this is set
+  moveOutMarker(outMRK1Time || duration - 5);
+
+// start playback position (preview uses this too)
+outWave.setTime(outVisibleStart);
 
   const rowData = filteredLog[selectedIndex];
   const cache = waveCache[rowData.cart];
@@ -3047,19 +3058,28 @@ function moveOutMarker(time) {
   const duration = outWave.getDuration();
   if (!duration) return;
 
-  const percent = time / duration;
-
   const marker = document.getElementById("outMRK1");
   const container = document.getElementById("outWaveform");
 
   const width = container.clientWidth;
 
+  // 🎯 visible window (last 60s)
+  const visibleDuration = OUT_WINDOW;
+  const relativeTime = time - outVisibleStart;
+
+  // 🔥 CLAMP (THIS WAS MISSING)
+  const clamped = Math.max(0, Math.min(relativeTime, visibleDuration));
+  const percent = clamped / visibleDuration;
+
   marker.style.left = (percent * width) + "px";
 
+  // ✅ keep true time (not clamped!)
   outMRK1Time = time;
 
-    const row = filteredLog[selectedIndex];
-  if (row && waveCache[row.cart]) {
+  // 💾 persist per cart
+  const row = filteredLog[selectedIndex];
+  if (row) {
+    if (!waveCache[row.cart]) waveCache[row.cart] = {};
     waveCache[row.cart].outMRK1 = time;
   }
 
