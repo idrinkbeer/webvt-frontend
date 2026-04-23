@@ -1400,13 +1400,22 @@ vtWave.once("ready", () => {
   const rowData = filteredLog[selectedIndex];
   const cache = waveCache[rowData.cart];
 
-  const saved = cache?.vtSEG;
+ const saved = cache?.vtSEG;
+const trimOffset = cache?.trimOffset || 0;
 
-  const time = saved !== undefined
-    ? Math.max(0, Math.min(saved, duration)) // 🔥 clamp saved
-    : Math.min(vtSEGTime || duration, duration);
+// 🔥 reapply trim offset correction
+let time;
 
-  moveVTSegMarker(time);
+if (saved !== undefined) {
+  time = saved - trimOffset;
+} else {
+  time = (vtSEGTime || duration) - trimOffset;
+}
+
+// 🔥 clamp after correction
+time = Math.max(0, Math.min(time, duration));
+
+moveVTSegMarker(time);
 });
 
 }, 50);
