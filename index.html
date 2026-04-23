@@ -1393,6 +1393,29 @@ if (saved) {
   outWave.once("ready", onReady);
   inWave.once("ready", onReady);
 
+outWave.once("ready", () => {
+  const duration = outWave.getDuration();
+
+  const rowData = filteredLog[selectedIndex];
+  const cache = waveCache[rowData.cart];
+
+  let time;
+
+  // 🎯 restore MRK1 from recording
+  if (cache?.outMRK1 !== undefined) {
+    time = cache.outMRK1;
+    console.log("🟡 Restored MRK1:", time);
+  } else {
+    // fallback (no VT recorded yet)
+    time = Math.max(0, duration - 10);
+  }
+
+  // 🔥 clamp (always do this)
+  time = Math.max(0, Math.min(time, duration));
+
+  outMRK1Time = time;
+  moveOutMarker(time);
+});
 
 vtWave.once("ready", () => {
   const duration = vtWave.getDuration();
