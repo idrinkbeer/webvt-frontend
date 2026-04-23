@@ -2071,15 +2071,18 @@ function previewBreak() {
 
   if (btn) btn.textContent = "Stop Preview";
 
-  // 🔥 reset marker triggers
+  // =========================
+  // 🔥 RESET STATE
+  // =========================
   vtStarted = false;
   nextStarted = false;
 
-// 🔥 ALSO reset VT position cleanly
-vtWave.stop();
-vtWave.setTime(0);
+  vtWave.stop();
+  vtWave.setTime(0);
 
-  // 🔥 REMOVE old listeners (prevents stacking bugs)
+  // =========================
+  // 🔥 CLEAN OLD LISTENERS
+  // =========================
   outWave.un("audioprocess");
   vtWave.un("audioprocess");
 
@@ -2109,7 +2112,7 @@ vtWave.setTime(0);
     if (!vtWave.isPlaying()) return;
 
     const vtTime = vtWave.getCurrentTime();
-    const segTime = vtSEGTime || 0.1; // minimal fallback
+    const segTime = vtSEGTime || 0.1;
 
     if (!nextStarted && vtTime >= segTime) {
       nextStarted = true;
@@ -2120,40 +2123,41 @@ vtWave.setTime(0);
       inWave.setVolume(0.3);
       inWave.play();
 
-      // optional duck
+      // 🔉 duck outgoing
       outWave.setVolume(0.3);
+    }
+
+    // 🔥 AUTO STOP (optional but recommended)
+    const duration = vtWave.getDuration();
+    if (vtStarted && vtTime >= duration - 0.1) {
+      console.log("⏹ Preview finished");
+      stopPreview();
     }
   });
 
-const duration = outWave.getDuration();
-const PREVIEW_WINDOW = OUT_WINDOW;
-const windowStart = Math.max(0, duration - PREVIEW_WINDOW);
-
-// 🔥 ensure MRK1 is reachable
-if (outMRK1Time < windowStart) {
-  console.warn("⚠️ MRK1 outside preview window — adjusting");
-
-  outMRK1Time = windowStart + 1; // or just windowStart
-  moveOutMarker(outMRK1Time);
-}
-
   // =========================
-  // 🎵 START OUTGOING (LAST 30s)
+  // 🎵 START OUTGOING (SMART START)
   // =========================
-const PREVIEW_WINDOW = OUT_WINDOW;
+  const duration = outWave.getDuration();
+  const PREVIEW_WINDOW = OUT_WINDOW;
 
-const start = Math.max(0, duration - PREVIEW_WINDOW);
+  const windowStart = Math.max(0, duration - PREVIEW_WINDOW);
+
+  // 🔥 start slightly before MRK1 if possible
+  const start = Math.max(windowStart, outMRK1Time - 2);
 
   outWave.setTime(start);
   outWave.setVolume(1);
   outWave.play();
 
-  // =========================
-  // 🎙 PREP VT
-  // =========================
-  vtWave.stop();
-  vtWave.setTime(0);
+  // 🔥 if MRK1 already passed → fire VT instantly
+  if (outMRK1Time <= start) {
+    console.log("🟡 MRK1 already passed → START VT");
 
+    vtStarted = true;
+    vtWave.setTime(0);
+    vtWave.play();
+  }
 }
 
 
