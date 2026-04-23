@@ -1423,7 +1423,7 @@ outWave.once("ready", () => {
 // 🎯 define visible window
 outVisibleStart = Math.max(0, duration - OUT_WINDOW);
   // 🔥 important: place marker AFTER this is set
-  moveOutMarker(outMRK1Time || duration - 5);
+  moveOutMarker(outMRK1Time || outVisibleStart + (OUT_WINDOW - 5));
 
 // start playback position (preview uses this too)
 outWave.setTime(outVisibleStart);
@@ -3066,31 +3066,31 @@ function safeLoad(wave, urlOrBlob) {
   wave.load(urlOrBlob);
 }
 
-
 function moveOutMarker(time) {
   if (!outWave) return;
 
-  const marker = document.getElementById("outMRK1");
   const container = document.getElementById("outWaveform");
-
   const width = container.clientWidth;
 
+  const visibleDuration = OUT_WINDOW;
+
   const relativeTime = time - outVisibleStart;
+  const clamped = Math.max(0, Math.min(relativeTime, visibleDuration));
 
-  const clamped = Math.max(0, Math.min(relativeTime, OUT_WINDOW));
-  const percent = clamped / OUT_WINDOW;
+  const percent = clamped / visibleDuration;
 
+  const marker = document.getElementById("outMRK1");
   marker.style.left = (percent * width) + "px";
 
   outMRK1Time = time;
 
   const row = filteredLog[selectedIndex];
-  if (row) {
-    if (!waveCache[row.cart]) waveCache[row.cart] = {};
+  if (row && waveCache[row.cart]) {
     waveCache[row.cart].outMRK1 = time;
   }
-}
 
+  console.log("🟡 MRK1:", outMRK1Time);
+}
 
 function moveVTSegMarker(time) {
   if (!vtWave) return;
