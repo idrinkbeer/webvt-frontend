@@ -1057,17 +1057,21 @@ async function uploadToAIR() {
   const row = filteredLog[selectedIndex];
   const status = document.getElementById("status");
   const btn = document.getElementById("uploadBtn");
+
   const mrk1 = Math.floor(outMRK1Time * 100); // centiseconds
-const seg  = Math.floor(vtSEGTime * 100);
+  const seg  = Math.floor(vtSEGTime * 100);
 
   try {
+    // =========================
+    // 🎙 1. UPLOAD VOICETRACK
+    // =========================
     const res = await fetch(`${API_BASE}/upload`, {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token,
         "Content-Type": "application/octet-stream",
         "X-Filename": `${row.cart}.mp3`,
-        "X-SecTone": vtSEGTime || 0,
+        "X-SecTone": vtSEGTime || 0, // 🔴 SEG → VT AIR
         "X-Intro": 0
       },
       body: recordedBlob
@@ -1075,8 +1079,55 @@ const seg  = Math.floor(vtSEGTime * 100);
 
     if (!res.ok) throw new Error("Upload failed");
 
-    status.textContent = "✅ VT Uploaded to AIR";
-    btn.textContent = "VT Uploaded ✓";
+    // =========================
+    // 🟡 2. SAVE MRK1 TO OUTGOING SONG
+    // =========================
+const { prevSong } = getPrevNextSongs(selectedIndex);
+
+if (prevSong) {
+
+  console.log("🟡 Fetching existing AIR:", prevSong.filename);
+
+  const tagRes = await fetch(
+    `${API_BASE}/music/tag/${encodeURIComponent(prevSong.filename)}`,
+    {
+      headers: {
+        Authorization: "Bearer " + token
+      }
+    }
+  );
+
+  const tagData = await tagRes.json();
+
+  const existingAir = tagData.air || 
+    "AIR#000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+
+  console.log("📦 Existing AIR:", existingAir);
+
+  const mrkRes = await fetch(`${API_BASE}/sectone`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + token
+    },
+    body: JSON.stringify({
+      filename: prevSong.filename,
+      type: prevSong.type,
+      air: existingAir,
+      mrk1: outMRK1Time
+    })
+  });
+
+  if (!mrkRes.ok) throw new Error("MRK1 save failed");
+
+  console.log("✅ MRK1 saved correctly");
+}
+
+    // =========================
+    // ✅ UI UPDATE
+    // =========================
+    status.textContent = "✅ VT + MRK1 Saved to AIR";
+    btn.textContent = "Uploaded ✓";
     btn.disabled = true;
 
     uploaded[row.cart] = true;
@@ -1087,7 +1138,7 @@ const seg  = Math.floor(vtSEGTime * 100);
     btn.disabled = false;
   }
 }
-  
+
 // =====================
 // LOAD LOGS
 // =====================
