@@ -2126,7 +2126,8 @@ vtWave.setTime(0);
   });
 
 const duration = outWave.getDuration();
-const windowStart = Math.max(0, duration - 30);
+const PREVIEW_WINDOW = OUT_WINDOW;
+const windowStart = Math.max(0, duration - PREVIEW_WINDOW);
 
 // 🔥 ensure MRK1 is reachable
 if (outMRK1Time < windowStart) {
@@ -2139,7 +2140,6 @@ if (outMRK1Time < windowStart) {
   // =========================
   // 🎵 START OUTGOING (LAST 30s)
   // =========================
-const duration = outWave.getDuration();
 const PREVIEW_WINDOW = OUT_WINDOW;
 
 const start = Math.max(0, duration - PREVIEW_WINDOW);
