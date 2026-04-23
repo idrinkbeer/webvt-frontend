@@ -937,8 +937,6 @@ let isDraggingIntro = false;
 let libSecTone = 0;
 let lastHour = null;
 let vtReady = false;
-let vtStarted = false;
-let nextStarted = false;
 
 let previewPlaying = false;
 let previewTimers = [];
@@ -1053,27 +1051,6 @@ function logout() {
   location.reload();
 }
   
-
-function cleanFilename(name) {
-  if (!name) return "";
-
-  // normalize spacing
-  name = name.trim();
-
-  // remove duplicate dots before extension
-  name = name.replace(/\.{2,}mp3$/i, ".mp3");
-
-  // remove trailing dots
-  name = name.replace(/\.+$/, "");
-
-  // ensure extension
-  if (!name.toLowerCase().endsWith(".mp3")) {
-    name += ".mp3";
-  }
-
-  return name;
-}
-
 // =====================
 // UPLOAD VOICETRACK 
 // =====================
@@ -1425,7 +1402,7 @@ outWave.once("ready", () => {
 // 🎯 define visible window
 outVisibleStart = Math.max(0, duration - OUT_WINDOW);
   // 🔥 important: place marker AFTER this is set
-  moveOutMarker(outMRK1Time || outVisibleStart + (OUT_WINDOW - 5));
+  moveOutMarker(outMRK1Time || duration - 5);
 
 // start playback position (preview uses this too)
 outWave.setTime(outVisibleStart);
@@ -1509,11 +1486,9 @@ let previewAudio = null;
 let currentPlayBtn = null;
 
 function playSong(filename, btn, type = "SONG") {
-filename = cleanFilename(filename);
-
-const url = type === "SWP"
-  ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
-  : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+  const url = type === "SWP"
+    ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
+    : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
   // 🔴 stop VT preview if playing
   if (previewPlaying) {
@@ -1654,64 +1629,72 @@ function setupPlayer(player, blob) {
 async function toggleRecording() {
 
   if (!vtReady) {
-    console.log("⏳ Not ready yet");
-    return;
-  }
+  console.log("⏳ Not ready yet");
+  return;
+}
 
   const { prevSong, nextSong } = getPrevNextSongs(selectedIndex);
 
-  // =========================
-  // 🟣 STEP 0 — PLAY OUTGOING (LAST 30s)
-  // =========================
-if (vtStage === 0) {
+  // 🟣 STEP 0 — PLAY OUTGOING SONG (last 10s)
+  if (vtStage === 0) {
 
-  if (!outWave) {
-    console.error("outWave not ready");
+    if (!prevSong) {
+      alert("No previous song");
+      return;
+    }
+
+    let filename = prevSong.filename;
+    if (!filename.toLowerCase().endsWith(".mp3")) {
+      filename += ".mp3";
+    }
+
+    const url = `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
+
+    if (!outWave) {
+      outWave = WaveSurfer.create({
+        container: "#outWaveform",
+        waveColor: "#1e3a8a",
+        progressColor: "#00ff88",
+        height: 60
+      });
+    }
+
+
+if (!outWave) {
+  console.error("outWave not preloaded");
+  return;
+}
+
+const duration = outWave.getDuration();
+const start = Math.max(0, duration - 10);
+
+outWave.setTime(start);   // 🔥 jump to ramp
+outWave.setVolume(1);
+outWave.play();
+
+    document.getElementById("recordBtn").textContent = "Start Recording";
+    vtStage = 1;
     return;
   }
 
-const duration = outWave.getDuration();
-const start = Math.max(0, duration - 30);
+  // 🎙 STEP 1 — START RECORD + SET MRK1
+  if (vtStage === 1) {
 
-outWave.setTime(start);
-outWave.play();
+    await startRecording();
 
-  document.getElementById("recordBtn").textContent = "Start Recording";
-  vtStage = 1;
-  return;
-}
+    vtStartTime = performance.now();
+    vtMRK1 = 0;
+outMRK1Time = outWave.getCurrentTime(); // capture ramp position
+moveOutMarker(outMRK1Time);
 
-// 🎙 STEP 1 — START RECORD (MRK1 = HUMAN CLICK)
-if (vtStage === 1) {
+    console.log("🎙 Recording started (MRK1)");
 
-  await startRecording();
+    document.getElementById("recordBtn").textContent = "Fire Song";
+    vtStage = 2;
+    return;
+  }
 
-  // 🎯 GET EXACT PLAYHEAD POSITION
-  const currentTime = outWave.getCurrentTime();
-
-  // 🔥 OPTIONAL latency correction
-  const LATENCY = 0.05;
-  outMRK1Time = Math.max(0, currentTime - LATENCY);
-
-  // 🔥 CRITICAL: ensure window is correct BEFORE placing marker
-  const duration = outWave.getDuration();
-  outVisibleStart = Math.max(0, duration - OUT_WINDOW);
-
-  // 🎯 PLACE MARKER (this now uses correct window math)
-  moveOutMarker(outMRK1Time);
-
-  vtStartTime = performance.now();
-
-  console.log("🟡 MRK1 set at:", outMRK1Time);
-
-  document.getElementById("recordBtn").textContent = "Fire Song";
-  vtStage = 2;
-  return;
-}
-
-  // =========================
-  // 🔴 STEP 2 — FIRE NEXT SONG + MARK SEG
-  // =========================
+  // 🔴 STEP 2 — FIRE NEXT SONG + OVERLAP
   if (vtStage === 2) {
 
     if (!nextSong) {
@@ -1719,50 +1702,64 @@ if (vtStage === 1) {
       return;
     }
 
-    if (!inWave) {
-      console.error("inWave not ready");
-      return;
+    let filename = nextSong.filename;
+    if (!filename.toLowerCase().endsWith(".mp3")) {
+      filename += ".mp3";
     }
 
-    // 🔥 fire next song instantly
-    inWave.setTime(0);
-    inWave.setVolume(0.3);
-    inWave.play();
+    const url = nextSong.type === "SWP"
+      ? `${API_BASE}/audio/sweeper/${encodeURIComponent(filename)}`
+      : `${API_BASE}/audio/song/${encodeURIComponent(filename)}`;
 
-    // 🔥 duck outgoing
+    // 🔥 create incoming player
+    if (!inWave) {
+      inWave = WaveSurfer.create({
+        container: "#inWaveform",
+        waveColor: "#1e3a8a",
+        progressColor: "#00ff88",
+        height: 60
+      });
+    }
+
+if (!inWave) {
+  console.error("inWave not ready");
+  return;
+}
+
+// 🔥 instant start (already preloaded)
+inWave.setTime(0);
+inWave.setVolume(0.3);
+inWave.play();
+
+    // 🔥 duck outgoing song (KEY FOR FLOW)
     if (outWave) {
       outWave.setVolume(0.3);
     }
 
-    // 🎯 SEG = HUMAN TIMING (NOT waveform)
-    const now = performance.now();
+    // 🎯 mark segue
+vtSEGTime = (performance.now() - vtStartTime) / 1000;
+secToneTime = vtSEGTime; // keep compatibility
 
-    const LATENCY = 0.08; // 🔥 tweak if needed (50–120ms range)
-    vtSEGTime = ((now - vtStartTime) / 1000) - LATENCY;
+console.log("🔴 Segue marked:", vtSEGTime);
 
-    vtSEGTime = Math.max(0, vtSEGTime);
+// 🔥 MOVE RED MARKER IMMEDIATELY
+moveVTSegMarker(vtSEGTime);
 
-    secToneTime = vtSEGTime;
-
-    console.log("🔴 Segue marked:", vtSEGTime);
-
-    // 🔥 move marker immediately
-    moveVTSegMarker(vtSEGTime);
+    console.log("🔴 Segue marked:", secToneTime);
 
     document.getElementById("recordBtn").textContent = "Stop & Save";
     vtStage = 3;
     return;
   }
 
-  // =========================
   // ⏹ STEP 3 — STOP + SAVE
-  // =========================
   if (vtStage === 3) {
 
     await stopRecording();
 
     console.log("⏹ VT finished");
 
+    // 🔥 clean up audio
     if (outWave) outWave.stop();
     if (inWave) inWave.stop();
 
@@ -1770,6 +1767,7 @@ if (vtStage === 1) {
     document.getElementById("recordBtn").textContent = "Start";
   }
 }
+
   
 async function startRecording() {
   mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -2056,7 +2054,6 @@ function previewBreak() {
 
   const btn = document.querySelector("button[onclick='previewBreak()']");
 
-  // 🔴 toggle
   if (previewPlaying) {
     stopPreview();
     return;
@@ -2075,104 +2072,61 @@ function previewBreak() {
   if (btn) btn.textContent = "Stop Preview";
 
   // =========================
-  // 🔥 RESET STATE
+  // 🎯 1. START OUTGOING AT MRK1
   // =========================
-  vtStarted = false;
-  nextStarted = false;
-
-  vtWave.stop();
-  vtWave.setTime(0);
-
-  // =========================
-  // 🔥 CLEAN OLD LISTENERS
-  // =========================
-  outWave.un("audioprocess");
-  vtWave.un("audioprocess");
-
-  // =========================
-  // 🟡 MRK1 → START VT
-  // =========================
-  outWave.on("audioprocess", () => {
-    if (!outWave.isPlaying()) return;
-
-    const outTime = outWave.getCurrentTime();
-
-    if (!vtStarted && outTime >= outMRK1Time) {
-      vtStarted = true;
-
-      console.log("🟡 MRK1 HIT → START VT");
-
-      vtWave.stop();
-      vtWave.setTime(0);
-      vtWave.play();
-    }
-  });
-
-  // =========================
-  // 🔴 SEG → START NEXT
-  // =========================
-  vtWave.on("audioprocess", () => {
-    if (!vtWave.isPlaying()) return;
-
-    const vtTime = vtWave.getCurrentTime();
-    const segTime = vtSEGTime || 0.1;
-
-    if (!nextStarted && vtTime >= segTime) {
-      nextStarted = true;
-
-      console.log("🔴 SEG HIT → START NEXT");
-
-      inWave.setTime(0);
-      inWave.setVolume(0.3);
-      inWave.play();
-
-      // 🔉 duck outgoing
-      outWave.setVolume(0.3);
-    }
-
-    // 🔥 AUTO STOP (optional but recommended)
-    const duration = vtWave.getDuration();
-    if (vtStarted && vtTime >= duration - 0.1) {
-      console.log("⏹ Preview finished");
-      stopPreview();
-    }
-  });
-
-  // =========================
-  // 🎵 START OUTGOING (SMART START)
-  // =========================
-  const duration = outWave.getDuration();
-  let PREVIEW_WINDOW = OUT_WINDOW;
-
-  const windowStart = Math.max(0, duration - PREVIEW_WINDOW);
-
-  // 🔥 start slightly before MRK1 if possible
-  const start = Math.max(windowStart, outMRK1Time - 2);
+  const start = outMRK1Time || 0;
 
   outWave.setTime(start);
-  outWave.setVolume(1);
+  outWave.setVolume(0.4);
   outWave.play();
 
-  // 🔥 if MRK1 already passed → fire VT instantly
-  if (outMRK1Time <= start) {
-    console.log("🟡 MRK1 already passed → START VT");
+  // =========================
+  // 🎯 2. START VT (immediately or slight delay)
+  // =========================
+  vtWave.stop();
+  vtWave.setTime(0);
+  vtWave.setVolume(1);
 
-    vtStarted = true;
-    vtWave.setTime(0);
+  const VT_START_DELAY = 0.2; // optional (feels more natural)
+
+  const t0 = setTimeout(() => {
     vtWave.play();
-  }
+  }, VT_START_DELAY * 1000);
+
+  previewTimers.push(t0);
+
+  // =========================
+  // 🎯 3. FIRE NEXT SONG AT RED MARKER
+  // =========================
+  const segueTime = vtSEGTime || secToneTime || 2;
+
+  const t1 = setTimeout(() => {
+    console.log("🔴 Segue fired (marker)");
+
+    inWave.setTime(0);
+    inWave.setVolume(0.3);
+    inWave.play();
+
+  }, (VT_START_DELAY + segueTime) * 1000);
+
+  previewTimers.push(t1);
+
+  // =========================
+  // 🎯 4. STOP AFTER VT ENDS
+  // =========================
+  const vtDuration = vtWave.getDuration();
+
+  const t2 = setTimeout(() => {
+    stopPreview();
+  }, (VT_START_DELAY + vtDuration) * 1000 + 500);
+
+  previewTimers.push(t2);
 }
 
 
 function stopPreview() {
   if (stoppingPreview) return; // 🔥 prevent spam
   stoppingPreview = true;
-
-  vtStarted = false;
-nextStarted = false;
-
-outWave.un("audioprocess");
-vtWave.un("audioprocess");
 
   console.log("⏹ STOP preview");
 
@@ -2185,11 +2139,6 @@ vtWave.un("audioprocess");
   // 🔊 clean stop (NO seeking, NO suspend)
   [outWave, inWave, vtWave].forEach(w => {
     if (!w) return;
-
-    if (vtWave) {
-  vtWave.stop();
-  vtWave.setTime(0);
-}
 
     try {
       w.pause();   // enough to stop audio immediately
@@ -3019,25 +2968,9 @@ if (waveCache[cart]) {
 
   const cache = waveCache[cart];
 
-  // 🎯 CLEAN FILENAMES (NOT URLs)
-  const cleanPrev = cache.prevFilename
-    ? cleanFilename(cache.prevFilename)
-    : null;
-
-  const cleanNext = cache.nextFilename
-    ? cleanFilename(cache.nextFilename)
-    : null;
-
-  // 🔁 rebuild URLs correctly
-  if (cleanPrev) {
-    const prevUrl = `${API_BASE}/audio/song/${encodeURIComponent(cleanPrev)}`;
-    outWave.load(prevUrl);
-  }
-
-  if (cleanNext) {
-    const nextUrl = `${API_BASE}/audio/song/${encodeURIComponent(cleanNext)}`;
-    inWave.load(nextUrl);
-  }
+  // 🔥 ALWAYS load into NEW waves
+  if (cache.prevUrl) outWave.load(cache.prevUrl);
+  if (cache.nextUrl) inWave.load(cache.nextUrl);
 
   if (cache.vtBlob) {
     vtWave.load(URL.createObjectURL(cache.vtBlob));
@@ -3046,6 +2979,7 @@ if (waveCache[cart]) {
   setVTReady(true);
   return;
 }
+
   // 🔄 otherwise build cache
   const { prevSong, nextSong } = getPrevNextSongs(index);
 
@@ -3075,8 +3009,8 @@ if (waveCache[cart]) {
       // 🔥 save cache
       waveCache[cart] = {
         vtBlob: recordings[cart] || null,
-  prevFilename: prevSong.filename,
-  nextFilename: nextSong.filename
+        prevUrl,
+        nextUrl
       };
 
       setVTReady(true);
@@ -3117,24 +3051,41 @@ function safeLoad(wave, urlOrBlob) {
   wave.load(urlOrBlob);
 }
 
+
 function moveOutMarker(time) {
   if (!outWave) return;
 
-  const container = document.getElementById("outWaveform");
+  const duration = outWave.getDuration();
+  if (!duration) return;
+
   const marker = document.getElementById("outMRK1");
+  const container = document.getElementById("outWaveform");
 
   const width = container.clientWidth;
 
-  // 🔥 KEY FIX (THIS IS WHAT YOU ASKED ABOUT)
-  const relativeTime = Math.max(0, Math.min(OUT_WINDOW, time - outVisibleStart));
+  // 🎯 visible window (last 60s)
+  const visibleDuration = OUT_WINDOW;
+  const relativeTime = time - outVisibleStart;
 
-  const percent = relativeTime / OUT_WINDOW;
+  // 🔥 CLAMP (THIS WAS MISSING)
+  const clamped = Math.max(0, Math.min(relativeTime, visibleDuration));
+  const percent = clamped / visibleDuration;
 
   marker.style.left = (percent * width) + "px";
 
-  // 🔥 keep actual timing intact
+  // ✅ keep true time (not clamped!)
   outMRK1Time = time;
+
+  // 💾 persist per cart
+  const row = filteredLog[selectedIndex];
+  if (row) {
+    if (!waveCache[row.cart]) waveCache[row.cart] = {};
+    waveCache[row.cart].outMRK1 = time;
+  }
+
+  console.log("🟡 MRK1:", outMRK1Time);
 }
+
 
 function moveVTSegMarker(time) {
   if (!vtWave) return;
@@ -3155,7 +3106,6 @@ function moveVTSegMarker(time) {
 
   vtSEGTime = time;
 }
-
 
 // =====================
 // 🎯 VT MARKER DRAG SYSTEM
@@ -3215,35 +3165,6 @@ document.addEventListener("mouseup", () => {
   draggingOut = false;
   draggingVT = false;
   document.body.style.userSelect = "";
-});
-
-
-let draggingOutMarker = false;
-
-document.addEventListener("mousedown", (e) => {
-  if (e.target.closest("#outMRK1")) {
-    draggingOutMarker = true;
-  }
-});
-
-document.addEventListener("mousemove", (e) => {
-  if (!draggingOutMarker || !outWave) return;
-
-  const container = document.getElementById("outWaveform");
-  const rect = container.getBoundingClientRect();
-
-  let x = e.clientX - rect.left;
-  x = Math.max(0, Math.min(rect.width, x));
-
-  const percent = x / rect.width;
-
-  const time = outVisibleStart + (percent * OUT_WINDOW);
-
-  moveOutMarker(time);
-});
-
-document.addEventListener("mouseup", () => {
-  draggingOutMarker = false;
 });
 
 </script>
