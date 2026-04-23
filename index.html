@@ -1670,6 +1670,9 @@ const PREVIEW_WINDOW = 30;
 
 const start = Math.max(0, duration - PREVIEW_WINDOW);
 
+// 🔥 THIS LINE IS MISSING
+outWave.setTime(start);
+
 outWave.setVolume(1);
 outWave.play();
 
