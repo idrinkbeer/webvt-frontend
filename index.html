@@ -864,7 +864,6 @@ select + select {
     <div id="libNowPlaying">🎵 ---</div>
     🟡 Intro: <span id="introTime">0.00</span>s
     🔴 Segue: <span id="secToneTime">0.00</span>s
-    🔵 MRK1: <span id="mrk1Time">0.00</span>s
   </div>
 
   <!-- BUTTONS -->
@@ -1728,10 +1727,7 @@ outWave.play();
 
     vtStartTime = performance.now();
     vtMRK1 = 0;
-const duration = outWave.getDuration();
-const start = Math.max(0, duration - 30);
-
-outMRK1Time = start + (outWave.getCurrentTime() - start); // capture ramp position
+outMRK1Time = outWave.getCurrentTime(); // capture ramp position
 moveOutMarker(outMRK1Time);
 
     console.log("🎙 Recording started (MRK1)");
@@ -2697,37 +2693,15 @@ async function loadLibPreview(file) {
       document.getElementById("editArtist").value = data.artist || artist;
 document.getElementById("editTitle").value = data.title || title;
 document.getElementById("editYear").value = data.year || "";
+      const parsed = parseAIR(data.air);
 
-const parsed = parseAIR(data.air);
-
-// 🔧 default UI first (prevents flicker)
-document.getElementById("introTime").textContent = "0.00";
-document.getElementById("secToneTime").textContent = duration.toFixed(2);
-document.getElementById("mrk1Time").textContent = "--";
-
-if (parsed) {
-  libIntro = parsed.intro ?? 0;
-  libSecTone = parsed.segue ?? duration;
-
-  document.getElementById("introTime").textContent = libIntro.toFixed(2);
-  document.getElementById("secToneTime").textContent = libSecTone.toFixed(2);
-
-
-
-const mrk1 = parsed.mrk1 ?? 0;
-
-document.getElementById("mrk1Time").textContent =
-  mrk1 > 0 ? mrk1.toFixed(2) : "--";
-}
-
-
-      /*if (parsed) {
+      if (parsed) {
         libIntro = parsed.intro;
         libSecTone = parsed.segue;
       } else {
         libIntro = 0;
         libSecTone = duration;
-      }*/
+      }
 
       // ✅ apply parsed AIR markers
       moveIntroMarker(libIntro);
@@ -3025,13 +2999,11 @@ function parseAIR(air) {
     const ctSEG  = parseInt(air.slice(10, 16), 10);
     const ctAUDe = parseInt(air.slice(16, 22), 10);
     const ctINT  = parseInt(air.slice(22, 25), 10);
-    const ctMRK1 = parseInt(air.slice(86, 92), 10);
 
     return {
-      segue: ctSEG / 10,
-      end:   ctAUDe / 10,
-      intro: ctINT / 10,
-      mrk1:  ctMRK1
+      segue: ctSEG / 10,   // 🔥 FIXED
+      end:   ctAUDe / 10,  // 🔥 FIXED
+      intro: ctINT / 10
     };
   } catch (e) {
     console.error("AIR parse failed:", e);
