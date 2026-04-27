@@ -1,4 +1,4 @@
-              <!DOCTYPE html>
+                <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -1728,7 +1728,10 @@ outWave.play();
 
     vtStartTime = performance.now();
     vtMRK1 = 0;
-outMRK1Time = outWave.getCurrentTime(); // capture ramp position
+const duration = outWave.getDuration();
+const start = Math.max(0, duration - 30);
+
+outMRK1Time = start + (outWave.getCurrentTime() - start); // capture ramp position
 moveOutMarker(outMRK1Time);
 
     console.log("🎙 Recording started (MRK1)");
