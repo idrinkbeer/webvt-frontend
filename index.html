@@ -699,6 +699,150 @@ select + select {
 }
     
 
+  /* =========================
+📱 MOBILE RESPONSIVE FIXES
+========================= */
+
+@media (max-width: 768px) {
+
+  body {
+    padding: 6px;
+  }
+
+  /* HEADER STACK */
+  #app > div:first-child {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px;
+  }
+
+  #app img {
+    height: 60px !important;
+  }
+
+  /* CENTER BLOCK */
+  #clock {
+    font-size: 22px !important;
+  }
+
+  #nowPlaying {
+    font-size: 12px !important;
+  }
+
+  /* PLAY BAR FULL WIDTH */
+  #playBar,
+  #app div[style*="width:320px"] {
+    width: 100% !important;
+  }
+
+  /* BUTTONS FULL WIDTH */
+  button,
+  .air-btn {
+    width: 100%;
+    margin: 5px 0;
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  /* STACK RIGHT SIDE BUTTONS */
+  #app > div:first-child > div:last-child {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TABLE SCROLL FIX */
+  table {
+    font-size: 12px;
+    display: block;
+    overflow-x: auto;
+  }
+
+  th, td {
+    padding: 6px;
+    white-space: nowrap;
+  }
+
+  /* RECORDER STACK */
+  .recorder > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* VU meter full width */
+  .vu-container {
+    width: 100%;
+  }
+
+  /* AUDIO PLAYER STACK */
+  .audio-player {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .progress {
+    width: 100%;
+  }
+
+  /* LIBRARY FULLSCREEN */
+  .lib-modal {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    border: none;
+  }
+
+  .lib-header {
+    font-size: 14px;
+  }
+
+  /* LIB TABLE SIMPLIFY */
+  .lib-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lib-row div:last-child {
+    display: none; /* hide year on mobile */
+  }
+
+  /* INPUTS BIGGER */
+  input, select {
+    width: 100% !important;
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  /* LIB FIELDS STACK */
+  .lib-fields {
+    flex-direction: column;
+  }
+
+  .lib-fields input {
+    width: 100%;
+  }
+
+  /* LIB BUTTON GRID → 2 columns */
+  .lib-buttons {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* WAVEFORM HEIGHT ADJUST */
+  #libWaveform,
+  #outWaveform,
+  #vtWaveform,
+  #inWaveform {
+    height: 50px !important;
+  }
+
+  /* LOGIN SCREEN */
+  #loginBox {
+    width: 90%;
+  }
+
+  #loginBox input {
+    width: 100%;
+  }
+}
 </style>
 </head>
 
