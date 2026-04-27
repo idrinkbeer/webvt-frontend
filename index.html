@@ -1,4 +1,4 @@
-               <!DOCTYPE html>
+              <!DOCTYPE html>
 <html>
 <head>
   <title>Web VT for AIR</title>
@@ -2709,11 +2709,12 @@ if (parsed) {
   document.getElementById("introTime").textContent = libIntro.toFixed(2);
   document.getElementById("secToneTime").textContent = libSecTone.toFixed(2);
 
-  const mrk1El = document.getElementById("mrk1Time");
 
-  if (!isNaN(parsed.mrk1) && parsed.mrk1 > 0) {
-    mrk1El.textContent = parsed.mrk1.toFixed(2);
-  }
+
+const mrk1 = parsed.mrk1 ?? 0;
+
+document.getElementById("mrk1Time").textContent =
+  mrk1 > 0 ? mrk1.toFixed(2) : "--";
 }
 
 
